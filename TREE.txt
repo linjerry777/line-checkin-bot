@@ -1,0 +1,36 @@
+LINE_CHECKIN/
+│
+├── 📄 index.js                    ← 主程式入口
+│
+├── 📂 config/
+│   └── googleSheets.js            ← Google Sheets API 設定
+│
+├── 📂 controllers/
+│   └── lineBot.js                 ← LINE Bot 訊息處理邏輯
+│
+├── 📂 services/
+│   └── attendanceService.js       ← 打卡業務邏輯
+│
+├── 📂 utils/
+│   └── timeHelper.js              ← 時間處理工具
+│
+├── 📂 node_modules/               ← 依賴套件（自動產生）
+│
+├── 📄 package.json                ← 專案設定
+├── 📄 package-lock.json           ← 套件版本鎖定
+│
+├── 📄 .env                        ← 環境變數（機密）⚠️
+├── 📄 .env.example                ← 環境變數範例
+├── 📄 .gitignore                  ← Git 忽略清單
+│
+├── 📚 START_HERE.md               ← 👈 從這開始！
+├── 📚 QUICKSTART.md               ← 5 分鐘快速開始
+├── 📚 SETUP_GUIDE.md              ← 完整設定教學
+├── 📚 TEST.md                     ← 測試指南
+├── 📚 ARCHITECTURE.md             ← 系統架構說明
+├── 📚 README.md                   ← 專案總覽
+├── 📚 PROJECT_SUMMARY.txt         ← 專案總結
+└── 📚 TREE.txt                    ← 本檔案（檔案樹狀圖）
+
+需要時再加入：
+├── 📄 google-credentials.json     ← Google Service Account 金鑰（機密）⚠️

@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+google-credentials.json
+*.log
+.DS_Store
+.vercel
+.vscode
+test-google-sheets.js
+*.swp
+*.swo
+*~
