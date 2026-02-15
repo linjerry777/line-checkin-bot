@@ -1,6 +1,7 @@
 // Admin API - Unified endpoint for all admin functions
 const { getAllEmployees, getEmployeeByUserId } = require('../services/employeeService');
 const { getSheetData } = require('../config/googleSheets');
+const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 
 module.exports = async (req, res) => {
   try {
@@ -54,6 +55,31 @@ module.exports = async (req, res) => {
           success: true,
           records: records,
           total: records.length
+        });
+
+      case 'late-early-stats':
+        // Get late/early statistics
+        const { month, workStartTime, workEndTime } = req.query;
+        const statsMonth = month || new Date().toISOString().slice(0, 7);
+        const settings = {
+          workStartTime: workStartTime || '09:00',
+          workEndTime: workEndTime || '18:00'
+        };
+
+        const stats = await getLateEarlyStats(statsMonth, settings);
+        return res.status(200).json({
+          success: true,
+          ...stats
+        });
+
+      case 'hours-ranking':
+        // Get hours ranking
+        const rankMonth = req.query.month || new Date().toISOString().slice(0, 7);
+        const ranking = await getMonthHoursRanking(rankMonth);
+        return res.status(200).json({
+          success: true,
+          ranking,
+          month: rankMonth
         });
 
       default:
