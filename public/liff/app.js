@@ -239,11 +239,9 @@ function updateCalendar() {
 
   const calendarGrid = document.getElementById('calendarGrid');
 
-  // Day headers
-  const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
-  let html = dayHeaders.map(day => `<div class="calendar-day-header">${day}</div>`).join('');
+  // Previous month days (no headers, already in HTML)
+  let html = '';
 
-  // Previous month days
   const prevMonthLastDay = new Date(year, month, 0).getDate();
   for (let i = startDay - 1; i >= 0; i--) {
     const day = prevMonthLastDay - i;
@@ -262,7 +260,7 @@ function updateCalendar() {
 
     const classes = ['calendar-day'];
     if (isToday) classes.push('today');
-    if (hasRecord) classes.push('has-record');
+    if (hasRecord) classes.push('has-checkin');
 
     html += `<div class="${classes.join(' ')}" onclick="selectDate('${dateStr}')">${day}</div>`;
   }
