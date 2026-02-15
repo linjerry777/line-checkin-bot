@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>管理員後台</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #007AFF;
+      --primary-dark: #0051D5;
+      --secondary: #5856D6;
+      --success: #34C759;
+      --warning: #FF9500;
+      --danger: #FF3B30;
+      --bg-primary: #F5F5F7;
+      --bg-card: #FFFFFF;
+      --text-primary: #1D1D1F;
+      --text-secondary: #86868B;
+      --border: #E5E5EA;
+      --shadow: rgba(0, 0, 0, 0.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+      padding-bottom: 60px;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 20px;
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .stats-overview {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 14px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-btn i {
+      font-size: 16px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      padding: 16px;
+      animation: fadeIn 0.3s;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card */
+    .card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Employee List */
+    .employee-item {
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--bg-primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .employee-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+    }
+
+    .employee-info {
+      flex: 1;
+    }
+
+    .employee-name {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .employee-stats {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-badge.present {
+      background: rgba(52, 199, 89, 0.15);
+      color: var(--success);
+    }
+
+    .status-badge.absent {
+      background: rgba(255, 59, 48, 0.15);
+      color: var(--danger);
+    }
+
+    .status-badge.off {
+      background: rgba(142, 142, 147, 0.15);
+      color: var(--text-secondary);
+    }
+
+    /* Attendance Table */
+    .attendance-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .attendance-table th {
+      background: var(--bg-primary);
+      padding: 10px 8px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .attendance-table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .time-cell {
+      font-weight: 600;
+    }
+
+    .time-cell.late {
+      color: var(--warning);
+    }
+
+    .time-cell.early {
+      color: var(--danger);
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Action Buttons */
+    .action-btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-btn:active {
+      transform: scale(0.98);
+    }
+
+    .action-btn.secondary {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.3;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--text-primary);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.3s;
+      font-size: 14px;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Date Selector */
+    .date-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .date-selector input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>
+      <i class="fas fa-user-shield"></i>
+      管理員後台
+    </h1>
+    <p id="adminName">載入中...</p>
+
+    <div class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-value" id="totalEmployees">-</div>
+        <div class="stat-label">總員工數</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="todayPresent">-</div>
+        <div class="stat-label">今日出勤</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="monthWorkDays">-</div>
+        <div class="stat-label">本月工作日</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalHours">-</div>
+        <div class="stat-label">總工時(h)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('overview')">
+      <i class="fas fa-chart-pie"></i>
+      <span>總覽</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('employees')">
+      <i class="fas fa-users"></i>
+      <span>員工</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('attendance')">
+      <i class="fas fa-clipboard-list"></i>
+      <span>出勤</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('export')">
+      <i class="fas fa-download"></i>
+      <span>匯出</span>
+    </button>
+  </div>
+
+  <!-- Overview Tab -->
+  <div id="overviewTab" class="tab-content active">
+    <div class="card">
+      <div class="card-title">今日出勤狀況</div>
+      <div id="todayAttendance"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">本週統計</div>
+      <div id="weekStats"></div>
+    </div>
+  </div>
+
+  <!-- Employees Tab -->
+  <div id="employeesTab" class="tab-content">
+    <div class="card">
+      <div class="card-title">
+        <span>員工列表</span>
+        <span id="employeeCount" style="color: var(--text-secondary); font-size: 14px;"></span>
+      </div>
+      <div id="employeeList"></div>
+    </div>
+  </div>
+
+  <!-- Attendance Tab -->
+  <div id="attendanceTab" class="tab-content">
+    <div class="date-selector">
+      <input type="date" id="attendanceDate" onchange="loadAttendance()">
+      <button class="action-btn" onclick="loadAttendance()">
+        <i class="fas fa-search"></i>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span id="attendanceTitle">出勤紀錄</span>
+      </div>
+      <div id="attendanceList"></div>
+    </div>
+  </div>
+
+  <!-- Export Tab -->
+  <div id="exportTab" class="tab-content">
+    <div class="card">
+      <div class="card-title">匯出報表</div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">選擇月份</label>
+        <input type="month" id="exportMonth" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      </div>
+
+      <button class="action-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;" onclick="exportMonthData()">
+        <i class="fas fa-file-csv"></i>
+        匯出 CSV 檔案
+      </button>
+
+      <button class="action-btn secondary" style="width: 100%; justify-content: center;" onclick="copyToClipboard()">
+        <i class="fas fa-copy"></i>
+        複製到剪貼簿
+      </button>
+
+      <div id="exportPreview" style="margin-top: 16px; display: none;">
+        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">預覽：</div>
+        <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; max-height: 300px; overflow-y: auto;" id="exportContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

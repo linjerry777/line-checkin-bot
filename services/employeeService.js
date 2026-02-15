@@ -55,7 +55,7 @@ async function registerEmployee(userId, name, lineDisplayName) {
  */
 async function getEmployeeByUserId(userId) {
   try {
-    const employees = await getSheetData('員工資料!A:E');
+    const employees = await getSheetData('員工資料!A:F');
 
     if (!employees || employees.length <= 1) {
       // 只有標題列或沒資料
@@ -72,6 +72,7 @@ async function getEmployeeByUserId(userId) {
           lineDisplayName: row[2],
           registeredAt: row[3],
           status: row[4] || 'active',
+          role: row[5] || 'employee',
         };
       }
     }
@@ -88,7 +89,7 @@ async function getEmployeeByUserId(userId) {
  */
 async function getAllEmployees() {
   try {
-    const employees = await getSheetData('員工資料!A:E');
+    const employees = await getSheetData('員工資料!A:F');
 
     if (!employees || employees.length <= 1) {
       return [];
@@ -101,6 +102,7 @@ async function getAllEmployees() {
       lineDisplayName: row[2],
       registeredAt: row[3],
       status: row[4] || 'active',
+      role: row[5] || 'employee',
     }));
   } catch (error) {
     console.error('取得員工列表錯誤:', error);
