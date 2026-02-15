@@ -1,4 +1,14 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/morning-reminder",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/evening-reminder",
+      "schedule": "0 10 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/webhook",
