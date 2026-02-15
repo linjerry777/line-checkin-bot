@@ -44,14 +44,15 @@ async function checkIn(userId, employeeName, type, location = null) {
  */
 async function saveToGoogleSheets(record) {
   try {
+    // 正確順序：員工ID, 員工姓名, 類型, 日期, 時間, 完整時間戳記, 位置
     const row = [
-      record.date,
-      record.time,
-      record.employeeName,
-      record.type === 'in' ? '上班' : '下班',
-      record.userId,
-      record.fullTimestamp,
-      record.location || '',
+      record.userId,           // A 欄：員工ID
+      record.employeeName,     // B 欄：員工姓名
+      record.type,             // C 欄：類型 (in/out)
+      record.date,             // D 欄：日期
+      record.time,             // E 欄：時間
+      record.fullTimestamp,    // F 欄：完整時間戳記
+      record.location || '',   // G 欄：位置
     ];
 
     await appendToSheet(row, '打卡紀錄!A:G');
@@ -75,16 +76,17 @@ async function getTodayRecords(userId) {
     }
 
     // 過濾今日該使用者的紀錄
+    // 正確順序：員工ID(A), 員工姓名(B), 類型(C), 日期(D), 時間(E), 完整時間戳記(F), 位置(G)
     const todayRecords = [];
     for (let i = 1; i < records.length; i++) {
       const row = records[i];
-      if (row[0] === today && row[4] === userId) {
+      if (row[3] === today && row[0] === userId) {
         todayRecords.push({
-          date: row[0],
-          time: row[1],
-          employeeName: row[2],
-          type: row[3] === '上班' ? 'in' : 'out',
-          userId: row[4],
+          userId: row[0],
+          employeeName: row[1],
+          type: row[2],
+          date: row[3],
+          time: row[4],
           fullTimestamp: row[5],
           location: row[6] || null,
         });
@@ -109,12 +111,13 @@ async function getAllRecords() {
       return [];
     }
 
+    // 正確順序：員工ID(A), 員工姓名(B), 類型(C), 日期(D), 時間(E), 完整時間戳記(F), 位置(G)
     return records.slice(1).map(row => ({
-      date: row[0],
-      time: row[1],
-      employeeName: row[2],
-      type: row[3] === '上班' ? 'in' : 'out',
-      userId: row[4],
+      userId: row[0],
+      employeeName: row[1],
+      type: row[2],
+      date: row[3],
+      time: row[4],
       fullTimestamp: row[5],
       location: row[6] || null,
     }));
