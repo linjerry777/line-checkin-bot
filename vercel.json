@@ -1,4 +1,33 @@
 {
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/webhook",
+      "dest": "/api/webhook"
+    },
+    {
+      "src": "/liff/(.*)",
+      "dest": "/public/liff/$1"
+    },
+    {
+      "src": "/liff",
+      "dest": "/public/liff/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/$1"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/morning-reminder",
@@ -11,20 +40,6 @@
     {
       "path": "/api/cron/check-anomalies",
       "schedule": "0 */2 * * *"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/webhook",
-      "destination": "/api/webhook"
-    },
-    {
-      "source": "/liff",
-      "destination": "/public/liff/index.html"
-    },
-    {
-      "source": "/liff/:path*",
-      "destination": "/public/liff/:path*"
     }
   ]
 }
