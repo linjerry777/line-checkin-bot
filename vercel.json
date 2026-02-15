@@ -5,6 +5,10 @@
       "destination": "/api/webhook"
     },
     {
+      "source": "/liff",
+      "destination": "/public/liff/index.html"
+    },
+    {
       "source": "/liff/:path*",
       "destination": "/public/liff/:path*"
     }

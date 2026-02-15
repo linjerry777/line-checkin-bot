@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>員工打卡系統</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #06C755;
+      --primary-dark: #05a647;
+      --secondary: #00B900;
+      --danger: #FF3B30;
+      --warning: #FF9500;
+      --info: #007AFF;
+      --success: #34C759;
+      --bg-primary: #F5F5F7;
+      --bg-card: #FFFFFF;
+      --text-primary: #1D1D1F;
+      --text-secondary: #86868B;
+      --border: #E5E5EA;
+      --shadow: rgba(0, 0, 0, 0.08);
+      --shadow-hover: rgba(0, 0, 0, 0.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 20px 20px 30px;
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      object-fit: cover;
+    }
+
+    .user-details h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .user-details p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 12px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 16px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-secondary);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-btn i {
+      font-size: 18px;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      padding: 20px;
+      animation: fadeIn 0.3s;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card */
+    .card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: box-shadow 0.3s;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 16px var(--shadow-hover);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title i {
+      color: var(--primary);
+    }
+
+    /* Checkin Buttons */
+    .checkin-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 16px 24px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-checkin {
+      background: linear-gradient(135deg, var(--success) 0%, #28a745 100%);
+      color: white;
+    }
+
+    .btn-checkout {
+      background: linear-gradient(135deg, var(--danger) 0%, #dc3545 100%);
+      color: white;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Location Status */
+    .location-status {
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .location-status.success {
+      background: rgba(52, 199, 89, 0.1);
+      color: var(--success);
+    }
+
+    .location-status.error {
+      background: rgba(255, 59, 48, 0.1);
+      color: var(--danger);
+    }
+
+    .location-status i {
+      font-size: 18px;
+    }
+
+    /* Calendar */
+    .calendar {
+      margin-bottom: 20px;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .calendar-header h3 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .calendar-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .calendar-nav button {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .calendar-nav button:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+
+    .calendar-day-header {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding: 8px 0;
+    }
+
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .calendar-day:hover {
+      background: var(--bg-primary);
+    }
+
+    .calendar-day.other-month {
+      opacity: 0.3;
+    }
+
+    .calendar-day.today {
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+    }
+
+    .calendar-day.has-record::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .calendar-day.today.has-record::after {
+      background: white;
+    }
+
+    /* Record List */
+    .record-item {
+      padding: 16px;
+      border-radius: 12px;
+      background: var(--bg-primary);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .record-info {
+      flex: 1;
+    }
+
+    .record-date {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .record-time {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .record-badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .record-badge.in {
+      background: rgba(52, 199, 89, 0.15);
+      color: var(--success);
+    }
+
+    .record-badge.out {
+      background: rgba(255, 59, 48, 0.15);
+      color: var(--danger);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--text-primary);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Work Hours Summary */
+    .hours-summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .hours-card {
+      background: linear-gradient(135deg, var(--info) 0%, #0056cc 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+    }
+
+    .hours-card.total {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      box-shadow: 0 4px 12px rgba(6, 199, 85, 0.2);
+    }
+
+    .hours-value {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .hours-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="user-info">
+      <img id="userAvatar" class="avatar" src="" alt="User Avatar">
+      <div class="user-details">
+        <h2 id="userName">載入中...</h2>
+        <p id="userStatus">正在載入資料...</p>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-value" id="todayCount">-</div>
+        <div class="stat-label">今日打卡</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="monthCount">-</div>
+        <div class="stat-label">本月天數</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="monthHours">-</div>
+        <div class="stat-label">本月時數</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('checkin')">
+      <i class="fas fa-clock"></i>
+      <span>打卡</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('calendar')">
+      <i class="fas fa-calendar-alt"></i>
+      <span>日曆</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('records')">
+      <i class="fas fa-list"></i>
+      <span>紀錄</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('stats')">
+      <i class="fas fa-chart-bar"></i>
+      <span>統計</span>
+    </button>
+  </div>
+
+  <!-- Tab Content -->
+  <div id="checkinTab" class="tab-content active">
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-map-marker-alt"></i>
+        位置驗證
+      </div>
+      <div id="locationStatus" class="location-status">
+        <i class="fas fa-spinner fa-spin"></i>
+        正在取得位置...
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-hand-pointer"></i>
+        快速打卡
+      </div>
+      <div class="checkin-buttons">
+        <button id="checkinBtn" class="btn btn-checkin" onclick="handleCheckin()">
+          <i class="fas fa-sign-in-alt"></i>
+          上班打卡
+        </button>
+        <button id="checkoutBtn" class="btn btn-checkout" onclick="handleCheckout()">
+          <i class="fas fa-sign-out-alt"></i>
+          下班打卡
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-history"></i>
+        今日打卡紀錄
+      </div>
+      <div id="todayRecords"></div>
+    </div>
+  </div>
+
+  <div id="calendarTab" class="tab-content">
+    <div class="card">
+      <div class="calendar">
+        <div class="calendar-header">
+          <h3 id="calendarMonth">2024年1月</h3>
+          <div class="calendar-nav">
+            <button onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+            <button onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid">
+          <!-- Calendar will be generated here -->
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="selectedDayRecords" style="display: none;">
+      <div class="card-title">
+        <i class="fas fa-calendar-day"></i>
+        <span id="selectedDate">選擇日期的紀錄</span>
+      </div>
+      <div id="dayRecordsList"></div>
+    </div>
+  </div>
+
+  <div id="recordsTab" class="tab-content">
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-list-ul"></i>
+        最近打卡紀錄
+      </div>
+      <div id="allRecordsList"></div>
+    </div>
+  </div>
+
+  <div id="statsTab" class="tab-content">
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-hourglass-half"></i>
+        本月工時統計
+      </div>
+      <div class="hours-summary">
+        <div class="hours-card total">
+          <div class="hours-value" id="totalHoursValue">0</div>
+          <div class="hours-label">總工時（小時）</div>
+        </div>
+        <div class="hours-card">
+          <div class="hours-value" id="avgHoursValue">0</div>
+          <div class="hours-label">平均每日（小時）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-calendar-check"></i>
+        出勤統計
+      </div>
+      <div id="attendanceStats"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
