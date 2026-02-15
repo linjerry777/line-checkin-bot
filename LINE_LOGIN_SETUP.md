@@ -73,7 +73,7 @@ LINE 官方政策變更：
 ```
 
 **📝 複製並保存這個 LIFF ID！**
-
+2009133831-iwiCoMdy
 ---
 
 ## 🎯 Step 4: 連結 Messaging API Channel（重要！）
