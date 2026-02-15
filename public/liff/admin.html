@@ -413,6 +413,10 @@
       <i class="fas fa-clipboard-list"></i>
       <span>出勤</span>
     </button>
+    <button class="tab-btn" onclick="switchTab('settings')">
+      <i class="fas fa-cog"></i>
+      <span>設定</span>
+    </button>
     <button class="tab-btn" onclick="switchTab('export')">
       <i class="fas fa-download"></i>
       <span>匯出</span>
@@ -458,6 +462,92 @@
       </div>
       <div id="attendanceList"></div>
     </div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div id="settingsTab" class="tab-content">
+    <div class="card">
+      <div class="card-title">⏰ 上下班時間設定</div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">標準上班時間</label>
+        <input type="time" id="workStartTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">標準下班時間</label>
+        <input type="time" id="workEndTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📍 店家位置設定</div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">店家地址</label>
+        <input type="text" id="storeAddress" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">緯度</label>
+          <input type="number" step="0.0001" id="storeLatitude" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">經度</label>
+          <input type="number" step="0.0001" id="storeLongitude" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">打卡允許範圍（公尺）</label>
+        <input type="number" id="storeRadius" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+          建議：50-200 公尺（測試可設定較大值）
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="enableLocationCheck" style="width: 18px; height: 18px; margin-right: 8px;">
+          <span style="font-size: 14px; font-weight: 600;">啟用位置驗證</span>
+        </label>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
+          關閉後員工可在任何地點打卡
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔔 提醒時間設定</div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">早上提醒時間</label>
+        <input type="time" id="morningReminderTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">晚上提醒時間</label>
+        <input type="time" id="eveningReminderTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="enableReminders" style="width: 18px; height: 18px; margin-right: 8px;">
+          <span style="font-size: 14px; font-weight: 600;">啟用自動提醒</span>
+        </label>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
+          系統會在指定時間推播提醒訊息
+        </div>
+      </div>
+    </div>
+
+    <button class="action-btn" style="width: 100%; justify-content: center; background: var(--success);" onclick="saveSettings()">
+      <i class="fas fa-save"></i>
+      儲存設定
+    </button>
+
+    <div id="settingsMessage" style="margin-top: 12px; padding: 12px; border-radius: 8px; display: none;"></div>
   </div>
 
   <!-- Export Tab -->

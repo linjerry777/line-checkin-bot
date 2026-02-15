@@ -1,4 +1,6 @@
 // Vercel Serverless Function - 提供 LIFF 設定
+const { getAllSettings } = require('../services/settingsService');
+
 module.exports = async (req, res) => {
   // 允許 CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,12 +22,16 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'LIFF_ID not configured' });
     }
 
+    // 從 Google Sheets 讀取設定
+    const settings = await getAllSettings();
+
     return res.status(200).json({
       liffId,
       storeLocation: {
-        lat: parseFloat(process.env.STORE_LAT || '25.0330'),
-        lng: parseFloat(process.env.STORE_LNG || '121.5654'),
-        radius: parseInt(process.env.STORE_RADIUS || '100')
+        lat: parseFloat(settings.storeLatitude || process.env.STORE_LAT || '25.0330'),
+        lng: parseFloat(settings.storeLongitude || process.env.STORE_LNG || '121.5654'),
+        radius: parseInt(settings.storeRadius || process.env.STORE_RADIUS || '100'),
+        enableLocationCheck: settings.enableLocationCheck === 'true'
       }
     });
 

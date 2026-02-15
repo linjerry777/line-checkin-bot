@@ -2,6 +2,7 @@
 const { getAllEmployees, getEmployeeByUserId } = require('../services/employeeService');
 const { getSheetData } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
+const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
 
 module.exports = async (req, res) => {
   try {
@@ -80,6 +81,39 @@ module.exports = async (req, res) => {
           success: true,
           ranking,
           month: rankMonth
+        });
+
+      case 'get-settings':
+        // Get all system settings
+        const allSettings = await getAllSettings();
+        return res.status(200).json({
+          success: true,
+          settings: allSettings
+        });
+
+      case 'update-settings':
+        // Update system settings (POST only)
+        if (req.method !== 'POST') {
+          return res.status(405).json({ error: '只接受 POST 請求' });
+        }
+
+        const newSettings = req.body;
+
+        // 驗證設定值
+        const validationErrors = validateSettings(newSettings);
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            success: false,
+            errors: validationErrors
+          });
+        }
+
+        // 更新設定
+        await updateSettings(newSettings);
+
+        return res.status(200).json({
+          success: true,
+          message: '設定已更新'
         });
 
       default:

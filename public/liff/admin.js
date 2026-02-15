@@ -424,6 +424,8 @@ function switchTab(tabName) {
   // Load data for specific tabs
   if (tabName === 'attendance') {
     loadAttendance();
+  } else if (tabName === 'settings') {
+    loadSettings();
   }
 }
 
@@ -436,6 +438,106 @@ function showToast(message, type = 'info') {
   setTimeout(() => {
     toast.classList.remove('show');
   }, 3000);
+}
+
+// Load system settings
+async function loadSettings() {
+  try {
+    const response = await fetch(`/api/admin?action=get-settings&userId=${userId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || '載入設定失敗');
+    }
+
+    const settings = data.settings;
+
+    // 填入表單
+    document.getElementById('workStartTime').value = settings.workStartTime || '09:00';
+    document.getElementById('workEndTime').value = settings.workEndTime || '18:00';
+    document.getElementById('storeAddress').value = settings.storeAddress || '';
+    document.getElementById('storeLatitude').value = settings.storeLatitude || '';
+    document.getElementById('storeLongitude').value = settings.storeLongitude || '';
+    document.getElementById('storeRadius').value = settings.storeRadius || '100';
+    document.getElementById('morningReminderTime').value = settings.morningReminderTime || '09:00';
+    document.getElementById('eveningReminderTime').value = settings.eveningReminderTime || '18:00';
+    document.getElementById('enableLocationCheck').checked = settings.enableLocationCheck === 'true';
+    document.getElementById('enableReminders').checked = settings.enableReminders === 'true';
+
+  } catch (error) {
+    console.error('載入設定錯誤:', error);
+    showSettingsMessage('載入設定失敗：' + error.message, 'error');
+  }
+}
+
+// Save system settings
+async function saveSettings() {
+  try {
+    // 收集表單資料
+    const settings = {
+      workStartTime: document.getElementById('workStartTime').value,
+      workEndTime: document.getElementById('workEndTime').value,
+      storeAddress: document.getElementById('storeAddress').value,
+      storeLatitude: document.getElementById('storeLatitude').value,
+      storeLongitude: document.getElementById('storeLongitude').value,
+      storeRadius: document.getElementById('storeRadius').value,
+      morningReminderTime: document.getElementById('morningReminderTime').value,
+      eveningReminderTime: document.getElementById('eveningReminderTime').value,
+      enableLocationCheck: document.getElementById('enableLocationCheck').checked ? 'true' : 'false',
+      enableReminders: document.getElementById('enableReminders').checked ? 'true' : 'false'
+    };
+
+    // 發送更新請求
+    const response = await fetch(`/api/admin?action=update-settings&userId=${userId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(settings)
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      if (data.errors && data.errors.length > 0) {
+        throw new Error(data.errors.join('\n'));
+      }
+      throw new Error(data.error || '儲存設定失敗');
+    }
+
+    showSettingsMessage('✅ 設定已成功儲存', 'success');
+    showToast('設定已儲存', 'success');
+
+    // 3 秒後重新載入設定
+    setTimeout(() => {
+      loadSettings();
+    }, 1000);
+
+  } catch (error) {
+    console.error('儲存設定錯誤:', error);
+    showSettingsMessage('❌ ' + error.message, 'error');
+    showToast('儲存失敗', 'error');
+  }
+}
+
+// Show settings message
+function showSettingsMessage(message, type) {
+  const msgDiv = document.getElementById('settingsMessage');
+  msgDiv.textContent = message;
+  msgDiv.style.display = 'block';
+
+  if (type === 'success') {
+    msgDiv.style.background = 'rgba(52, 199, 89, 0.15)';
+    msgDiv.style.color = '#34C759';
+  } else {
+    msgDiv.style.background = 'rgba(255, 59, 48, 0.15)';
+    msgDiv.style.color = '#FF3B30';
+  }
+
+  // 5 秒後自動隱藏
+  setTimeout(() => {
+    msgDiv.style.display = 'none';
+  }, 5000);
 }
 
 // Initialize on load

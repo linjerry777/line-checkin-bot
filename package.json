@@ -8,7 +8,14 @@
     "dev": "nodemon index.js",
     "vercel-build": "echo 'Vercel build complete'"
   },
-  "keywords": ["line", "bot", "attendance", "checkin", "vercel", "serverless"],
+  "keywords": [
+    "line",
+    "bot",
+    "attendance",
+    "checkin",
+    "vercel",
+    "serverless"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
@@ -16,8 +23,9 @@
   },
   "dependencies": {
     "@line/bot-sdk": "^9.3.0",
-    "express": "^4.21.2",
+    "canvas": "^3.2.1",
     "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "googleapis": "^144.0.0"
   },
   "devDependencies": {

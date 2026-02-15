@@ -316,6 +316,15 @@ async function checkLocation() {
   const checkinBtn = document.getElementById('checkinBtn');
   const checkoutBtn = document.getElementById('checkoutBtn');
 
+  // 如果未啟用位置檢查，直接允許打卡
+  if (!liffConfig.storeLocation.enableLocationCheck) {
+    statusEl.className = 'location-status success';
+    statusEl.innerHTML = '<i class="fas fa-info-circle"></i> 位置驗證已停用，可直接打卡';
+    checkinBtn.disabled = false;
+    checkoutBtn.disabled = false;
+    return;
+  }
+
   try {
     const position = await getCurrentPosition();
     const distance = calculateDistance(

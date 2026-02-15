@@ -2,6 +2,7 @@
 const { getAllEmployees } = require('../../services/employeeService');
 const { getSheetData } = require('../../config/googleSheets');
 const { pushMessage } = require('../../utils/lineMessaging');
+const { getAllSettings } = require('../../services/settingsService');
 
 module.exports = async (req, res) => {
   // 驗證 Vercel Cron secret（安全性）
@@ -12,6 +13,17 @@ module.exports = async (req, res) => {
 
   try {
     console.log('⏰ 執行下班打卡提醒...');
+
+    // 檢查是否啟用提醒功能
+    const settings = await getAllSettings();
+    if (settings.enableReminders !== 'true') {
+      console.log('⚠️  提醒功能已停用，跳過推送');
+      return res.status(200).json({
+        success: true,
+        message: '提醒功能已停用',
+        skipped: true
+      });
+    }
 
     // 取得所有活躍員工
     const employees = await getAllEmployees();
