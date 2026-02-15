@@ -426,6 +426,8 @@ function switchTab(tabName) {
     loadAttendance();
   } else if (tabName === 'settings') {
     loadSettings();
+  } else if (tabName === 'alerts') {
+    loadAlerts();
   }
 }
 
@@ -463,6 +465,9 @@ async function loadSettings() {
     document.getElementById('eveningReminderTime').value = settings.eveningReminderTime || '18:00';
     document.getElementById('enableLocationCheck').checked = settings.enableLocationCheck === 'true';
     document.getElementById('enableReminders').checked = settings.enableReminders === 'true';
+    document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
+    document.getElementById('earlyThreshold').value = settings.earlyThreshold || '15';
+    document.getElementById('enableAlerts').checked = settings.enableAlerts === 'true';
 
   } catch (error) {
     console.error('載入設定錯誤:', error);
@@ -484,7 +489,10 @@ async function saveSettings() {
       morningReminderTime: document.getElementById('morningReminderTime').value,
       eveningReminderTime: document.getElementById('eveningReminderTime').value,
       enableLocationCheck: document.getElementById('enableLocationCheck').checked ? 'true' : 'false',
-      enableReminders: document.getElementById('enableReminders').checked ? 'true' : 'false'
+      enableReminders: document.getElementById('enableReminders').checked ? 'true' : 'false',
+      lateThreshold: document.getElementById('lateThreshold').value,
+      earlyThreshold: document.getElementById('earlyThreshold').value,
+      enableAlerts: document.getElementById('enableAlerts').checked ? 'true' : 'false'
     };
 
     // 發送更新請求
@@ -538,6 +546,199 @@ function showSettingsMessage(message, type) {
   setTimeout(() => {
     msgDiv.style.display = 'none';
   }, 5000);
+}
+
+// Load alerts
+async function loadAlerts() {
+  try {
+    // 載入今日異常
+    const response = await fetch(`/api/admin?action=anomalies&userId=${userId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || '載入異常失敗');
+    }
+
+    const anomalies = data.anomalies;
+    document.getElementById('alertCount').textContent = `共 ${anomalies.length} 個`;
+
+    // 顯示摘要
+    displayAlertSummary(anomalies);
+
+    // 顯示異常列表
+    displayAlertList(anomalies);
+
+    // 載入統計資料
+    loadAlertStats();
+
+  } catch (error) {
+    console.error('載入異常錯誤:', error);
+    document.getElementById('alertList').innerHTML = `
+      <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+        載入失敗：${error.message}
+      </div>
+    `;
+  }
+}
+
+// Display alert summary
+function displayAlertSummary(anomalies) {
+  if (anomalies.length === 0) {
+    document.getElementById('alertSummary').innerHTML = `
+      <div style="text-align: center; padding: 20px; background: rgba(52, 199, 89, 0.1); border-radius: 8px; color: var(--success);">
+        <i class="fas fa-check-circle" style="font-size: 24px; margin-bottom: 8px;"></i>
+        <div style="font-weight: 600;">今日無異常</div>
+      </div>
+    `;
+    return;
+  }
+
+  const bySeverity = anomalies.reduce((acc, a) => {
+    acc[a.severity] = (acc[a.severity] || 0) + 1;
+    return acc;
+  }, {});
+
+  const summaryHtml = `
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+      <div style="text-align: center; padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px;">
+        <div style="font-size: 24px; font-weight: 700; color: #FF3B30;">${bySeverity.high || 0}</div>
+        <div style="font-size: 12px; color: #FF3B30;">高嚴重度</div>
+      </div>
+      <div style="text-align: center; padding: 12px; background: rgba(255, 149, 0, 0.1); border-radius: 8px;">
+        <div style="font-size: 24px; font-weight: 700; color: #FF9500;">${bySeverity.medium || 0}</div>
+        <div style="font-size: 12px; color: #FF9500;">中嚴重度</div>
+      </div>
+      <div style="text-align: center; padding: 12px; background: rgba(52, 199, 89, 0.1); border-radius: 8px;">
+        <div style="font-size: 24px; font-weight: 700; color: #34C759;">${bySeverity.low || 0}</div>
+        <div style="font-size: 12px; color: #34C759;">低嚴重度</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('alertSummary').innerHTML = summaryHtml;
+}
+
+// Display alert list
+function displayAlertList(anomalies) {
+  if (anomalies.length === 0) {
+    document.getElementById('alertList').innerHTML = '';
+    return;
+  }
+
+  const typeEmoji = {
+    late: '⏰',
+    early: '🏃',
+    missing: '❌',
+    duplicate: '🔄',
+    unusual: '🌙'
+  };
+
+  const typeName = {
+    late: '遲到',
+    early: '早退',
+    missing: '未打卡',
+    duplicate: '重複打卡',
+    unusual: '非常規時間'
+  };
+
+  const severityColor = {
+    high: '#FF3B30',
+    medium: '#FF9500',
+    low: '#34C759'
+  };
+
+  const severityName = {
+    high: '高',
+    medium: '中',
+    low: '低'
+  };
+
+  const html = anomalies.map(a => `
+    <div style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px;">
+      <div style="font-size: 24px; flex: 0;">${typeEmoji[a.type]}</div>
+      <div style="flex: 1;">
+        <div style="font-weight: 600; font-size: 14px;">${a.employeeName}</div>
+        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">${a.message}</div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${a.detectedAt}</div>
+      </div>
+      <div style="text-align: center;">
+        <div style="padding: 4px 8px; background: ${severityColor[a.severity]}20; color: ${severityColor[a.severity]}; border-radius: 4px; font-size: 12px; font-weight: 600;">
+          ${severityName[a.severity]}
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${typeName[a.type]}</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('alertList').innerHTML = html;
+}
+
+// Load alert statistics
+async function loadAlertStats() {
+  try {
+    const response = await fetch(`/api/admin?action=anomaly-stats&userId=${userId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || '載入統計失敗');
+    }
+
+    const stats = data.stats;
+
+    const typeNames = {
+      late: '遲到',
+      early: '早退',
+      missing: '未打卡',
+      duplicate: '重複打卡',
+      unusual: '非常規時間'
+    };
+
+    const typeStatsHtml = Object.entries(stats.byType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => `
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+          <span style="font-size: 14px;">${typeNames[type] || type}</span>
+          <span style="font-weight: 600; color: var(--primary);">${count} 次</span>
+        </div>
+      `).join('');
+
+    const employeeStatsHtml = Object.entries(stats.byEmployee)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([name, info]) => `
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+          <span style="font-size: 14px;">${name}</span>
+          <span style="font-weight: 600; color: var(--warning);">${info.count} 次</span>
+        </div>
+      `).join('');
+
+    const html = `
+      <div style="margin-bottom: 20px;">
+        <div style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">異常類型分布</div>
+        ${typeStatsHtml || '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">無資料</div>'}
+      </div>
+
+      <div>
+        <div style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">員工異常次數 TOP 5</div>
+        ${employeeStatsHtml || '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">無資料</div>'}
+      </div>
+
+      <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+        <div style="font-size: 28px; font-weight: 700; color: var(--danger);">${stats.total}</div>
+        <div style="font-size: 13px; color: var(--text-secondary);">總異常次數（30 天）</div>
+      </div>
+    `;
+
+    document.getElementById('alertStats').innerHTML = html;
+
+  } catch (error) {
+    console.error('載入統計錯誤:', error);
+    document.getElementById('alertStats').innerHTML = `
+      <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+        載入失敗
+      </div>
+    `;
+  }
 }
 
 // Initialize on load

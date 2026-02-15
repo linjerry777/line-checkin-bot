@@ -194,6 +194,25 @@ function validateSettings(settings) {
     errors.push('啟用位置驗證必須是 true 或 false');
   }
 
+  if (settings.enableAlerts && !['true', 'false'].includes(settings.enableAlerts)) {
+    errors.push('啟用異常警報必須是 true 或 false');
+  }
+
+  // 驗證閾值
+  if (settings.lateThreshold) {
+    const threshold = parseInt(settings.lateThreshold);
+    if (isNaN(threshold) || threshold < 0 || threshold > 60) {
+      errors.push('遲到容忍時間必須在 0-60 分鐘之間');
+    }
+  }
+
+  if (settings.earlyThreshold) {
+    const threshold = parseInt(settings.earlyThreshold);
+    if (isNaN(threshold) || threshold < 0 || threshold > 60) {
+      errors.push('早退容忍時間必須在 0-60 分鐘之間');
+    }
+  }
+
   return errors;
 }
 

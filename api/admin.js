@@ -3,6 +3,7 @@ const { getAllEmployees, getEmployeeByUserId } = require('../services/employeeSe
 const { getSheetData } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
+const { getTodayAnomalies, getAnomalyStats } = require('../services/alertService');
 
 module.exports = async (req, res) => {
   try {
@@ -114,6 +115,29 @@ module.exports = async (req, res) => {
         return res.status(200).json({
           success: true,
           message: '設定已更新'
+        });
+
+      case 'anomalies':
+        // Get today's anomalies
+        const anomalies = await getTodayAnomalies();
+        return res.status(200).json({
+          success: true,
+          anomalies,
+          total: anomalies.length
+        });
+
+      case 'anomaly-stats':
+        // Get anomaly statistics for date range
+        const { startDate, endDate } = req.query;
+        const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const end = endDate || new Date().toISOString().split('T')[0];
+
+        const stats = await getAnomalyStats(start, end);
+        return res.status(200).json({
+          success: true,
+          stats,
+          startDate: start,
+          endDate: end
         });
 
       default:

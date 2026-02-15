@@ -413,6 +413,10 @@
       <i class="fas fa-clipboard-list"></i>
       <span>出勤</span>
     </button>
+    <button class="tab-btn" onclick="switchTab('alerts')">
+      <i class="fas fa-exclamation-triangle"></i>
+      <span>警報</span>
+    </button>
     <button class="tab-btn" onclick="switchTab('settings')">
       <i class="fas fa-cog"></i>
       <span>設定</span>
@@ -461,6 +465,25 @@
         <span id="attendanceTitle">出勤紀錄</span>
       </div>
       <div id="attendanceList"></div>
+    </div>
+  </div>
+
+  <!-- Alerts Tab -->
+  <div id="alertsTab" class="tab-content">
+    <div class="card">
+      <div class="card-title">
+        <span>🚨 今日異常警報</span>
+        <span id="alertCount" style="color: var(--text-secondary); font-size: 14px;"></span>
+      </div>
+
+      <div id="alertSummary" style="margin-bottom: 16px;"></div>
+
+      <div id="alertList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 異常統計（最近 30 天）</div>
+      <div id="alertStats"></div>
     </div>
   </div>
 
@@ -538,6 +561,36 @@
         </label>
         <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
           系統會在指定時間推播提醒訊息
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🚨 異常警報設定</div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">遲到容忍時間（分鐘）</label>
+        <input type="number" id="lateThreshold" min="0" max="60" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+          上班打卡晚於標準時間多少分鐘內不算遲到
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">早退容忍時間（分鐘）</label>
+        <input type="number" id="earlyThreshold" min="0" max="60" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+          下班打卡早於標準時間多少分鐘內不算早退
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="enableAlerts" style="width: 18px; height: 18px; margin-right: 8px;">
+          <span style="font-size: 14px; font-weight: 600;">啟用異常警報</span>
+        </label>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
+          系統會自動偵測異常打卡並通知管理員
         </div>
       </div>
     </div>
