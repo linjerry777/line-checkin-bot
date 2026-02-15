@@ -10,3 +10,5 @@ test-google-sheets.js
 *.swp
 *.swo
 *~
+
+.vercel

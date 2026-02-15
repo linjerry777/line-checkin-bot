@@ -1,13 +1,10 @@
-const { appendToSheet } = require('../config/googleSheets');
+const { appendToSheet, getSheetData } = require('../config/googleSheets');
 const { getCurrentTime, getToday } = require('../utils/timeHelper');
-
-// 簡易的記憶體儲存（實際應使用資料庫）
-const attendanceRecords = [];
 
 /**
  * 打卡功能
  */
-async function checkIn(userId, employeeName, type) {
+async function checkIn(userId, employeeName, type, location = null) {
   try {
     const now = new Date();
     const timestamp = getCurrentTime();
@@ -20,10 +17,8 @@ async function checkIn(userId, employeeName, type) {
       date,
       time: timestamp,
       fullTimestamp: now.toISOString(),
+      location: location ? `${location.lat},${location.lng}` : null,
     };
-
-    // 儲存到記憶體
-    attendanceRecords.push(record);
 
     // 儲存到 Google Sheets
     await saveToGoogleSheets(record);
@@ -56,31 +51,77 @@ async function saveToGoogleSheets(record) {
       record.type === 'in' ? '上班' : '下班',
       record.userId,
       record.fullTimestamp,
+      record.location || '',
     ];
 
-    await appendToSheet(row);
+    await appendToSheet(row, '打卡紀錄!A:G');
     console.log('✅ 已儲存到 Google Sheets');
   } catch (error) {
     console.error('❌ Google Sheets 儲存失敗:', error.message);
-    // 不要因為 Google Sheets 錯誤而中斷打卡流程
+    throw error; // 拋出錯誤，讓打卡失敗
   }
 }
 
 /**
- * 取得今日打卡紀錄
+ * 取得今日打卡紀錄（從 Google Sheets）
  */
-function getTodayRecords(userId) {
-  const today = getToday();
-  return attendanceRecords.filter(
-    (record) => record.userId === userId && record.date === today
-  );
+async function getTodayRecords(userId) {
+  try {
+    const today = getToday();
+    const records = await getSheetData('打卡紀錄!A:G');
+
+    if (!records || records.length <= 1) {
+      return [];
+    }
+
+    // 過濾今日該使用者的紀錄
+    const todayRecords = [];
+    for (let i = 1; i < records.length; i++) {
+      const row = records[i];
+      if (row[0] === today && row[4] === userId) {
+        todayRecords.push({
+          date: row[0],
+          time: row[1],
+          employeeName: row[2],
+          type: row[3] === '上班' ? 'in' : 'out',
+          userId: row[4],
+          fullTimestamp: row[5],
+          location: row[6] || null,
+        });
+      }
+    }
+
+    return todayRecords;
+  } catch (error) {
+    console.error('取得打卡紀錄錯誤:', error);
+    return [];
+  }
 }
 
 /**
  * 取得所有紀錄（管理用）
  */
-function getAllRecords() {
-  return attendanceRecords;
+async function getAllRecords() {
+  try {
+    const records = await getSheetData('打卡紀錄!A:G');
+
+    if (!records || records.length <= 1) {
+      return [];
+    }
+
+    return records.slice(1).map(row => ({
+      date: row[0],
+      time: row[1],
+      employeeName: row[2],
+      type: row[3] === '上班' ? 'in' : 'out',
+      userId: row[4],
+      fullTimestamp: row[5],
+      location: row[6] || null,
+    }));
+  } catch (error) {
+    console.error('取得所有紀錄錯誤:', error);
+    return [];
+  }
 }
 
 module.exports = {

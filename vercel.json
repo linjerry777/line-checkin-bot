@@ -4,6 +4,10 @@
     {
       "src": "api/webhook.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -19,11 +23,5 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ],
-  "env": {
-    "LINE_CHANNEL_ACCESS_TOKEN": "@line_channel_access_token",
-    "LINE_CHANNEL_SECRET": "@line_channel_secret",
-    "GOOGLE_SHEET_ID": "@google_sheet_id",
-    "GOOGLE_SERVICE_ACCOUNT_JSON": "@google_service_account_json"
-  }
+  ]
 }
