@@ -55,7 +55,7 @@ async function initLiff() {
 // Check admin status
 async function checkAdminStatus() {
   try {
-    const response = await fetch(`/api/admin/check?userId=${userProfile.userId}`);
+    const response = await fetch(`/api/admin?action=check&userId=${userProfile.userId}`);
     const data = await response.json();
     return data.isAdmin;
   } catch (error) {
@@ -68,12 +68,12 @@ async function checkAdminStatus() {
 async function loadAllData() {
   try {
     // Load employees
-    const empRes = await fetch('/api/admin/employees');
+    const empRes = await fetch(`/api/admin?action=employees&userId=${userProfile.userId}`);
     const empData = await empRes.json();
     allEmployees = empData.employees || [];
 
     // Load all records
-    const recRes = await fetch('/api/admin/records');
+    const recRes = await fetch(`/api/admin?action=records&userId=${userProfile.userId}`);
     const recData = await recRes.json();
     allRecords = recData.records || [];
 
