@@ -164,8 +164,11 @@ function updateTodayRecords() {
 
   container.innerHTML = todayRecords.map(record => `
     <div class="record-item">
-      <div class="record-info">
-        <div class="record-date">${formatDate(record.date)}</div>
+      <div class="record-icon ${record.type}">
+        <i class="fas fa-${record.type === 'in' ? 'sign-in-alt' : 'sign-out-alt'}"></i>
+      </div>
+      <div class="record-details">
+        <div class="record-type">${record.type === 'in' ? '上班打卡' : '下班打卡'}</div>
         <div class="record-time">${record.time}</div>
       </div>
       <div class="record-badge ${record.type}">

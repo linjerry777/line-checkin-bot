@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>員工打卡系統 v3.0</title>
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>員工打卡系統 v2.0</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -15,146 +17,154 @@
     }
 
     :root {
-      --primary: #667eea;
-      --secondary: #764ba2;
-      --success: #10b981;
-      --danger: #ef4444;
+      --primary: #06C755;
+      --primary-light: #E8F8EE;
+      --primary-dark: #05a647;
+      --secondary: #00B900;
+      --danger: #FF3B30;
+      --danger-light: #FFE5E5;
+      --warning: #FF9500;
+      --info: #007AFF;
+      --success: #34C759;
+      --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --bg-card: #FFFFFF;
+      --text-primary: #1D1D1F;
+      --text-secondary: #86868B;
+      --border: rgba(255, 255, 255, 0.18);
+      --shadow-sm: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+      --shadow-md: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+      --shadow-lg: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: #1f2937;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
       overflow-x: hidden;
       padding-bottom: 80px;
+      min-height: 100vh;
     }
 
-    /* Premium Header */
+    /* Glassmorphism Header */
     .header {
-      padding: 32px 20px 28px;
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 24px 20px 32px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
     }
 
-    .user-profile {
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+      pointer-events: none;
+    }
+
+    .user-info {
+      position: relative;
+      z-index: 1;
       display: flex;
       align-items: center;
       gap: 16px;
       margin-bottom: 24px;
     }
 
-    .avatar-wrapper {
-      position: relative;
-    }
-
     .avatar {
-      width: 68px;
-      height: 68px;
-      border-radius: 20px;
-      object-fit: cover;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-
-    .status-dot {
-      position: absolute;
-      bottom: 4px;
-      right: 4px;
-      width: 16px;
-      height: 16px;
-      background: #10b981;
+      width: 64px;
+      height: 64px;
       border-radius: 50%;
-      border: 3px solid white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      object-fit: cover;
     }
 
-    .user-info {
-      flex: 1;
-    }
-
-    .user-name {
-      font-size: 24px;
+    .user-details h2 {
+      font-size: 22px;
       font-weight: 700;
-      color: white;
+      color: #1D1D1F;
       margin-bottom: 4px;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
     }
 
-    .user-subtitle {
+    .user-details p {
       font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      color: rgba(29, 29, 31, 0.7);
     }
 
-    /* Stats Cards */
-    .stats-container {
+    .stats-grid {
+      position: relative;
+      z-index: 1;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 12px;
     }
 
-    .stat-card {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 16px;
+    .stat-item {
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       padding: 16px 12px;
+      border-radius: 16px;
       text-align: center;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: all 0.3s;
+      box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.15);
     }
 
-    .stat-card:active {
-      transform: scale(0.96);
-      background: rgba(255, 255, 255, 0.2);
+    .stat-item:active {
+      transform: scale(0.98);
+      background: rgba(255, 255, 255, 0.4);
     }
 
     .stat-value {
-      font-size: 32px;
+      font-size: 28px;
       font-weight: 800;
-      color: white;
+      color: #1D1D1F;
       margin-bottom: 4px;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
     }
 
     .stat-label {
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.9);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 12px;
+      color: rgba(29, 29, 31, 0.7);
+      font-weight: 500;
     }
 
-    /* Navigation Tabs */
+    /* Glassmorphism Tab Navigation */
     .tab-nav {
       display: flex;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.25);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      padding: 6px;
-      gap: 6px;
+      padding: 8px;
+      gap: 8px;
       position: sticky;
       top: 0;
       z-index: 100;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-sm);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     }
 
     .tab-btn {
       flex: 1;
-      padding: 14px 8px;
+      padding: 12px 8px;
       background: transparent;
       border: none;
       border-radius: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 13px;
+      color: rgba(29, 29, 31, 0.6);
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.3s;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -162,74 +172,71 @@
     }
 
     .tab-btn.active {
-      background: rgba(255, 255, 255, 0.25);
-      color: white;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: rgba(255, 255, 255, 0.4);
+      color: #1D1D1F;
+      box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.15);
     }
 
     .tab-btn i {
-      font-size: 18px;
+      font-size: 20px;
     }
 
-    /* Content Area */
+    .tab-btn span {
+      font-size: 11px;
+    }
+
+    /* Tab Content */
     .tab-content {
       display: none;
       padding: 20px;
-      animation: fadeSlideIn 0.4s ease;
+      animation: fadeIn 0.3s;
     }
 
     .tab-content.active {
       display: block;
     }
 
-    @keyframes fadeSlideIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Premium Glass Cards */
-    .glass-card {
-      background: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(30px);
-      -webkit-backdrop-filter: blur(30px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 24px;
+    /* Glassmorphism Card */
+    .card {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px;
       padding: 24px;
       margin-bottom: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: all 0.3s;
     }
 
-    .glass-card:hover {
-      background: rgba(255, 255, 255, 0.15);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    .card:hover {
+      box-shadow: var(--shadow-md);
+      background: rgba(255, 255, 255, 0.3);
     }
 
     .card-title {
       font-size: 18px;
       font-weight: 700;
-      color: white;
       margin-bottom: 20px;
       display: flex;
       align-items: center;
       gap: 10px;
+      color: var(--text-primary);
     }
 
     .card-title i {
+      color: var(--primary);
       font-size: 20px;
-      color: rgba(255, 255, 255, 0.8);
     }
 
     /* Location Status */
     .location-status {
-      padding: 18px 20px;
+      padding: 20px;
       border-radius: 16px;
       text-align: center;
       font-size: 15px;
@@ -238,125 +245,146 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      transition: all 0.3s ease;
     }
 
     .location-status.loading {
-      background: rgba(255, 255, 255, 0.15);
-      color: rgba(255, 255, 255, 0.9);
+      background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+      color: var(--text-secondary);
     }
 
     .location-status.success {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3));
-      color: white;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      background: linear-gradient(135deg, var(--primary-light) 0%, #d0f5dc 100%);
+      color: var(--primary-dark);
     }
 
     .location-status.error {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
-      color: white;
-      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: linear-gradient(135deg, var(--danger-light) 0%, #ffd0d0 100%);
+      color: var(--danger);
     }
 
-    /* Premium Checkin Buttons */
-    .checkin-grid {
+    .location-status i {
+      font-size: 20px;
+    }
+
+    /* Modern Checkin Buttons */
+    .checkin-buttons {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
     }
 
-    .checkin-btn {
-      padding: 28px 20px;
+    .btn {
+      padding: 24px 20px;
       border: none;
       border-radius: 20px;
       font-size: 16px;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.3s;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 12px;
+      box-shadow: var(--shadow-md);
       position: relative;
       overflow: hidden;
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     }
 
-    .checkin-btn:active:not(:disabled) {
-      transform: scale(0.96);
-    }
-
-    .checkin-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .checkin-btn i {
-      font-size: 36px;
-    }
-
-    .btn-in::before,
-    .btn-out::before {
+    .btn::before {
       content: '';
       position: absolute;
       top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
-      border-radius: 20px;
-      opacity: 0;
-      transition: opacity 0.3s;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: left 0.5s;
     }
 
-    .checkin-btn:hover:not(:disabled)::before {
-      opacity: 1;
+    .btn:active::before {
+      left: 100%;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-checkin {
+      background: rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #1D1D1F;
+    }
+
+    .btn-checkin:active:not(:disabled) {
+      transform: scale(0.95);
+      box-shadow: var(--shadow-sm);
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-checkout {
+      background: rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #1D1D1F;
+    }
+
+    .btn-checkout:active:not(:disabled) {
+      transform: scale(0.95);
+      box-shadow: var(--shadow-sm);
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .btn i {
+      font-size: 32px;
+    }
+
+    .btn span {
+      font-size: 15px;
     }
 
     /* Records */
     .record-item {
       display: flex;
       align-items: center;
-      gap: 16px;
       padding: 16px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
+      background: var(--bg-primary);
       margin-bottom: 12px;
-      transition: all 0.3s ease;
+      transition: all 0.3s;
+      border: 1px solid transparent;
     }
 
     .record-item:hover {
-      background: rgba(255, 255, 255, 0.12);
-      transform: translateX(4px);
+      background: #f0f0f0;
+      border-color: var(--border);
     }
 
     .record-icon {
       width: 48px;
       height: 48px;
-      border-radius: 14px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 20px;
+      margin-right: 16px;
       flex-shrink: 0;
     }
 
     .record-icon.in {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3));
-      color: #10b981;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      background: linear-gradient(135deg, var(--primary-light) 0%, #d0f5dc 100%);
+      color: var(--primary);
     }
 
     .record-icon.out {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: linear-gradient(135deg, var(--danger-light) 0%, #ffd0d0 100%);
+      color: var(--danger);
     }
 
     .record-details {
@@ -366,32 +394,30 @@
     .record-type {
       font-size: 16px;
       font-weight: 700;
-      color: white;
       margin-bottom: 4px;
+      color: var(--text-primary);
     }
 
     .record-time {
       font-size: 14px;
-      color: rgba(255, 255, 255, 0.7);
+      color: var(--text-secondary);
     }
 
     .record-badge {
-      padding: 6px 14px;
-      border-radius: 10px;
+      padding: 6px 12px;
+      border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
     }
 
     .record-badge.in {
-      background: rgba(16, 185, 129, 0.2);
-      color: #10b981;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: var(--primary-light);
+      color: var(--primary-dark);
     }
 
     .record-badge.out {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: var(--danger-light);
+      color: var(--danger);
     }
 
     /* Calendar */
@@ -401,13 +427,13 @@
       align-items: center;
       margin-bottom: 20px;
       padding-bottom: 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid var(--border);
     }
 
-    .calendar-month {
+    .calendar-header h3 {
       font-size: 20px;
       font-weight: 700;
-      color: white;
+      color: var(--text-primary);
     }
 
     .calendar-nav {
@@ -416,22 +442,21 @@
     }
 
     .calendar-nav button {
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       border: none;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.15);
-      color: white;
+      border-radius: 10px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       cursor: pointer;
       transition: all 0.3s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-size: 14px;
     }
 
     .calendar-nav button:active {
-      transform: scale(0.92);
-      background: rgba(255, 255, 255, 0.25);
+      transform: scale(0.95);
+      background: var(--primary);
+      color: white;
     }
 
     .calendar-weekdays {
@@ -445,7 +470,7 @@
       text-align: center;
       font-size: 12px;
       font-weight: 700;
-      color: rgba(255, 255, 255, 0.7);
+      color: var(--text-secondary);
       padding: 8px 0;
     }
 
@@ -464,60 +489,63 @@
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
-      color: white;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s;
+      position: relative;
+      border: 2px solid transparent;
     }
 
     .calendar-day.other-month {
+      color: var(--text-secondary);
       opacity: 0.3;
     }
 
     .calendar-day.today {
-      background: rgba(255, 255, 255, 0.2);
-      border: 2px solid rgba(255, 255, 255, 0.4);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary);
     }
 
     .calendar-day.has-checkin {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.4));
-      border-color: rgba(16, 185, 129, 0.6);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+    }
+
+    .calendar-day.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.2);
     }
 
     .calendar-day:hover:not(.other-month) {
-      transform: scale(1.08);
-      background: rgba(255, 255, 255, 0.18);
+      background: var(--bg-primary);
+      transform: scale(1.05);
     }
 
     /* Stats */
-    .hours-grid {
+    .hours-summary {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, 1fr);
       gap: 16px;
       margin-bottom: 24px;
     }
 
-    .hours-box {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(20px);
+    .hours-card {
+      background: linear-gradient(135deg, var(--primary-light) 0%, #d0f5dc 100%);
       padding: 20px;
-      border-radius: 18px;
+      border-radius: 16px;
       text-align: center;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid var(--primary);
     }
 
     .hours-value {
-      font-size: 36px;
+      font-size: 32px;
       font-weight: 800;
-      color: white;
-      margin-bottom: 6px;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      color: var(--primary-dark);
+      margin-bottom: 4px;
     }
 
     .hours-label {
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.8);
+      color: var(--primary-dark);
       font-weight: 600;
     }
 
@@ -525,13 +553,13 @@
     .empty-state {
       text-align: center;
       padding: 60px 20px;
-      color: rgba(255, 255, 255, 0.7);
+      color: var(--text-secondary);
     }
 
     .empty-state i {
       font-size: 64px;
       margin-bottom: 16px;
-      opacity: 0.4;
+      opacity: 0.3;
     }
 
     .empty-state p {
@@ -546,17 +574,15 @@
       left: 50%;
       transform: translateX(-50%) translateY(100px);
       background: rgba(0, 0, 0, 0.9);
-      backdrop-filter: blur(20px);
       color: white;
-      padding: 16px 28px;
-      border-radius: 16px;
+      padding: 16px 24px;
+      border-radius: 12px;
       font-size: 15px;
       font-weight: 600;
       opacity: 0;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.3s;
       z-index: 1000;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-lg);
     }
 
     .toast.show {
@@ -564,47 +590,50 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
 
-    .fa-spin {
-      animation: spin 1s linear infinite;
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
+  <!-- Header -->
   <div class="header">
-    <div class="user-profile">
-      <div class="avatar-wrapper">
-        <img id="userAvatar" class="avatar" src="" alt="Avatar">
-        <div class="status-dot"></div>
-      </div>
-      <div class="user-info">
-        <div class="user-name" id="userName">載入中...</div>
-        <div class="user-subtitle">
-          <i class="fas fa-clock"></i>
-          <span id="userStatus">正在連接...</span>
-        </div>
+    <div class="user-info">
+      <img id="userAvatar" class="avatar" src="" alt="Avatar">
+      <div class="user-details">
+        <h2 id="userName">載入中...</h2>
+        <p id="userStatus">正在連接...</p>
       </div>
     </div>
 
-    <div class="stats-container">
-      <div class="stat-card">
+    <div class="stats-grid">
+      <div class="stat-item">
         <div class="stat-value" id="todayStatus">--</div>
         <div class="stat-label">今日狀態</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-item">
         <div class="stat-value" id="monthHours">--</div>
         <div class="stat-label">本月工時</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-item">
         <div class="stat-value" id="workDays">--</div>
         <div class="stat-label">出勤天數</div>
       </div>
     </div>
   </div>
 
+  <!-- Tab Navigation -->
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('checkin')">
       <i class="fas fa-qrcode"></i>
@@ -624,8 +653,9 @@
     </button>
   </div>
 
+  <!-- Checkin Tab -->
   <div id="checkinTab" class="tab-content active">
-    <div class="glass-card">
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-map-marker-alt"></i>
         位置驗證
@@ -636,24 +666,24 @@
       </div>
     </div>
 
-    <div class="glass-card">
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-hand-pointer"></i>
         快速打卡
       </div>
-      <div class="checkin-grid">
-        <button id="checkinBtn" class="checkin-btn btn-in" onclick="handleCheckin()" disabled>
+      <div class="checkin-buttons">
+        <button id="checkinBtn" class="btn btn-checkin" onclick="handleCheckin()" disabled>
           <i class="fas fa-sign-in-alt"></i>
           <span>上班打卡</span>
         </button>
-        <button id="checkoutBtn" class="checkin-btn btn-out" onclick="handleCheckout()" disabled>
+        <button id="checkoutBtn" class="btn btn-checkout" onclick="handleCheckout()" disabled>
           <i class="fas fa-sign-out-alt"></i>
           <span>下班打卡</span>
         </button>
       </div>
     </div>
 
-    <div class="glass-card">
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-history"></i>
         今日打卡紀錄
@@ -662,14 +692,15 @@
     </div>
   </div>
 
+  <!-- Calendar Tab -->
   <div id="calendarTab" class="tab-content">
-    <div class="glass-card">
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-calendar"></i>
         出勤月曆
       </div>
       <div class="calendar-header">
-        <div class="calendar-month" id="calendarMonth"></div>
+        <h3 id="calendarMonth"></h3>
         <div class="calendar-nav">
           <button onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
           <button onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
@@ -687,7 +718,7 @@
       <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
-    <div class="glass-card" id="selectedDayRecords" style="display: none;">
+    <div class="card" id="selectedDayRecords" style="display: none;">
       <div class="card-title">
         <i class="fas fa-calendar-day"></i>
         <span id="selectedDate"></span>
@@ -696,8 +727,9 @@
     </div>
   </div>
 
+  <!-- Records Tab -->
   <div id="recordsTab" class="tab-content">
-    <div class="glass-card">
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-clipboard-list"></i>
         最近 30 天紀錄
@@ -706,18 +738,19 @@
     </div>
   </div>
 
+  <!-- Stats Tab -->
   <div id="statsTab" class="tab-content">
-    <div class="glass-card">
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-hourglass-half"></i>
         本月工時統計
       </div>
-      <div class="hours-grid">
-        <div class="hours-box">
+      <div class="hours-summary">
+        <div class="hours-card">
           <div class="hours-value" id="totalHours">0</div>
           <div class="hours-label">總工時</div>
         </div>
-        <div class="hours-box">
+        <div class="hours-card">
           <div class="hours-value" id="avgHours">0</div>
           <div class="hours-label">日均工時</div>
         </div>
@@ -726,8 +759,9 @@
     </div>
   </div>
 
+  <!-- Toast -->
   <div id="toast" class="toast"></div>
 
-  <script src="app.js?v=3.0"></script>
+  <script src="app.js?v=2.0"></script>
 </body>
 </html>
