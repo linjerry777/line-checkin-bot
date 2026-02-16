@@ -16,7 +16,9 @@
       "Bash(git push:*)",
       "Bash(printf:*)",
       "WebFetch(domain:www.google.com)",
-      "Bash(openssl rand:*)"
+      "Bash(openssl rand:*)",
+      "Bash(dir:*)",
+      "Bash(python:*)"
     ]
   }
 }
