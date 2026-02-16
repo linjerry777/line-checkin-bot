@@ -72,9 +72,10 @@ async function loadRecords() {
 
 // Update user info
 function updateUserInfo() {
-  document.getElementById('userName').textContent = employeeData?.name || userProfile.displayName;
-  document.getElementById('userAvatar').src = userProfile.pictureUrl || 'https://via.placeholder.com/60';
-  document.getElementById('userStatus').textContent = employeeData ? '員工' : '訪客';
+  const userNameEl = document.getElementById('userName');
+  if (userNameEl) {
+    userNameEl.textContent = employeeData?.name || userProfile.displayName;
+  }
 }
 
 // Update all statistics
@@ -156,9 +157,10 @@ function updateTodayRecords() {
   const todayRecords = allRecords.filter(r => r.date === today);
 
   const container = document.getElementById('todayRecords');
+  if (!container) return;
 
   if (todayRecords.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>今日尚無打卡紀錄</p></div>';
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p class="empty-state-text">今日尚無打卡紀錄</p></div>';
     return;
   }
 
@@ -181,9 +183,10 @@ function updateTodayRecords() {
 // Update all records
 function updateAllRecords() {
   const container = document.getElementById('allRecordsList');
+  if (!container) return;
 
   if (allRecords.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>尚無打卡紀錄</p></div>';
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p class="empty-state-text">尚無打卡紀錄</p></div>';
     return;
   }
 
@@ -195,8 +198,11 @@ function updateAllRecords() {
 
   container.innerHTML = sortedRecords.slice(0, 30).map(record => `
     <div class="record-item">
-      <div class="record-info">
-        <div class="record-date">${formatDate(record.date)}</div>
+      <div class="record-icon ${record.type}">
+        <i class="fas fa-${record.type === 'in' ? 'sign-in-alt' : 'sign-out-alt'}"></i>
+      </div>
+      <div class="record-details">
+        <div class="record-type">${formatDate(record.date)}</div>
         <div class="record-time">${record.time}</div>
       </div>
       <div class="record-badge ${record.type}">
@@ -249,7 +255,10 @@ function updateCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  document.getElementById('calendarMonth').textContent = `${year}年${month + 1}月`;
+  const calendarMonthEl = document.getElementById('calendarMonth');
+  if (calendarMonthEl) {
+    calendarMonthEl.textContent = `${year}年${month + 1}月`;
+  }
 
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
@@ -257,6 +266,7 @@ function updateCalendar() {
   const daysInMonth = lastDay.getDate();
 
   const calendarGrid = document.getElementById('calendarGrid');
+  if (!calendarGrid) return;
 
   // Previous month days (no headers, already in HTML)
   let html = '';
@@ -307,14 +317,20 @@ function selectDate(dateStr) {
   const dateDisplay = document.getElementById('selectedDate');
   const listContainer = document.getElementById('dayRecordsList');
 
+  if (!container || !dateDisplay || !listContainer) return;
+
   dateDisplay.textContent = formatDate(dateStr);
 
   if (dayRecords.length === 0) {
-    listContainer.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>當日無打卡紀錄</p></div>';
+    listContainer.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p class="empty-state-text">當日無打卡紀錄</p></div>';
   } else {
     listContainer.innerHTML = dayRecords.map(record => `
       <div class="record-item">
-        <div class="record-info">
+        <div class="record-icon ${record.type}">
+          <i class="fas fa-${record.type === 'in' ? 'sign-in-alt' : 'sign-out-alt'}"></i>
+        </div>
+        <div class="record-details">
+          <div class="record-type">${record.type === 'in' ? '上班打卡' : '下班打卡'}</div>
           <div class="record-time">${record.time}</div>
         </div>
         <div class="record-badge ${record.type}">
@@ -457,12 +473,17 @@ function switchTab(tabName) {
   // Update tab content
   const contents = document.querySelectorAll('.tab-content');
   contents.forEach(content => content.classList.remove('active'));
-  document.getElementById(`${tabName}Tab`).classList.add('active');
+  const targetTab = document.getElementById(`${tabName}Tab`);
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
 }
 
 // Show toast
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
+  if (!toast) return;
+
   toast.textContent = message;
   toast.classList.add('show');
 
