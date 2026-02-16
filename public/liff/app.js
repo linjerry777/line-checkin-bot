@@ -82,18 +82,30 @@ function updateAllStats() {
   const today = new Date().toISOString().split('T')[0];
   const thisMonth = new Date().toISOString().slice(0, 7);
 
-  // Today count
+  // Today status
   const todayRecords = allRecords.filter(r => r.date === today);
-  document.getElementById('todayCount').textContent = todayRecords.length;
+  const hasCheckIn = todayRecords.some(r => r.type === 'in');
+  const hasCheckOut = todayRecords.some(r => r.type === 'out');
+  let todayStatus = '--';
+  if (hasCheckIn && hasCheckOut) todayStatus = '✓';
+  else if (hasCheckIn) todayStatus = '½';
+  else todayStatus = '✗';
+
+  const todayStatusEl = document.getElementById('todayStatus');
+  if (todayStatusEl) todayStatusEl.textContent = todayStatus;
 
   // This month stats
   const monthRecords = allRecords.filter(r => r.date.startsWith(thisMonth));
   const workDays = new Set(monthRecords.map(r => r.date)).size;
-  document.getElementById('monthCount').textContent = workDays;
+
+  const workDaysEl = document.getElementById('workDays');
+  if (workDaysEl) workDaysEl.textContent = workDays;
 
   // Calculate total hours
   const totalHours = calculateMonthHours(monthRecords);
-  document.getElementById('monthHours').textContent = totalHours;
+
+  const monthHoursEl = document.getElementById('monthHours');
+  if (monthHoursEl) monthHoursEl.textContent = totalHours + 'h';
 
   // Update stats tab
   updateStatsTab(monthRecords, totalHours, workDays);
@@ -405,7 +417,7 @@ async function performCheckin(type) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: userProfile.userId,
-        displayName: userProfile.displayName,
+        employeeName: employeeData?.name || userProfile.displayName,
         type: type,
         location: {
           lat: position.coords.latitude,
