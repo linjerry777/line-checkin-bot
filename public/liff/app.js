@@ -208,36 +208,40 @@ function updateAllRecords() {
 
 // Update stats tab
 function updateStatsTab(monthRecords, totalHours, workDays) {
-  document.getElementById('totalHoursValue').textContent = totalHours;
+  const totalHoursEl = document.getElementById('totalHours');
+  if (totalHoursEl) totalHoursEl.textContent = totalHours + 'h';
 
   const avgHours = workDays > 0 ? (totalHours / workDays).toFixed(1) : 0;
-  document.getElementById('avgHoursValue').textContent = avgHours;
+  const avgHoursEl = document.getElementById('avgHours');
+  if (avgHoursEl) avgHoursEl.textContent = avgHours + 'h';
 
   // Attendance stats
   const checkinCount = monthRecords.filter(r => r.type === 'in').length;
   const checkoutCount = monthRecords.filter(r => r.type === 'out').length;
 
-  const statsContainer = document.getElementById('attendanceStats');
-  statsContainer.innerHTML = `
-    <div class="record-item">
-      <div class="record-info">
-        <div class="record-date">出勤天數</div>
-        <div class="record-time">${workDays} 天</div>
+  const statsContainer = document.getElementById('dailyStatsList');
+  if (statsContainer) {
+    statsContainer.innerHTML = `
+      <div class="record-item">
+        <div class="record-details">
+          <div class="record-type">出勤天數</div>
+          <div class="record-time">${workDays} 天</div>
+        </div>
       </div>
-    </div>
-    <div class="record-item">
-      <div class="record-info">
-        <div class="record-date">上班打卡次數</div>
-        <div class="record-time">${checkinCount} 次</div>
+      <div class="record-item">
+        <div class="record-details">
+          <div class="record-type">上班打卡次數</div>
+          <div class="record-time">${checkinCount} 次</div>
+        </div>
       </div>
-    </div>
-    <div class="record-item">
-      <div class="record-info">
-        <div class="record-date">下班打卡次數</div>
-        <div class="record-time">${checkoutCount} 次</div>
+      <div class="record-item">
+        <div class="record-details">
+          <div class="record-type">下班打卡次數</div>
+          <div class="record-time">${checkoutCount} 次</div>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
 }
 
 // Update calendar
