@@ -4,628 +4,842 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>管理員後台</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --primary: #007AFF;
-      --primary-dark: #0051D5;
-      --secondary: #5856D6;
-      --success: #34C759;
-      --warning: #FF9500;
-      --danger: #FF3B30;
-      --bg-primary: #F5F5F7;
-      --bg-card: #FFFFFF;
-      --text-primary: #1D1D1F;
-      --text-secondary: #86868B;
-      --border: #E5E5EA;
-      --shadow: rgba(0, 0, 0, 0.08);
+      --bg:        #020617;
+      --surface:   #0F172A;
+      --surface2:  #1E293B;
+      --cta:       #22C55E;
+      --cta-hover: #16A34A;
+      --danger:    #EF4444;
+      --warning:   #F59E0B;
+      --text:      #F8FAFC;
+      --muted:     #94A3B8;
+      --border:    rgba(255,255,255,0.08);
+      --glass:     rgba(255,255,255,0.05);
+      --shadow:    0 8px 32px rgba(0,0,0,0.4);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.6;
-      overflow-x: hidden;
-      padding-bottom: 60px;
+      font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Header */
+    /* ── Header ── */
     .header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      color: white;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
       padding: 20px;
-      box-shadow: 0 4px 12px var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(16px);
     }
 
-    .header h1 {
-      font-size: 24px;
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .header-title {
+      font-size: 20px;
       font-weight: 700;
-      margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 10px;
+      color: var(--text);
     }
 
-    .header p {
-      font-size: 14px;
-      opacity: 0.9;
+    .header-title i { color: var(--cta); }
+
+    .admin-badge {
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--glass);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
     }
 
     .stats-overview {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-top: 16px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
     }
 
-    .stat-card {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      padding: 16px;
+    .ov-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
       border-radius: 12px;
+      padding: 14px 10px;
+      text-align: center;
     }
 
-    .stat-value {
-      font-size: 28px;
+    .ov-value {
+      font-size: 22px;
       font-weight: 700;
+      color: var(--cta);
       margin-bottom: 4px;
     }
 
-    .stat-label {
-      font-size: 13px;
-      opacity: 0.9;
+    .ov-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    /* Tab Navigation */
+    /* ── Tab Nav ── */
     .tab-nav {
-      display: flex;
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      padding: 6px;
+      z-index: 50;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
     }
 
     .tab-btn {
-      flex: 1;
-      padding: 14px;
       background: none;
       border: none;
-      border-bottom: 3px solid transparent;
-      color: var(--text-secondary);
-      font-size: 14px;
-      font-weight: 500;
+      color: var(--muted);
+      padding: 10px 4px;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s ease;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      font-family: inherit;
     }
 
-    .tab-btn.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
-    }
+    .tab-btn i { font-size: 18px; }
 
-    .tab-btn i {
-      font-size: 16px;
-      display: block;
-      margin-bottom: 4px;
-    }
+    .tab-btn:hover { background: var(--glass); color: var(--text); }
+    .tab-btn.active { color: var(--cta); background: rgba(34,197,94,0.1); }
 
-    /* Tab Content */
+    /* ── Tab Content ── */
     .tab-content {
       display: none;
       padding: 16px;
-      animation: fadeIn 0.3s;
+      animation: fadeIn 0.25s ease;
     }
 
-    .tab-content.active {
-      display: block;
-    }
+    .tab-content.active { display: block; }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Card */
+    /* ── Card ── */
     .card {
-      background: var(--bg-card);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 8px var(--shadow);
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(16px);
     }
 
     .card-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
-      margin-bottom: 12px;
+      color: var(--text);
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
     }
 
-    /* Employee List */
+    .card-title i { color: var(--cta); }
+
+    .card-badge {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    /* ── Employee Item ── */
     .employee-item {
-      padding: 12px;
-      border-radius: 8px;
-      background: var(--bg-primary);
-      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
+      padding: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .employee-item:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.15);
+      transform: translateX(3px);
     }
 
     .employee-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--primary);
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1));
+      border: 1px solid rgba(34,197,94,0.3);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
       font-weight: 700;
+      font-size: 18px;
+      color: var(--cta);
+      flex-shrink: 0;
     }
 
-    .employee-info {
-      flex: 1;
-    }
-
-    .employee-name {
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .employee-stats {
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
+    .employee-info { flex: 1; min-width: 0; }
+    .employee-name { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+    .employee-stats { font-size: 12px; color: var(--muted); }
 
     .status-badge {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
       font-weight: 600;
+      white-space: nowrap;
     }
 
-    .status-badge.present {
-      background: rgba(52, 199, 89, 0.15);
-      color: var(--success);
-    }
+    .status-badge.present  { background: rgba(34,197,94,0.15);  color: var(--cta); }
+    .status-badge.absent   { background: rgba(239,68,68,0.15);   color: var(--danger); }
+    .status-badge.off      { background: rgba(148,163,184,0.15); color: var(--muted); }
 
-    .status-badge.absent {
-      background: rgba(255, 59, 48, 0.15);
-      color: var(--danger);
-    }
-
-    .status-badge.off {
-      background: rgba(142, 142, 147, 0.15);
-      color: var(--text-secondary);
-    }
-
-    /* Attendance Table */
-    .attendance-table {
+    /* ── Table ── */
+    .data-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
     }
 
-    .attendance-table th {
-      background: var(--bg-primary);
-      padding: 10px 8px;
+    .data-table th {
+      background: var(--surface2);
+      padding: 10px 12px;
       text-align: left;
       font-weight: 600;
-      color: var(--text-secondary);
-      border-bottom: 2px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    .attendance-table td {
-      padding: 12px 8px;
+    .data-table th:first-child { border-radius: 8px 0 0 8px; }
+    .data-table th:last-child  { border-radius: 0 8px 8px 0; }
+
+    .data-table td {
+      padding: 12px;
       border-bottom: 1px solid var(--border);
+      color: var(--text);
     }
 
-    .time-cell {
-      font-weight: 600;
-    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.03); }
 
-    .time-cell.late {
-      color: var(--warning);
-    }
+    .time-late  { color: var(--warning); font-weight: 600; }
+    .time-early { color: var(--danger);  font-weight: 600; }
 
-    .time-cell.early {
-      color: var(--danger);
-    }
-
-    /* Filter Bar */
+    /* ── Filter ── */
     .filter-bar {
       display: flex;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       overflow-x: auto;
       padding-bottom: 4px;
+      scrollbar-width: none;
     }
 
+    .filter-bar::-webkit-scrollbar { display: none; }
+
     .filter-btn {
-      padding: 6px 14px;
-      border-radius: 16px;
+      padding: 6px 16px;
+      border-radius: 20px;
       border: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--text-secondary);
+      background: var(--glass);
+      color: var(--muted);
       font-size: 13px;
       font-weight: 500;
       white-space: nowrap;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s ease;
+      font-family: inherit;
     }
 
-    .filter-btn.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
+    .filter-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .filter-btn.active { background: rgba(34,197,94,0.15); color: var(--cta); border-color: rgba(34,197,94,0.4); }
+
+    /* ── Form ── */
+    .form-group {
+      margin-bottom: 18px;
     }
 
-    /* Action Buttons */
-    .action-btn {
-      padding: 10px 16px;
-      border-radius: 8px;
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .form-label small {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      color: var(--text);
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--cta);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      padding: 12px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .form-checkbox:hover { border-color: rgba(255,255,255,0.2); }
+
+    .form-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--cta);
+      cursor: pointer;
+    }
+
+    .form-checkbox-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
       border: none;
-      background: var(--primary);
-      color: white;
+      border-radius: 10px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
-      display: inline-flex;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--cta);
+      color: white;
+      box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--cta-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(34,197,94,0.4);
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    .btn-full { width: 100%; }
+    .btn + .btn { margin-top: 10px; }
+
+    /* ── Alert Items ── */
+    .alert-item {
+      display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 14px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .action-btn:active {
-      transform: scale(0.98);
-    }
+    .alert-item:last-child { border-bottom: none; }
 
-    .action-btn.secondary {
-      background: var(--bg-primary);
-      color: var(--text-primary);
-    }
-
-    /* Loading */
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: var(--text-secondary);
-    }
-
-    .spinner {
+    .alert-icon {
       width: 40px;
       height: 40px;
-      border: 4px solid var(--border);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .alert-icon.high   { background: rgba(239,68,68,0.15);   color: var(--danger); }
+    .alert-icon.medium { background: rgba(245,158,11,0.15);  color: var(--warning); }
+    .alert-icon.low    { background: rgba(34,197,94,0.15);   color: var(--cta); }
+
+    .alert-info { flex: 1; min-width: 0; }
+    .alert-name { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+    .alert-msg  { font-size: 13px; color: var(--muted); }
+    .alert-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .sev-badge {
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
     }
 
-    /* Empty State */
+    .sev-badge.high   { background: rgba(239,68,68,0.15);  color: var(--danger); }
+    .sev-badge.medium { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .sev-badge.low    { background: rgba(34,197,94,0.15);  color: var(--cta); }
+
+    /* ── Summary Cards ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .summary-card {
+      padding: 14px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .summary-card.high   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.2); }
+    .summary-card.medium { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); }
+    .summary-card.low    { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.2); }
+
+    .summary-value {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .summary-card.high   .summary-value { color: var(--danger); }
+    .summary-card.medium .summary-value { color: var(--warning); }
+    .summary-card.low    .summary-value { color: var(--cta); }
+
+    .summary-label { font-size: 11px; color: var(--muted); }
+
+    /* ── Bar Chart ── */
+    .bar-chart {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      height: 120px;
+      gap: 4px;
+    }
+
+    .bar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .bar-value { font-size: 12px; font-weight: 600; color: var(--cta); }
+
+    .bar {
+      width: 100%;
+      max-width: 36px;
+      background: rgba(34,197,94,0.6);
+      border-radius: 4px 4px 0 0;
+      transition: height 0.5s ease;
+      min-height: 4px;
+    }
+
+    .bar-label { font-size: 10px; color: var(--muted); }
+
+    /* ── Date Input ── */
+    .date-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .date-row .form-input { flex: 1; }
+
+    /* ── Empty / Loading ── */
     .empty-state {
       text-align: center;
       padding: 40px 20px;
-      color: var(--text-secondary);
+      color: var(--muted);
     }
 
-    .empty-state i {
-      font-size: 48px;
-      margin-bottom: 12px;
-      opacity: 0.3;
+    .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.3; display: block; }
+    .empty-state p { font-size: 14px; }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
     }
 
-    /* Toast */
+    /* ── Toast ── */
     .toast {
       position: fixed;
-      bottom: 20px;
+      bottom: 90px;
       left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: var(--text-primary);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      z-index: 1000;
-      opacity: 0;
-      transition: all 0.3s;
-      font-size: 14px;
-    }
-
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-
-    /* Date Selector */
-    .date-selector {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .date-selector input {
-      flex: 1;
-      padding: 8px 12px;
+      transform: translateX(-50%) translateY(30px);
+      background: var(--surface);
+      color: var(--text);
+      padding: 14px 22px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 999;
       font-size: 14px;
+      font-weight: 500;
+      max-width: 90%;
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Export Preview ── */
+    .export-preview {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 12px;
+      font-family: 'Fira Code', monospace;
+      max-height: 280px;
+      overflow-y: auto;
+      color: var(--muted);
+      white-space: pre;
+      margin-top: 14px;
+    }
+
+    /* ── Settings Message ── */
+    .settings-msg {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .settings-msg.success { background: rgba(34,197,94,0.1); color: var(--cta); border: 1px solid rgba(34,197,94,0.2); }
+    .settings-msg.error   { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+
+    /* ── Responsive ── */
+    @media (max-width: 400px) {
+      .stats-overview { grid-template-columns: repeat(2, 1fr); }
+      .form-grid      { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
 <body>
+
   <!-- Header -->
   <div class="header">
-    <h1>
-      <i class="fas fa-user-shield"></i>
-      管理員後台
-    </h1>
-    <p id="adminName">載入中...</p>
+    <div class="header-top">
+      <div class="header-title">
+        <i class="fas fa-shield-alt"></i>
+        管理員後台
+      </div>
+      <div class="admin-badge" id="adminName">載入中...</div>
+    </div>
 
     <div class="stats-overview">
-      <div class="stat-card">
-        <div class="stat-value" id="totalEmployees">-</div>
-        <div class="stat-label">總員工數</div>
+      <div class="ov-card">
+        <div class="ov-value" id="totalEmployees">-</div>
+        <div class="ov-label">員工總數</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="todayPresent">-</div>
-        <div class="stat-label">今日出勤</div>
+      <div class="ov-card">
+        <div class="ov-value" id="todayPresent">-</div>
+        <div class="ov-label">今日出勤</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="monthWorkDays">-</div>
-        <div class="stat-label">本月工作日</div>
+      <div class="ov-card">
+        <div class="ov-value" id="monthWorkDays">-</div>
+        <div class="ov-label">本月工作日</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="totalHours">-</div>
-        <div class="stat-label">總工時(h)</div>
+      <div class="ov-card">
+        <div class="ov-value" id="totalHours">-</div>
+        <div class="ov-label">總工時(h)</div>
       </div>
     </div>
   </div>
 
   <!-- Tab Navigation -->
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('overview')">
+    <button class="tab-btn active" onclick="switchTab('overview', this)">
       <i class="fas fa-chart-pie"></i>
       <span>總覽</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('employees')">
+    <button class="tab-btn" onclick="switchTab('employees', this)">
       <i class="fas fa-users"></i>
       <span>員工</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('attendance')">
+    <button class="tab-btn" onclick="switchTab('attendance', this)">
       <i class="fas fa-clipboard-list"></i>
       <span>出勤</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('alerts')">
-      <i class="fas fa-exclamation-triangle"></i>
+    <button class="tab-btn" onclick="switchTab('alerts', this)">
+      <i class="fas fa-bell"></i>
       <span>警報</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('settings')">
+    <button class="tab-btn" onclick="switchTab('settings', this)">
       <i class="fas fa-cog"></i>
       <span>設定</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('export')">
+    <button class="tab-btn" onclick="switchTab('export', this)">
       <i class="fas fa-download"></i>
       <span>匯出</span>
     </button>
   </div>
 
-  <!-- Overview Tab -->
+  <!-- ── Overview Tab ── -->
   <div id="overviewTab" class="tab-content active">
     <div class="card">
-      <div class="card-title">今日出勤狀況</div>
-      <div id="todayAttendance"></div>
+      <div class="card-title">
+        <span><i class="fas fa-user-check"></i> 今日出勤狀況</span>
+      </div>
+      <div id="todayAttendance"><div class="loading">載入中...</div></div>
     </div>
 
     <div class="card">
-      <div class="card-title">本週統計</div>
+      <div class="card-title">
+        <span><i class="fas fa-chart-bar"></i> 本週出勤人數</span>
+      </div>
       <div id="weekStats"></div>
     </div>
   </div>
 
-  <!-- Employees Tab -->
+  <!-- ── Employees Tab ── -->
   <div id="employeesTab" class="tab-content">
     <div class="card">
       <div class="card-title">
-        <span>員工列表</span>
-        <span id="employeeCount" style="color: var(--text-secondary); font-size: 14px;"></span>
+        <span><i class="fas fa-users"></i> 員工列表</span>
+        <span class="card-badge" id="employeeCount"></span>
       </div>
-      <div id="employeeList"></div>
+      <div id="employeeList"><div class="loading">載入中...</div></div>
     </div>
   </div>
 
-  <!-- Attendance Tab -->
+  <!-- ── Attendance Tab ── -->
   <div id="attendanceTab" class="tab-content">
-    <div class="date-selector">
-      <input type="date" id="attendanceDate" onchange="loadAttendance()">
-      <button class="action-btn" onclick="loadAttendance()">
+    <div class="date-row">
+      <input type="date" id="attendanceDate" class="form-input" onchange="loadAttendance()">
+      <button class="btn btn-primary" onclick="loadAttendance()" style="padding: 11px 16px;">
         <i class="fas fa-search"></i>
       </button>
     </div>
 
     <div class="card">
       <div class="card-title">
-        <span id="attendanceTitle">出勤紀錄</span>
+        <span><i class="fas fa-table"></i> <span id="attendanceTitle">出勤紀錄</span></span>
       </div>
       <div id="attendanceList"></div>
     </div>
   </div>
 
-  <!-- Alerts Tab -->
+  <!-- ── Alerts Tab ── -->
   <div id="alertsTab" class="tab-content">
     <div class="card">
       <div class="card-title">
-        <span>🚨 今日異常警報</span>
-        <span id="alertCount" style="color: var(--text-secondary); font-size: 14px;"></span>
+        <span><i class="fas fa-exclamation-triangle"></i> 今日異常警報</span>
+        <span class="card-badge" id="alertCount"></span>
       </div>
-
-      <div id="alertSummary" style="margin-bottom: 16px;"></div>
-
+      <div id="alertSummary"></div>
       <div id="alertList"></div>
     </div>
 
     <div class="card">
-      <div class="card-title">📊 異常統計（最近 30 天）</div>
-      <div id="alertStats"></div>
+      <div class="card-title">
+        <span><i class="fas fa-chart-line"></i> 異常統計（近 30 天）</span>
+      </div>
+      <div id="alertStats"><div class="loading">載入中...</div></div>
     </div>
   </div>
 
-  <!-- Settings Tab -->
+  <!-- ── Settings Tab ── -->
   <div id="settingsTab" class="tab-content">
+
     <div class="card">
-      <div class="card-title">⏰ 上下班時間設定</div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">標準上班時間</label>
-        <input type="time" id="workStartTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">標準下班時間</label>
-        <input type="time" id="workEndTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      <div class="card-title"><span><i class="fas fa-clock"></i> 上下班時間</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">標準上班時間</label>
+          <input type="time" id="workStartTime" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">標準下班時間</label>
+          <input type="time" id="workEndTime" class="form-input">
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">📍 店家位置設定</div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">店家地址</label>
-        <input type="text" id="storeAddress" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      <div class="card-title"><span><i class="fas fa-map-marker-alt"></i> 打卡位置</span></div>
+      <div class="form-group">
+        <label class="form-label">店家地址</label>
+        <input type="text" id="storeAddress" class="form-input" placeholder="例：台北市信義區...">
       </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-        <div>
-          <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">緯度</label>
-          <input type="number" step="0.0001" id="storeLatitude" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">緯度</label>
+          <input type="number" step="0.0001" id="storeLatitude" class="form-input" placeholder="25.0330">
         </div>
-        <div>
-          <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">經度</label>
-          <input type="number" step="0.0001" id="storeLongitude" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+        <div class="form-group">
+          <label class="form-label">經度</label>
+          <input type="number" step="0.0001" id="storeLongitude" class="form-input" placeholder="121.5654">
         </div>
       </div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">打卡允許範圍（公尺）</label>
-        <input type="number" id="storeRadius" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
-          建議：50-200 公尺（測試可設定較大值）
-        </div>
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="checkbox" id="enableLocationCheck" style="width: 18px; height: 18px; margin-right: 8px;">
-          <span style="font-size: 14px; font-weight: 600;">啟用位置驗證</span>
+      <div class="form-group">
+        <label class="form-label">
+          打卡允許範圍（公尺）
+          <small>建議 50-200 公尺，測試可設定較大值</small>
         </label>
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
-          關閉後員工可在任何地點打卡
-        </div>
+        <input type="number" id="storeRadius" class="form-input" placeholder="100">
       </div>
+      <label class="form-checkbox">
+        <input type="checkbox" id="enableLocationCheck">
+        <span class="form-checkbox-label">啟用位置驗證</span>
+      </label>
     </div>
 
     <div class="card">
-      <div class="card-title">🔔 提醒時間設定</div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">早上提醒時間</label>
-        <input type="time" id="morningReminderTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
-      </div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">晚上提醒時間</label>
-        <input type="time" id="eveningReminderTime" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="checkbox" id="enableReminders" style="width: 18px; height: 18px; margin-right: 8px;">
-          <span style="font-size: 14px; font-weight: 600;">啟用自動提醒</span>
-        </label>
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
-          系統會在指定時間推播提醒訊息
+      <div class="card-title"><span><i class="fas fa-bell"></i> 提醒設定</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">早上提醒時間</label>
+          <input type="time" id="morningReminderTime" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">晚上提醒時間</label>
+          <input type="time" id="eveningReminderTime" class="form-input">
         </div>
       </div>
+      <label class="form-checkbox">
+        <input type="checkbox" id="enableReminders">
+        <span class="form-checkbox-label">啟用自動提醒推播</span>
+      </label>
     </div>
 
     <div class="card">
-      <div class="card-title">🚨 異常警報設定</div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">遲到容忍時間（分鐘）</label>
-        <input type="number" id="lateThreshold" min="0" max="60" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
-          上班打卡晚於標準時間多少分鐘內不算遲到
+      <div class="card-title"><span><i class="fas fa-exclamation-circle"></i> 異常警報設定</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">
+            遲到容忍（分鐘）
+            <small>超過此時間才算遲到</small>
+          </label>
+          <input type="number" id="lateThreshold" min="0" max="60" class="form-input" placeholder="15">
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            早退容忍（分鐘）
+            <small>提早此時間才算早退</small>
+          </label>
+          <input type="number" id="earlyThreshold" min="0" max="60" class="form-input" placeholder="15">
         </div>
       </div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">早退容忍時間（分鐘）</label>
-        <input type="number" id="earlyThreshold" min="0" max="60" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
-          下班打卡早於標準時間多少分鐘內不算早退
-        </div>
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="checkbox" id="enableAlerts" style="width: 18px; height: 18px; margin-right: 8px;">
-          <span style="font-size: 14px; font-weight: 600;">啟用異常警報</span>
-        </label>
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; margin-left: 26px;">
-          系統會自動偵測異常打卡並通知管理員
-        </div>
-      </div>
+      <label class="form-checkbox">
+        <input type="checkbox" id="enableAlerts">
+        <span class="form-checkbox-label">啟用異常警報偵測</span>
+      </label>
     </div>
 
-    <button class="action-btn" style="width: 100%; justify-content: center; background: var(--success);" onclick="saveSettings()">
+    <button class="btn btn-primary btn-full" onclick="saveSettings()">
       <i class="fas fa-save"></i>
-      儲存設定
+      儲存所有設定
     </button>
 
-    <div id="settingsMessage" style="margin-top: 12px; padding: 12px; border-radius: 8px; display: none;"></div>
+    <div id="settingsMessage" class="settings-msg"></div>
   </div>
 
-  <!-- Export Tab -->
+  <!-- ── Export Tab ── -->
   <div id="exportTab" class="tab-content">
     <div class="card">
-      <div class="card-title">匯出報表</div>
+      <div class="card-title"><span><i class="fas fa-file-csv"></i> 匯出出勤報表</span></div>
 
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">選擇月份</label>
-        <input type="month" id="exportMonth" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+      <div class="form-group">
+        <label class="form-label">選擇月份</label>
+        <input type="month" id="exportMonth" class="form-input">
       </div>
 
-      <button class="action-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;" onclick="exportMonthData()">
-        <i class="fas fa-file-csv"></i>
-        匯出 CSV 檔案
+      <button class="btn btn-primary btn-full" onclick="exportMonthData()">
+        <i class="fas fa-download"></i>
+        下載 CSV 報表
       </button>
 
-      <button class="action-btn secondary" style="width: 100%; justify-content: center;" onclick="copyToClipboard()">
+      <button class="btn btn-secondary btn-full" onclick="copyToClipboard()">
         <i class="fas fa-copy"></i>
         複製到剪貼簿
       </button>
 
-      <div id="exportPreview" style="margin-top: 16px; display: none;">
-        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">預覽：</div>
-        <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; max-height: 300px; overflow-y: auto;" id="exportContent"></div>
+      <div id="exportPreview" style="display: none;">
+        <div style="font-size: 12px; color: var(--muted); margin: 14px 0 6px;">預覽：</div>
+        <div class="export-preview" id="exportContent"></div>
       </div>
     </div>
   </div>

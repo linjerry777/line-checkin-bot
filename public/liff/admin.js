@@ -176,15 +176,15 @@ function updateWeekStats() {
   const maxCount = Math.max(...weekData.map(d => d.count), 1);
 
   container.innerHTML = `
-    <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 150px; padding: 10px 0;">
+    <div class="bar-chart">
       ${weekData.map(day => {
-        const height = (day.count / maxCount) * 100;
+        const height = Math.max((day.count / maxCount) * 100, 4);
         const dayName = new Date(day.date).toLocaleDateString('zh-TW', { weekday: 'short' });
         return `
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1;">
-            <div style="font-size: 12px; font-weight: 600; color: var(--primary);">${day.count}</div>
-            <div style="width: 100%; max-width: 40px; background: var(--primary); border-radius: 4px 4px 0 0; height: ${height}%;"></div>
-            <div style="font-size: 11px; color: var(--text-secondary);">${dayName}</div>
+          <div class="bar-col">
+            <div class="bar-value">${day.count}</div>
+            <div class="bar" style="height: ${height}%;"></div>
+            <div class="bar-label">${dayName}</div>
           </div>
         `;
       }).join('')}
@@ -268,7 +268,7 @@ function loadAttendance() {
   });
 
   container.innerHTML = `
-    <table class="attendance-table">
+    <table class="data-table">
       <thead>
         <tr>
           <th>員工</th>
@@ -412,14 +412,15 @@ function copyToClipboard() {
 }
 
 // Switch tab
-function switchTab(tabName) {
+function switchTab(tabName, btnEl) {
   const buttons = document.querySelectorAll('.tab-btn');
   buttons.forEach(btn => btn.classList.remove('active'));
-  event.target.closest('.tab-btn').classList.add('active');
+  if (btnEl) btnEl.classList.add('active');
 
   const contents = document.querySelectorAll('.tab-content');
   contents.forEach(content => content.classList.remove('active'));
-  document.getElementById(`${tabName}Tab`).classList.add('active');
+  const targetTab = document.getElementById(`${tabName}Tab`);
+  if (targetTab) targetTab.classList.add('active');
 
   // Load data for specific tabs
   if (tabName === 'attendance') {
@@ -445,7 +446,7 @@ function showToast(message, type = 'info') {
 // Load system settings
 async function loadSettings() {
   try {
-    const response = await fetch(`/api/admin?action=get-settings&userId=${userId}`);
+    const response = await fetch(`/api/admin?action=get-settings&userId=${userProfile.userId}`);
     const data = await response.json();
 
     if (!data.success) {
@@ -496,7 +497,7 @@ async function saveSettings() {
     };
 
     // 發送更新請求
-    const response = await fetch(`/api/admin?action=update-settings&userId=${userId}`, {
+    const response = await fetch(`/api/admin?action=update-settings&userId=${userProfile.userId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -531,18 +532,11 @@ async function saveSettings() {
 // Show settings message
 function showSettingsMessage(message, type) {
   const msgDiv = document.getElementById('settingsMessage');
+  if (!msgDiv) return;
   msgDiv.textContent = message;
+  msgDiv.className = `settings-msg ${type}`;
   msgDiv.style.display = 'block';
 
-  if (type === 'success') {
-    msgDiv.style.background = 'rgba(52, 199, 89, 0.15)';
-    msgDiv.style.color = '#34C759';
-  } else {
-    msgDiv.style.background = 'rgba(255, 59, 48, 0.15)';
-    msgDiv.style.color = '#FF3B30';
-  }
-
-  // 5 秒後自動隱藏
   setTimeout(() => {
     msgDiv.style.display = 'none';
   }, 5000);
@@ -552,7 +546,7 @@ function showSettingsMessage(message, type) {
 async function loadAlerts() {
   try {
     // 載入今日異常
-    const response = await fetch(`/api/admin?action=anomalies&userId=${userId}`);
+    const response = await fetch(`/api/admin?action=anomalies&userId=${userProfile.userId}`);
     const data = await response.json();
 
     if (!data.success) {
@@ -599,18 +593,18 @@ function displayAlertSummary(anomalies) {
   }, {});
 
   const summaryHtml = `
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-      <div style="text-align: center; padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px;">
-        <div style="font-size: 24px; font-weight: 700; color: #FF3B30;">${bySeverity.high || 0}</div>
-        <div style="font-size: 12px; color: #FF3B30;">高嚴重度</div>
+    <div class="summary-grid">
+      <div class="summary-card high">
+        <div class="summary-value">${bySeverity.high || 0}</div>
+        <div class="summary-label">高嚴重度</div>
       </div>
-      <div style="text-align: center; padding: 12px; background: rgba(255, 149, 0, 0.1); border-radius: 8px;">
-        <div style="font-size: 24px; font-weight: 700; color: #FF9500;">${bySeverity.medium || 0}</div>
-        <div style="font-size: 12px; color: #FF9500;">中嚴重度</div>
+      <div class="summary-card medium">
+        <div class="summary-value">${bySeverity.medium || 0}</div>
+        <div class="summary-label">中嚴重度</div>
       </div>
-      <div style="text-align: center; padding: 12px; background: rgba(52, 199, 89, 0.1); border-radius: 8px;">
-        <div style="font-size: 24px; font-weight: 700; color: #34C759;">${bySeverity.low || 0}</div>
-        <div style="font-size: 12px; color: #34C759;">低嚴重度</div>
+      <div class="summary-card low">
+        <div class="summary-value">${bySeverity.low || 0}</div>
+        <div class="summary-label">低嚴重度</div>
       </div>
     </div>
   `;
@@ -653,20 +647,22 @@ function displayAlertList(anomalies) {
     low: '低'
   };
 
+  const typeIcon = {
+    late: 'fa-clock', early: 'fa-running', missing: 'fa-times-circle',
+    duplicate: 'fa-redo', unusual: 'fa-moon'
+  };
+
   const html = anomalies.map(a => `
-    <div style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px;">
-      <div style="font-size: 24px; flex: 0;">${typeEmoji[a.type]}</div>
-      <div style="flex: 1;">
-        <div style="font-weight: 600; font-size: 14px;">${a.employeeName}</div>
-        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">${a.message}</div>
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${a.detectedAt}</div>
+    <div class="alert-item">
+      <div class="alert-icon ${a.severity}">
+        <i class="fas ${typeIcon[a.type] || 'fa-exclamation'}"></i>
       </div>
-      <div style="text-align: center;">
-        <div style="padding: 4px 8px; background: ${severityColor[a.severity]}20; color: ${severityColor[a.severity]}; border-radius: 4px; font-size: 12px; font-weight: 600;">
-          ${severityName[a.severity]}
-        </div>
-        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${typeName[a.type]}</div>
+      <div class="alert-info">
+        <div class="alert-name">${a.employeeName}</div>
+        <div class="alert-msg">${a.message}</div>
+        <div class="alert-time">${a.detectedAt} &middot; ${typeName[a.type]}</div>
       </div>
+      <div class="sev-badge ${a.severity}">${severityName[a.severity]}</div>
     </div>
   `).join('');
 
@@ -676,7 +672,7 @@ function displayAlertList(anomalies) {
 // Load alert statistics
 async function loadAlertStats() {
   try {
-    const response = await fetch(`/api/admin?action=anomaly-stats&userId=${userId}`);
+    const response = await fetch(`/api/admin?action=anomaly-stats&userId=${userProfile.userId}`);
     const data = await response.json();
 
     if (!data.success) {
