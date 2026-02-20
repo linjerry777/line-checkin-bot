@@ -7,279 +7,324 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     :root {
-      --primary: #0F172A;
-      --secondary: #1E293B;
-      --cta: #22C55E;
-      --cta-hover: #16A34A;
-      --background: #020617;
-      --surface: #0F172A;
-      --text: #F8FAFC;
-      --text-muted: #94A3B8;
-      --border: rgba(255, 255, 255, 0.1);
-      --glass-bg: rgba(255, 255, 255, 0.05);
-      --glass-border: rgba(255, 255, 255, 0.1);
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      --blur: 16px;
+      --primary: #0891B2;
+      --primary-light: #22D3EE;
+      --primary-dark: #0E7490;
+      --cta: #0891B2;
+      --cta-hover: #0E7490;
+      --bg: #F0FDFF;
+      --bg2: #E0F7FA;
+      --surface: #FFFFFF;
+      --surface2: #F8FFFE;
+      --text: #164E63;
+      --text-sub: #0E7490;
+      --text-muted: #6B9DAB;
+      --border: #BAE6F5;
+      --border-light: #E0F5FB;
+      --success: #0891B2;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --shadow-sm: 0 2px 8px rgba(8, 145, 178, 0.08);
+      --shadow: 0 4px 20px rgba(8, 145, 178, 0.12);
+      --shadow-lg: 0 8px 32px rgba(8, 145, 178, 0.18);
+      --radius: 16px;
+      --radius-sm: 10px;
     }
 
     body {
-      font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--background);
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       padding-bottom: 80px;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Header */
+    /* ── Header ── */
     .header {
       position: sticky;
       top: 0;
       z-index: 50;
-      background: var(--glass-bg);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      border-bottom: 1px solid var(--glass-border);
-      padding: 16px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-light);
+      padding: 14px 20px;
+      box-shadow: var(--shadow-sm);
     }
 
     .header-content {
-      max-width: 1200px;
-      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
-    .header-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text);
+    .header-brand {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .header-title i {
-      color: var(--cta);
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* Stats Bar */
+    .header-logo svg {
+      width: 18px;
+      height: 18px;
+      fill: white;
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.01em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-greeting {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .header-user {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      background: var(--bg2);
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Stats Bar ── */
     .stats-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
       padding: 20px;
     }
 
     .stats-grid {
-      max-width: 1200px;
-      margin: 0 auto;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 10px;
     }
 
     .stat-card {
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 16px;
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 14px 12px;
       text-align: center;
-      transition: all 0.2s ease;
-    }
-
-    .stat-card:hover {
-      background: rgba(255, 255, 255, 0.08);
-      transform: translateY(-2px);
+      cursor: default;
     }
 
     .stat-value {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
-      color: var(--cta);
-      margin-bottom: 4px;
+      color: #FFFFFF;
+      margin-bottom: 3px;
+      line-height: 1;
     }
 
     .stat-label {
-      font-size: 12px;
-      color: var(--text-muted);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
       font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.03em;
     }
 
-    /* Tab Navigation */
+    /* ── Tab Navigation ── */
     .tab-nav {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: var(--surface);
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--border-light);
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      padding: 8px;
+      padding: 6px 8px;
+      padding-bottom: calc(6px + env(safe-area-inset-bottom));
       z-index: 50;
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 -4px 20px rgba(8, 145, 178, 0.08);
     }
 
     .tab-btn {
       background: none;
       border: none;
       color: var(--text-muted);
-      padding: 12px 8px;
+      padding: 10px 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      border-radius: 8px;
+      transition: color 0.2s ease;
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       font-size: 11px;
       font-weight: 500;
+      min-height: 56px;
+      justify-content: center;
+      font-family: 'Noto Sans TC', sans-serif;
     }
 
     .tab-btn i {
-      font-size: 20px;
-    }
-
-    .tab-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
+      font-size: 19px;
+      transition: color 0.2s ease;
     }
 
     .tab-btn.active {
-      color: var(--cta);
-      background: rgba(34, 197, 94, 0.1);
+      color: var(--primary);
     }
 
-    /* Tab Content */
+    .tab-btn.active i {
+      color: var(--primary);
+    }
+
+    /* ── Tab Content ── */
     .tab-content {
       display: none;
-      max-width: 1200px;
-      margin: 0 auto;
       padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
     }
 
     .tab-content.active {
       display: block;
-      animation: fadeIn 0.3s ease;
+      animation: fadeUp 0.25s ease;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Glass Card */
-    .glass-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: var(--shadow);
-      transition: all 0.2s ease;
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
     }
 
-    .glass-card:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
     }
 
     .card-title {
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       color: var(--text);
-      margin-bottom: 20px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .card-title i {
-      color: var(--cta);
-      font-size: 20px;
+      color: var(--primary);
+      font-size: 15px;
     }
 
-    /* Location Status */
+    .card-link {
+      font-size: 12px;
+      color: var(--primary);
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* ── Location Status ── */
     .location-status {
-      padding: 16px 20px;
-      border-radius: 12px;
-      text-align: center;
-      font-size: 14px;
-      font-weight: 600;
+      padding: 14px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
       display: flex;
       align-items: center;
-      justify-content: center;
       gap: 10px;
       transition: all 0.2s ease;
     }
 
     .location-status.loading {
-      background: rgba(148, 163, 184, 0.1);
+      background: #F1F5F9;
       color: var(--text-muted);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-light);
     }
 
     .location-status.success {
-      background: rgba(34, 197, 94, 0.1);
-      color: var(--cta);
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: #ECFDF5;
+      color: #059669;
+      border: 1px solid #6EE7B7;
     }
 
     .location-status.error {
-      background: rgba(239, 68, 68, 0.1);
+      background: #FEF2F2;
       color: #EF4444;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      border: 1px solid #FCA5A5;
     }
 
-    /* Check-in Buttons */
+    /* ── Check-in Buttons ── */
     .checkin-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 12px;
+      margin-top: 4px;
     }
 
     .checkin-btn {
-      background: var(--cta);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
       color: white;
       border: none;
-      border-radius: 12px;
-      padding: 20px;
-      font-size: 16px;
-      font-weight: 600;
+      border-radius: var(--radius-sm);
+      padding: 18px 12px;
+      font-size: 15px;
+      font-weight: 700;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-      min-height: 100px;
+      box-shadow: 0 4px 14px rgba(8, 145, 178, 0.3);
+      min-height: 90px;
       justify-content: center;
+      font-family: 'Noto Sans TC', sans-serif;
     }
 
     .checkin-btn i {
-      font-size: 28px;
+      font-size: 24px;
     }
 
     .checkin-btn:hover:not(:disabled) {
-      background: var(--cta-hover);
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+      box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
     }
 
     .checkin-btn:active:not(:disabled) {
@@ -287,59 +332,70 @@
     }
 
     .checkin-btn:disabled {
-      opacity: 0.4;
+      background: #E2E8F0;
+      color: #94A3B8;
+      box-shadow: none;
       cursor: not-allowed;
     }
 
     .checkin-btn.btn-out {
-      background: #475569;
-      box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
+      background: linear-gradient(135deg, #475569 0%, #64748B 100%);
+      box-shadow: 0 4px 14px rgba(71, 85, 105, 0.25);
     }
 
     .checkin-btn.btn-out:hover:not(:disabled) {
-      background: #334155;
-      box-shadow: 0 6px 20px rgba(71, 85, 105, 0.4);
+      box-shadow: 0 6px 20px rgba(71, 85, 105, 0.35);
     }
 
-    /* Record Items */
+    .checkin-btn.btn-out:disabled {
+      background: #E2E8F0;
+      box-shadow: none;
+    }
+
+    /* ── Record Items ── */
     .record-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
-      gap: 16px;
-      transition: all 0.2s ease;
+      gap: 14px;
       cursor: pointer;
+      transition: all 0.18s ease;
     }
 
     .record-item:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.15);
-      transform: translateX(4px);
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: var(--shadow-sm);
+      transform: translateX(2px);
+    }
+
+    .record-item:last-child {
+      margin-bottom: 0;
     }
 
     .record-icon {
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 17px;
       flex-shrink: 0;
     }
 
     .record-icon.in {
-      background: rgba(34, 197, 94, 0.1);
-      color: var(--cta);
+      background: linear-gradient(135deg, #CFFAFE, #A5F3FC);
+      color: var(--primary-dark);
     }
 
     .record-icon.out {
-      background: rgba(148, 163, 184, 0.1);
-      color: var(--text-muted);
+      background: #F1F5F9;
+      color: #64748B;
     }
 
     .record-details {
@@ -348,210 +404,256 @@
     }
 
     .record-type {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text);
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
     .record-time {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
-      font-weight: 500;
+      font-weight: 400;
     }
 
     .record-badge {
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      flex-shrink: 0;
     }
 
     .record-badge.in {
-      background: rgba(34, 197, 94, 0.15);
-      color: var(--cta);
+      background: #CFFAFE;
+      color: var(--primary-dark);
     }
 
     .record-badge.out {
-      background: rgba(148, 163, 184, 0.15);
-      color: var(--text-muted);
+      background: #F1F5F9;
+      color: #64748B;
     }
 
-    /* Calendar */
-    .calendar-header {
+    /* ── Row (used in stats) ── */
+    .record-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .record-row:last-child {
+      border-bottom: none;
+    }
+
+    .record-row-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .record-row-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Calendar ── */
+    .calendar-nav-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .calendar-month {
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 17px;
+      font-weight: 700;
       color: var(--text);
     }
 
     .calendar-nav {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .calendar-nav button {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--bg2);
       border: 1px solid var(--border);
-      color: var(--text);
+      color: var(--primary);
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 13px;
     }
 
     .calendar-nav button:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.2);
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
     }
 
     .calendar-weekdays {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
+      gap: 4px;
+      margin-bottom: 6px;
     }
 
     .calendar-weekday {
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 8px 0;
+      padding: 6px 0;
     }
+
+    .calendar-weekday:first-child { color: #EF4444; }
+    .calendar-weekday:last-child  { color: var(--primary); }
 
     .calendar-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
+      gap: 4px;
     }
 
     .calendar-day {
       aspect-ratio: 1;
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
+      color: var(--text);
       cursor: pointer;
-      transition: all 0.2s ease;
-      border: 1px solid transparent;
+      transition: all 0.18s ease;
       position: relative;
     }
 
-    .calendar-day:hover:not(.empty) {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: var(--border);
+    .calendar-day:hover:not(.empty):not(.other-month) {
+      background: var(--bg2);
     }
 
-    .calendar-day.empty {
+    .calendar-day.other-month {
+      color: #CBD5E1;
       cursor: default;
-      opacity: 0;
     }
 
     .calendar-day.today {
-      border-color: var(--cta);
-      color: var(--cta);
+      background: var(--bg2);
+      color: var(--primary);
       font-weight: 700;
+      border: 1.5px solid var(--primary);
     }
 
-    .calendar-day.has-record::after {
+    .calendar-day.has-checkin::after {
       content: '';
       position: absolute;
-      bottom: 6px;
+      bottom: 5px;
       width: 4px;
       height: 4px;
       border-radius: 50%;
-      background: var(--cta);
+      background: var(--primary);
     }
 
     .calendar-day.selected {
-      background: rgba(34, 197, 94, 0.2);
-      border-color: var(--cta);
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
     }
 
-    /* Hours Grid */
+    .calendar-day.selected::after {
+      background: white;
+    }
+
+    /* ── Hours Grid ── */
     .hours-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 12px;
       margin-bottom: 20px;
     }
 
     .hours-box {
-      background: rgba(34, 197, 94, 0.1);
-      border: 1px solid rgba(34, 197, 94, 0.2);
-      border-radius: 12px;
-      padding: 20px;
+      background: linear-gradient(135deg, #F0FDFF 0%, #E0F7FA 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px 14px;
       text-align: center;
     }
 
     .hours-value {
-      font-size: 32px;
+      font-size: 30px;
       font-weight: 700;
-      color: var(--cta);
-      margin-bottom: 8px;
+      color: var(--primary);
+      margin-bottom: 6px;
+      line-height: 1;
     }
 
     .hours-label {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
       font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
 
-    /* Empty State */
+    /* ── Empty State ── */
     .empty-state {
       text-align: center;
-      padding: 40px 20px;
+      padding: 32px 20px;
       color: var(--text-muted);
     }
 
     .empty-state i {
-      font-size: 48px;
+      font-size: 40px;
       color: var(--border);
-      margin-bottom: 16px;
+      margin-bottom: 12px;
+      display: block;
     }
 
     .empty-state-text {
-      font-size: 15px;
-      font-weight: 500;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-muted);
     }
 
-    /* Toast */
+    /* ── Section Label ── */
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+
+    /* ── Toast ── */
     .toast {
       position: fixed;
-      top: 80px;
+      top: 76px;
       left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: var(--surface);
-      color: var(--text);
-      padding: 16px 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      border: 1px solid var(--border);
+      transform: translateX(-50%) translateY(-120px);
+      background: var(--text);
+      color: #fff;
+      padding: 13px 22px;
+      border-radius: 30px;
+      box-shadow: 0 8px 24px rgba(22, 78, 99, 0.25);
       opacity: 0;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 100;
       font-weight: 500;
-      max-width: 90%;
+      font-size: 14px;
+      max-width: 88%;
+      white-space: nowrap;
+      pointer-events: none;
     }
 
     .toast.show {
@@ -559,70 +661,61 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* Loading Spinner */
+    .toast.success { background: #059669; }
+    .toast.error   { background: #DC2626; }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--border-light);
+      margin: 8px 0;
+    }
+
+    /* ── Loading Spinner ── */
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .fa-spin { animation: spin 1s linear infinite; }
 
-    .fa-spin {
-      animation: spin 1s linear infinite;
+    /* ── Responsive ── */
+    @media (max-width: 375px) {
+      .stats-grid { gap: 8px; }
+      .stat-value  { font-size: 19px; }
+      .stat-label  { font-size: 10px; }
+      .checkin-btn { padding: 14px 10px; min-height: 80px; }
+      .tab-content { padding: 16px; }
     }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      .stats-grid {
-        gap: 8px;
-      }
-
-      .stat-card {
-        padding: 12px;
-      }
-
-      .stat-value {
-        font-size: 20px;
-      }
-
-      .stat-label {
-        font-size: 11px;
-      }
-
-      .checkin-grid {
-        gap: 12px;
-      }
-
-      .checkin-btn {
-        padding: 16px;
-        min-height: 90px;
-      }
-
-      .glass-card {
-        padding: 20px;
-      }
-    }
-
-    /* Reduced Motion */
+    /* ── Reduced Motion ── */
     @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
+      *, *::before, *::after {
         animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
       }
     }
   </style>
 </head>
 <body>
+
+  <!-- ── Header ── -->
   <div class="header">
     <div class="header-content">
-      <div class="header-title">
-        <i class="fas fa-clock"></i>
-        員工打卡系統
+      <div class="header-brand">
+        <div class="header-logo">
+          <!-- Clock icon SVG -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 110-16 8 8 0 010 16zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+          </svg>
+        </div>
+        <div class="header-title">打卡系統</div>
       </div>
-      <div id="userName" style="font-size: 14px; color: var(--text-muted);"></div>
+      <div class="header-right">
+        <div id="userName" class="header-user" style="display:none;"></div>
+      </div>
     </div>
   </div>
 
+  <!-- ── Stats Bar ── -->
   <div class="stats-bar">
     <div class="stats-grid">
       <div class="stat-card">
@@ -640,40 +733,44 @@
     </div>
   </div>
 
+  <!-- ── Bottom Tab Nav ── -->
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('checkin')">
+    <button class="tab-btn active" onclick="switchTab('checkin', this)" aria-label="打卡">
       <i class="fas fa-qrcode"></i>
       <span>打卡</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('calendar')">
+    <button class="tab-btn" onclick="switchTab('calendar', this)" aria-label="日曆">
       <i class="fas fa-calendar-alt"></i>
       <span>日曆</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('records')">
+    <button class="tab-btn" onclick="switchTab('records', this)" aria-label="紀錄">
       <i class="fas fa-list"></i>
       <span>紀錄</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('stats')">
+    <button class="tab-btn" onclick="switchTab('stats', this)" aria-label="統計">
       <i class="fas fa-chart-bar"></i>
       <span>統計</span>
     </button>
   </div>
 
+  <!-- ── Tab: 打卡 ── -->
   <div id="checkinTab" class="tab-content active">
-    <div class="glass-card">
+    <!-- Location -->
+    <div class="card">
       <div class="card-title">
         <i class="fas fa-map-marker-alt"></i>
         位置驗證
       </div>
       <div id="locationStatus" class="location-status loading">
         <i class="fas fa-spinner fa-spin"></i>
-        正在取得位置...
+        正在取得位置…
       </div>
     </div>
 
-    <div class="glass-card">
-      <div class="card-title">
-        <i class="fas fa-hand-pointer"></i>
+    <!-- Buttons -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fas fa-hand-point-up"></i>
         快速打卡
       </div>
       <div class="checkin-grid">
@@ -688,26 +785,26 @@
       </div>
     </div>
 
-    <div class="glass-card">
-      <div class="card-title">
-        <i class="fas fa-history"></i>
-        今日打卡紀錄
+    <!-- Today records -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-history"></i>
+          今日打卡
+        </div>
       </div>
       <div id="todayRecords"></div>
     </div>
   </div>
 
+  <!-- ── Tab: 日曆 ── -->
   <div id="calendarTab" class="tab-content">
-    <div class="glass-card">
-      <div class="card-title">
-        <i class="fas fa-calendar"></i>
-        出勤月曆
-      </div>
-      <div class="calendar-header">
+    <div class="card">
+      <div class="calendar-nav-row">
         <div class="calendar-month" id="calendarMonth"></div>
         <div class="calendar-nav">
           <button onclick="changeMonth(-1)" aria-label="上個月"><i class="fas fa-chevron-left"></i></button>
-          <button onclick="changeMonth(1)" aria-label="下個月"><i class="fas fa-chevron-right"></i></button>
+          <button onclick="changeMonth(1)"  aria-label="下個月"><i class="fas fa-chevron-right"></i></button>
         </div>
       </div>
       <div class="calendar-weekdays">
@@ -722,8 +819,8 @@
       <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
-    <div class="glass-card" id="selectedDayRecords" style="display: none;">
-      <div class="card-title">
+    <div class="card" id="selectedDayRecords" style="display:none;">
+      <div class="card-title" style="margin-bottom:14px;">
         <i class="fas fa-calendar-day"></i>
         <span id="selectedDate"></span>
       </div>
@@ -731,19 +828,23 @@
     </div>
   </div>
 
+  <!-- ── Tab: 紀錄 ── -->
   <div id="recordsTab" class="tab-content">
-    <div class="glass-card">
-      <div class="card-title">
-        <i class="fas fa-clipboard-list"></i>
-        最近 30 天紀錄
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-clipboard-list"></i>
+          最近 30 天
+        </div>
       </div>
       <div id="allRecordsList"></div>
     </div>
   </div>
 
+  <!-- ── Tab: 統計 ── -->
   <div id="statsTab" class="tab-content">
-    <div class="glass-card">
-      <div class="card-title">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">
         <i class="fas fa-hourglass-half"></i>
         本月工時統計
       </div>
@@ -761,8 +862,9 @@
     </div>
   </div>
 
+  <!-- ── Toast ── -->
   <div id="toast" class="toast"></div>
 
-  <script src="app.js?v=4.0"></script>
+  <script src="app.js?v=5.0"></script>
 </body>
 </html>

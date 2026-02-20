@@ -74,7 +74,9 @@ async function loadRecords() {
 function updateUserInfo() {
   const userNameEl = document.getElementById('userName');
   if (userNameEl) {
-    userNameEl.textContent = employeeData?.name || userProfile.displayName;
+    const name = employeeData?.name || userProfile.displayName;
+    userNameEl.textContent = name;
+    userNameEl.style.display = 'block';
   }
 }
 
@@ -228,23 +230,17 @@ function updateStatsTab(monthRecords, totalHours, workDays) {
   const statsContainer = document.getElementById('dailyStatsList');
   if (statsContainer) {
     statsContainer.innerHTML = `
-      <div class="record-item">
-        <div class="record-details">
-          <div class="record-type">出勤天數</div>
-          <div class="record-time">${workDays} 天</div>
-        </div>
+      <div class="record-row">
+        <span class="record-row-label">出勤天數</span>
+        <span class="record-row-value">${workDays} 天</span>
       </div>
-      <div class="record-item">
-        <div class="record-details">
-          <div class="record-type">上班打卡次數</div>
-          <div class="record-time">${checkinCount} 次</div>
-        </div>
+      <div class="record-row">
+        <span class="record-row-label">上班打卡次數</span>
+        <span class="record-row-value">${checkinCount} 次</span>
       </div>
-      <div class="record-item">
-        <div class="record-details">
-          <div class="record-type">下班打卡次數</div>
-          <div class="record-time">${checkoutCount} 次</div>
-        </div>
+      <div class="record-row">
+        <span class="record-row-label">下班打卡次數</span>
+        <span class="record-row-value">${checkoutCount} 次</span>
       </div>
     `;
   }
@@ -463,12 +459,13 @@ async function performCheckin(type) {
   }
 }
 
-// Switch tab
-function switchTab(tabName) {
+// Switch tab  (btnEl is passed as `this` from onclick)
+function switchTab(tabName, btnEl) {
   // Update tab buttons
   const buttons = document.querySelectorAll('.tab-btn');
   buttons.forEach(btn => btn.classList.remove('active'));
-  event.target.closest('.tab-btn').classList.add('active');
+  const activeBtn = btnEl ? btnEl.closest('.tab-btn') : null;
+  if (activeBtn) activeBtn.classList.add('active');
 
   // Update tab content
   const contents = document.querySelectorAll('.tab-content');
@@ -485,6 +482,9 @@ function showToast(message, type = 'info') {
   if (!toast) return;
 
   toast.textContent = message;
+  toast.className = 'toast'; // reset classes
+  if (type === 'success') toast.classList.add('success');
+  if (type === 'error') toast.classList.add('error');
   toast.classList.add('show');
 
   setTimeout(() => {
