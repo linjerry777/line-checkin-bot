@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing userId' });
     }
 
-    const records = await attendanceService.getTodayRecords(userId);
+    const records = await attendanceService.getAllRecordsByUserId(userId);
 
     return res.status(200).json({
       success: true,

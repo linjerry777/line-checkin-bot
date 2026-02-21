@@ -82,8 +82,8 @@ function updateUserInfo() {
 
 // Update all statistics
 function updateAllStats() {
-  const today = new Date().toISOString().split('T')[0];
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const today = getTodayLocal();
+  const thisMonth = getThisMonthLocal();
 
   // Today status
   const todayRecords = allRecords.filter(r => r.date === today);
@@ -147,15 +147,15 @@ function calculateMonthHours(records) {
   return hours;
 }
 
-// Parse time string to Date
+// Parse time string to Date (use local date to avoid UTC offset issues)
 function parseTime(timeStr) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocal();
   return new Date(`${today}T${timeStr}`);
 }
 
 // Update today records
 function updateTodayRecords() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocal();
   const todayRecords = allRecords.filter(r => r.date === today);
 
   const container = document.getElementById('todayRecords');
@@ -274,8 +274,7 @@ function updateCalendar() {
   }
 
   // Current month days
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = getTodayLocal();
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
   for (let day = 1; day <= daysInMonth; day++) {
@@ -510,6 +509,24 @@ function formatDate(dateStr) {
   return `${year}/${month}/${day} (${weekday})`;
 }
 
+// Get today's date string in LOCAL timezone (YYYY-MM-DD)
+// Using toISOString() gives UTC date which is wrong in Taiwan (UTC+8) after midnight
+function getTodayLocal() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Get current month string in LOCAL timezone (YYYY-MM)
+function getThisMonthLocal() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
 // ── Leave System ────────────────────────────────────────
 
 const LEAVE_TYPE_TEXT = {
@@ -521,7 +538,7 @@ const LEAVE_TYPE_TEXT = {
 
 // Initialize leave form dates (default: today ~ today)
 function initLeaveForm() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocal();
   const startEl = document.getElementById('leaveStartDate');
   const endEl   = document.getElementById('leaveEndDate');
   if (startEl && !startEl.value) startEl.value = today;

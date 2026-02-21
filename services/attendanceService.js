@@ -127,8 +127,37 @@ async function getAllRecords() {
   }
 }
 
+/**
+ * 取得特定員工所有打卡紀錄（員工端用）
+ */
+async function getAllRecordsByUserId(userId) {
+  try {
+    const records = await getSheetData('打卡紀錄!A:G');
+
+    if (!records || records.length <= 1) {
+      return [];
+    }
+
+    return records.slice(1)
+      .filter(row => row[0] === userId)
+      .map(row => ({
+        userId: row[0],
+        employeeName: row[1],
+        type: row[2],
+        date: row[3],
+        time: row[4],
+        fullTimestamp: row[5],
+        location: row[6] || null,
+      }));
+  } catch (error) {
+    console.error('取得員工紀錄錯誤:', error);
+    return [];
+  }
+}
+
 module.exports = {
   checkIn,
   getTodayRecords,
   getAllRecords,
+  getAllRecordsByUserId,
 };

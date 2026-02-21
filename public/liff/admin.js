@@ -4,6 +4,21 @@ let userProfile = null;
 let allEmployees = [];
 let allRecords = [];
 
+// Get today's date string in LOCAL timezone (avoids UTC midnight shift bug in Taiwan UTC+8)
+function getTodayLocalAdmin() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function getThisMonthLocalAdmin() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
 // Initialize LIFF
 async function initLiff() {
   try {
@@ -42,9 +57,12 @@ async function initLiff() {
     // Load data
     await loadAllData();
 
-    // Set default date for attendance tab
-    document.getElementById('attendanceDate').valueAsDate = new Date();
-    document.getElementById('exportMonth').value = new Date().toISOString().slice(0, 7);
+    // Set default date for attendance tab (use local date string to avoid UTC offset bug)
+    const todayLocal = getTodayLocalAdmin();
+    const attendanceDateEl = document.getElementById('attendanceDate');
+    if (attendanceDateEl) attendanceDateEl.value = todayLocal;
+    const exportMonthEl = document.getElementById('exportMonth');
+    if (exportMonthEl) exportMonthEl.value = todayLocal.slice(0, 7);
 
   } catch (error) {
     console.error('LIFF 初始化失敗:', error);
@@ -108,8 +126,8 @@ async function loadPendingLeaveBadge() {
 
 // Update overview
 function updateOverview() {
-  const today = new Date().toISOString().split('T')[0];
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const today = getTodayLocalAdmin();
+  const thisMonth = getThisMonthLocalAdmin();
 
   // Total employees
   document.getElementById('totalEmployees').textContent = allEmployees.length;
@@ -137,7 +155,7 @@ function updateOverview() {
 
 // Update today attendance
 function updateTodayAttendance() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocalAdmin();
   const container = document.getElementById('todayAttendance');
 
   const employeeStatus = allEmployees.map(emp => {
@@ -179,7 +197,10 @@ function updateWeekStats() {
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    weekDays.push(date.toISOString().split('T')[0]);
+    const y = date.getFullYear();
+    const mo = String(date.getMonth() + 1).padStart(2, '0');
+    const d2 = String(date.getDate()).padStart(2, '0');
+    weekDays.push(`${y}-${mo}-${d2}`);
   }
 
   const weekData = weekDays.map(date => {
@@ -214,7 +235,8 @@ function updateWeekStats() {
 function updateEmployeeList() {
   const container = document.getElementById('employeeList');
   const count = document.getElementById('employeeCount');
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocalAdmin();
+  const thisMonth = getThisMonthLocalAdmin();
 
   count.textContent = `${allEmployees.length} 位員工`;
 
@@ -229,7 +251,7 @@ function updateEmployeeList() {
     const hasCheckedIn = todayRecords.some(r => r.type === 'in');
     const hasCheckedOut = todayRecords.some(r => r.type === 'out');
 
-    const monthRecords = empRecords.filter(r => r.date.startsWith(new Date().toISOString().slice(0, 7)));
+    const monthRecords = empRecords.filter(r => r.date.startsWith(thisMonth));
     const workDays = new Set(monthRecords.map(r => r.date)).size;
 
     let status = 'absent';
