@@ -671,6 +671,165 @@
       margin: 8px 0;
     }
 
+    /* ── Leave System ── */
+    .leave-form-group {
+      margin-bottom: 16px;
+    }
+
+    .leave-form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .leave-select,
+    .leave-input,
+    .leave-textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--text);
+      font-family: 'Noto Sans TC', sans-serif;
+      outline: none;
+      transition: border-color 0.2s ease;
+      -webkit-appearance: none;
+    }
+
+    .leave-select:focus,
+    .leave-input:focus,
+    .leave-textarea:focus {
+      border-color: var(--primary);
+      background: var(--surface);
+    }
+
+    .leave-textarea {
+      resize: none;
+      height: 80px;
+      line-height: 1.5;
+    }
+
+    .leave-date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .leave-submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 15px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Noto Sans TC', sans-serif;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(8, 145, 178, 0.3);
+      margin-top: 4px;
+    }
+
+    .leave-submit-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
+    }
+
+    .leave-submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .leave-submit-btn:disabled {
+      background: #E2E8F0;
+      color: #94A3B8;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Leave Status Badge */
+    .leave-status {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .leave-status.pending  { background: #FEF3C7; color: #D97706; }
+    .leave-status.approved { background: #D1FAE5; color: #059669; }
+    .leave-status.rejected { background: #FEE2E2; color: #DC2626; }
+
+    /* Leave Item */
+    .leave-item {
+      background: var(--surface2);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .leave-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .leave-item-type {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .leave-item-type i {
+      color: var(--primary);
+      font-size: 13px;
+    }
+
+    .leave-item-dates {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .leave-item-reason {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .leave-item-reject {
+      font-size: 12px;
+      color: #DC2626;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Leave type chip */
+    .leave-type-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary-dark);
+    }
+
     /* ── Loading Spinner ── */
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -684,6 +843,8 @@
       .stat-label  { font-size: 10px; }
       .checkin-btn { padding: 14px 10px; min-height: 80px; }
       .tab-content { padding: 16px; }
+      .tab-btn     { font-size: 10px; }
+      .tab-btn i   { font-size: 16px; }
     }
 
     /* ── Reduced Motion ── */
@@ -734,7 +895,7 @@
   </div>
 
   <!-- ── Bottom Tab Nav ── -->
-  <div class="tab-nav">
+  <div class="tab-nav" style="grid-template-columns: repeat(5, 1fr);">
     <button class="tab-btn active" onclick="switchTab('checkin', this)" aria-label="打卡">
       <i class="fas fa-qrcode"></i>
       <span>打卡</span>
@@ -746,6 +907,10 @@
     <button class="tab-btn" onclick="switchTab('records', this)" aria-label="紀錄">
       <i class="fas fa-list"></i>
       <span>紀錄</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('leave', this)" aria-label="請假">
+      <i class="fas fa-umbrella-beach"></i>
+      <span>請假</span>
     </button>
     <button class="tab-btn" onclick="switchTab('stats', this)" aria-label="統計">
       <i class="fas fa-chart-bar"></i>
@@ -841,6 +1006,67 @@
     </div>
   </div>
 
+  <!-- ── Tab: 請假 ── -->
+  <div id="leaveTab" class="tab-content">
+    <!-- Apply Form -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">
+        <i class="fas fa-pen-to-square"></i>
+        申請請假
+      </div>
+
+      <div class="leave-form-group">
+        <label class="leave-form-label">假別</label>
+        <select id="leaveType" class="leave-select">
+          <option value="annual">特休</option>
+          <option value="sick">病假</option>
+          <option value="personal">事假</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+
+      <div class="leave-form-group">
+        <label class="leave-form-label">請假日期</label>
+        <div class="leave-date-row">
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">開始日期</div>
+            <input type="date" id="leaveStartDate" class="leave-input">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">結束日期</div>
+            <input type="date" id="leaveEndDate" class="leave-input">
+          </div>
+        </div>
+      </div>
+
+      <div class="leave-form-group">
+        <label class="leave-form-label">請假原因（選填）</label>
+        <textarea id="leaveReason" class="leave-textarea" placeholder="請簡述請假原因…"></textarea>
+      </div>
+
+      <button id="leaveSubmitBtn" class="leave-submit-btn" onclick="submitLeave()">
+        <i class="fas fa-paper-plane"></i>
+        送出申請
+      </button>
+    </div>
+
+    <!-- Leave History -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-clock-rotate-left"></i>
+          我的請假紀錄
+        </div>
+      </div>
+      <div id="myLeavesList">
+        <div class="empty-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p class="empty-state-text">載入中…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Tab: 統計 ── -->
   <div id="statsTab" class="tab-content">
     <div class="card">
@@ -865,6 +1091,6 @@
   <!-- ── Toast ── -->
   <div id="toast" class="toast"></div>
 
-  <script src="app.js?v=5.0"></script>
+  <script src="app.js?v=5.1"></script>
 </body>
 </html>

@@ -82,10 +82,28 @@ async function loadAllData() {
     updateEmployeeList();
     loadAttendance();
 
+    // Pre-load leave pending count for badge
+    loadPendingLeaveBadge();
+
   } catch (error) {
     console.error('載入資料失敗:', error);
     showToast('載入資料失敗', 'error');
   }
+}
+
+// Only load pending count for tab badge (lightweight)
+async function loadPendingLeaveBadge() {
+  try {
+    const res = await fetch(`/api/leave?action=pending&userId=${userProfile.userId}`);
+    const data = await res.json();
+    if (!data.success) return;
+    const count = (data.leaves || []).length;
+    const badge = document.getElementById('pendingLeaveCount');
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+  } catch (_) { /* silent */ }
 }
 
 // Update overview
@@ -429,6 +447,8 @@ function switchTab(tabName, btnEl) {
     loadSettings();
   } else if (tabName === 'alerts') {
     loadAlerts();
+  } else if (tabName === 'leave') {
+    loadAllLeaves();
   }
 }
 
@@ -734,6 +754,186 @@ async function loadAlertStats() {
         載入失敗
       </div>
     `;
+  }
+}
+
+// ── Leave System ────────────────────────────────────────
+
+let allLeaves = [];
+let leaveFilter = 'all';
+
+const LEAVE_TYPE_TEXT_ADMIN = {
+  annual: '特休', sick: '病假', personal: '事假', other: '其他'
+};
+
+// Load all leaves and update pending badge
+async function loadAllLeaves() {
+  const container = document.getElementById('leaveList');
+  if (container) container.innerHTML = '<div class="loading">載入中...</div>';
+
+  try {
+    const res = await fetch(`/api/leave?action=all-leaves&userId=${userProfile.userId}`);
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error);
+
+    allLeaves = data.leaves || [];
+
+    // Update pending badge in tab nav
+    const pending = allLeaves.filter(l => l.status === 'pending');
+    const badge = document.getElementById('pendingLeaveCount');
+    if (badge) {
+      if (pending.length > 0) {
+        badge.textContent = pending.length;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    renderLeaves();
+  } catch (error) {
+    console.error('載入請假失敗:', error);
+    if (container) container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);">載入失敗</div>';
+  }
+}
+
+// Filter and render leaves
+function filterLeaves(filter, chipEl) {
+  leaveFilter = filter;
+  // Update chip styles
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  if (chipEl) chipEl.classList.add('active');
+  renderLeaves();
+}
+
+function renderLeaves() {
+  const container = document.getElementById('leaveList');
+  if (!container) return;
+
+  let filtered = [...allLeaves];
+  if (leaveFilter !== 'all') {
+    filtered = filtered.filter(l => l.status === leaveFilter);
+  }
+
+  // Sort: pending first, then by createdAt desc
+  filtered.sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (b.status === 'pending' && a.status !== 'pending') return 1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;color:var(--muted);">
+        <i class="fas fa-inbox" style="font-size:36px;opacity:0.4;display:block;margin-bottom:10px;"></i>
+        無${leaveFilter !== 'all' ? ['', '待審核', '已批准', '已拒絕'][['all','pending','approved','rejected'].indexOf(leaveFilter)] : ''}請假紀錄
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(leave => {
+    const typeText   = LEAVE_TYPE_TEXT_ADMIN[leave.leaveType] || leave.leaveType;
+    const statusMap  = { pending: '待審核', approved: '已批准', rejected: '已拒絕' };
+    const statusText = statusMap[leave.status] || leave.status;
+    const datesText  = leave.startDate === leave.endDate
+      ? leave.startDate
+      : `${leave.startDate} ~ ${leave.endDate}`;
+    const initials = (leave.employeeName || '?').charAt(0);
+
+    const actionHtml = leave.status === 'pending' ? `
+      <div class="leave-action-row">
+        <button class="btn-approve" onclick="reviewLeave('${leave.leaveId}', 'approve', this)">
+          <i class="fas fa-check"></i> 批准
+        </button>
+        <button class="btn-reject" onclick="toggleRejectInput('${leave.leaveId}', this)">
+          <i class="fas fa-times"></i> 拒絕
+        </button>
+      </div>
+      <input type="text" id="rejectInput-${leave.leaveId}" class="reject-reason-input"
+        placeholder="請填寫拒絕原因…">
+      <div id="confirmReject-${leave.leaveId}" style="display:none; margin-top:8px;">
+        <button class="btn-reject" style="width:100%;" onclick="reviewLeave('${leave.leaveId}', 'reject', this)">
+          <i class="fas fa-times-circle"></i> 確認拒絕
+        </button>
+      </div>
+    ` : (leave.status === 'rejected' && leave.rejectReason ? `
+      <div style="font-size:12px;color:#EF4444;margin-top:8px;">
+        <i class="fas fa-circle-xmark"></i> 拒絕原因：${leave.rejectReason}
+      </div>` : '');
+
+    return `
+      <div class="leave-card" id="leaveCard-${leave.leaveId}">
+        <div class="leave-card-header">
+          <div class="leave-card-name">
+            <div class="avatar">${initials}</div>
+            <span>${leave.employeeName}</span>
+          </div>
+          <span class="leave-status-badge ${leave.status}">${statusText}</span>
+        </div>
+        <div class="leave-card-meta">
+          <span class="leave-type-tag">${typeText}</span>
+          ${datesText}（${leave.days} 天）
+        </div>
+        ${leave.reason ? `<div class="leave-card-reason"><i class="fas fa-comment-dots" style="color:var(--muted);margin-right:4px;"></i>${leave.reason}</div>` : ''}
+        ${actionHtml}
+      </div>`;
+  }).join('');
+}
+
+// Toggle reject reason input
+function toggleRejectInput(leaveId, btn) {
+  const input   = document.getElementById(`rejectInput-${leaveId}`);
+  const confirm = document.getElementById(`confirmReject-${leaveId}`);
+  if (!input || !confirm) return;
+  const isVisible = input.style.display !== 'none';
+  input.style.display   = isVisible ? 'none' : 'block';
+  confirm.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) input.focus();
+}
+
+// Review a leave (approve or reject)
+async function reviewLeave(leaveId, action, btn) {
+  let rejectReason = '';
+  if (action === 'reject') {
+    const input = document.getElementById(`rejectInput-${leaveId}`);
+    rejectReason = input?.value?.trim();
+    if (!rejectReason) {
+      showToast('請填寫拒絕原因', 'error');
+      return;
+    }
+  }
+
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'review',
+        userId: userProfile.userId,
+        leaveId,
+        reviewAction: action,
+        rejectReason,
+      }),
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      const actionText = action === 'approve' ? '已批准' : '已拒絕';
+      showToast(`請假申請${actionText}`, 'success');
+      // Reload leaves
+      await loadAllLeaves();
+    } else {
+      showToast(result.error || '審核失敗', 'error');
+      if (btn) btn.disabled = false;
+    }
+  } catch (error) {
+    console.error('審核請假失敗:', error);
+    showToast('操作失敗，請稍後再試', 'error');
+    if (btn) btn.disabled = false;
   }
 }
 

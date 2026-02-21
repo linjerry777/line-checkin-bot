@@ -109,7 +109,7 @@
       background: var(--surface);
       border-top: 1px solid var(--border);
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(7, 1fr);
       padding: 6px;
       z-index: 50;
       box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
@@ -595,6 +595,176 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* ── Leave Review ── */
+    .leave-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .leave-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .leave-card-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .leave-card-name .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cta), #16A34A);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .leave-status-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .leave-status-badge.pending  { background: rgba(245,158,11,0.15); color: #F59E0B; }
+    .leave-status-badge.approved { background: rgba(34,197,94,0.15);  color: #22C55E; }
+    .leave-status-badge.rejected { background: rgba(239,68,68,0.15);  color: #EF4444; }
+
+    .leave-card-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .leave-card-reason {
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .leave-type-tag {
+      display: inline-block;
+      background: rgba(34,197,94,0.12);
+      color: var(--cta);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+
+    .leave-action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn-approve {
+      background: var(--cta);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-approve:hover { background: var(--cta-hover); }
+
+    .btn-reject {
+      background: rgba(239,68,68,0.12);
+      color: #EF4444;
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-reject:hover { background: rgba(239,68,68,0.2); }
+
+    .reject-reason-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      margin-top: 8px;
+      display: none;
+    }
+    .reject-reason-input:focus { border-color: var(--danger); }
+
+    .leave-tab-badge {
+      background: var(--warning);
+      color: #000;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      min-width: 16px;
+      text-align: center;
+      display: inline-block;
+    }
+
+    .leave-filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .filter-chip.active {
+      background: rgba(34,197,94,0.15);
+      border-color: var(--cta);
+      color: var(--cta);
+    }
+
+    .tab-btn i { font-size: 16px; }
   </style>
 </head>
 <body>
@@ -642,6 +812,10 @@
     <button class="tab-btn" onclick="switchTab('attendance', this)">
       <i class="fas fa-clipboard-list"></i>
       <span>出勤</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('leave', this)" id="leaveTabBtn">
+      <i class="fas fa-umbrella-beach"></i>
+      <span>請假 <span id="pendingLeaveCount" class="leave-tab-badge" style="display:none;"></span></span>
     </button>
     <button class="tab-btn" onclick="switchTab('alerts', this)">
       <i class="fas fa-bell"></i>
@@ -699,6 +873,21 @@
         <span><i class="fas fa-table"></i> <span id="attendanceTitle">出勤紀錄</span></span>
       </div>
       <div id="attendanceList"></div>
+    </div>
+  </div>
+
+  <!-- ── Leave Tab ── -->
+  <div id="leaveTab" class="tab-content">
+    <!-- Filter -->
+    <div class="leave-filter-row">
+      <button class="filter-chip active" onclick="filterLeaves('all', this)">全部</button>
+      <button class="filter-chip" onclick="filterLeaves('pending', this)">待審核</button>
+      <button class="filter-chip" onclick="filterLeaves('approved', this)">已批准</button>
+      <button class="filter-chip" onclick="filterLeaves('rejected', this)">已拒絕</button>
+    </div>
+
+    <div id="leaveList">
+      <div class="loading">載入中...</div>
     </div>
   </div>
 

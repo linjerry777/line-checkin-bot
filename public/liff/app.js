@@ -504,5 +504,134 @@ function formatDate(dateStr) {
   return `${year}/${month}/${day} (${weekday})`;
 }
 
+// ── Leave System ────────────────────────────────────────
+
+const LEAVE_TYPE_TEXT = {
+  annual:   '特休',
+  sick:     '病假',
+  personal: '事假',
+  other:    '其他',
+};
+
+// Initialize leave form dates (default: today ~ today)
+function initLeaveForm() {
+  const today = new Date().toISOString().split('T')[0];
+  const startEl = document.getElementById('leaveStartDate');
+  const endEl   = document.getElementById('leaveEndDate');
+  if (startEl && !startEl.value) startEl.value = today;
+  if (endEl   && !endEl.value)   endEl.value   = today;
+}
+
+// Load and render employee's leave records
+async function loadMyLeaves() {
+  const container = document.getElementById('myLeavesList');
+  if (!container) return;
+
+  try {
+    const res = await fetch(`/api/leave?action=my-leaves&userId=${userProfile.userId}`);
+    const data = await res.json();
+
+    if (!data.success || data.leaves.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p class="empty-state-text">尚無請假紀錄</p></div>';
+      return;
+    }
+
+    // Sort by createdAt desc
+    const sorted = [...data.leaves].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    container.innerHTML = sorted.map(leave => {
+      const typeText   = LEAVE_TYPE_TEXT[leave.leaveType] || leave.leaveType;
+      const statusMap  = { pending: '審核中', approved: '已批准', rejected: '已拒絕' };
+      const statusText = statusMap[leave.status] || leave.status;
+      const datesText  = leave.startDate === leave.endDate
+        ? leave.startDate
+        : `${leave.startDate} ~ ${leave.endDate}`;
+
+      return `
+        <div class="leave-item">
+          <div class="leave-item-header">
+            <div class="leave-item-type">
+              <i class="fas fa-umbrella-beach"></i>
+              <span class="leave-type-chip">${typeText}</span>
+              ${leave.days} 天
+            </div>
+            <span class="leave-status ${leave.status}">${statusText}</span>
+          </div>
+          <div class="leave-item-dates"><i class="fas fa-calendar" style="color:var(--primary);margin-right:4px;"></i>${datesText}</div>
+          ${leave.reason ? `<div class="leave-item-reason">${leave.reason}</div>` : ''}
+          ${leave.status === 'rejected' && leave.rejectReason
+            ? `<div class="leave-item-reject"><i class="fas fa-circle-xmark"></i>${leave.rejectReason}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('載入請假紀錄失敗:', error);
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p class="empty-state-text">載入失敗，請重試</p></div>';
+  }
+}
+
+// Submit leave application
+async function submitLeave() {
+  const btn       = document.getElementById('leaveSubmitBtn');
+  const leaveType = document.getElementById('leaveType')?.value;
+  const startDate = document.getElementById('leaveStartDate')?.value;
+  const endDate   = document.getElementById('leaveEndDate')?.value;
+  const reason    = document.getElementById('leaveReason')?.value?.trim();
+
+  if (!startDate || !endDate) {
+    showToast('請選擇請假日期', 'error');
+    return;
+  }
+  if (startDate > endDate) {
+    showToast('結束日期不能早於開始日期', 'error');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 送出中…'; }
+
+  try {
+    const res = await fetch('/api/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'apply',
+        userId: userProfile.userId,
+        employeeName: employeeData?.name || userProfile.displayName,
+        leaveType,
+        startDate,
+        endDate,
+        reason,
+      }),
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      showToast(`請假申請成功（${result.days} 天），等待審核`, 'success');
+      // Reset form
+      document.getElementById('leaveReason').value = '';
+      // Reload list
+      await loadMyLeaves();
+    } else {
+      showToast(result.error || '申請失敗', 'error');
+    }
+  } catch (error) {
+    console.error('送出請假失敗:', error);
+    showToast('送出失敗，請稍後再試', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> 送出申請'; }
+  }
+}
+
+// Override switchTab to load leave data when switching to leave tab
+const _origSwitchTab = switchTab;
+function switchTab(tabName, btnEl) {
+  _origSwitchTab(tabName, btnEl);
+  if (tabName === 'leave') {
+    initLeaveForm();
+    if (userProfile) loadMyLeaves();
+  }
+}
+
 // Initialize on load
 window.addEventListener('load', initLiff);
