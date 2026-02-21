@@ -23,10 +23,18 @@ async function initLiff() {
       return;
     }
 
-    // Get user profile - with fallback to idToken
+    // Get user profile - force re-login if token expired
     try {
       userProfile = await liff.getProfile();
     } catch (e) {
+      console.error('[getProfile] 失敗:', e.message);
+      // Token 過期 → 強制登出再重新登入
+      if (e.message && (e.message.includes('expired') || e.message.includes('token') || e.message.includes('401'))) {
+        liff.logout();
+        setTimeout(() => liff.login({ redirectUri: window.location.href }), 300);
+        return;
+      }
+      // 其他錯誤 fallback 到 idToken
       const idToken = liff.getDecodedIDToken();
       if (idToken && idToken.sub) {
         userProfile = {
@@ -35,7 +43,10 @@ async function initLiff() {
           pictureUrl: idToken.picture || '',
         };
       } else {
-        throw e;
+        // 全部失敗 → 強制重新登入
+        liff.logout();
+        setTimeout(() => liff.login({ redirectUri: window.location.href }), 300);
+        return;
       }
     }
 

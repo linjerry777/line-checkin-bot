@@ -51,9 +51,8 @@ async function initLiff() {
       return;
     }
 
-    // ── Step 3: Login ───────────────────────────────────
+    // ── Step 3: Login (force re-login if token expired) ─
     if (!liff.isLoggedIn()) {
-      // redirectUri 導回 admin.html 確保登入後回到正確頁面
       liff.login({ redirectUri: window.location.href });
       return;
     }
@@ -62,7 +61,15 @@ async function initLiff() {
     try {
       userProfile = await liff.getProfile();
     } catch (e) {
-      // getProfile 失敗時嘗試用 access token 取得 userId
+      console.error('[Step4] getProfile 失敗:', e.message);
+      // Token 過期 → 強制登出再重新登入
+      if (e.message && (e.message.includes('expired') || e.message.includes('token') || e.message.includes('401'))) {
+        console.warn('[Step4] Token 過期，強制重新登入...');
+        liff.logout();
+        setTimeout(() => liff.login({ redirectUri: window.location.href }), 300);
+        return;
+      }
+      // 其他錯誤才 fallback 到 idToken
       try {
         const idToken = liff.getDecodedIDToken();
         if (idToken && idToken.sub) {
@@ -71,13 +78,15 @@ async function initLiff() {
             displayName: idToken.name || idToken.sub,
             pictureUrl: idToken.picture || '',
           };
-          console.warn('[Step4] 改用 idToken 取得 profile:', userProfile);
+          console.warn('[Step4] 改用 idToken:', userProfile.userId);
         } else {
-          throw new Error('idToken 也無法取得 userId');
+          throw new Error('idToken 無 userId');
         }
       } catch (e2) {
-        showToast('無法取得 LINE 用戶資料: ' + e.message, 'error');
-        console.error('[Step4] getProfile 失敗:', e, 'idToken fallback 失敗:', e2);
+        // 全部失敗 → 強制重新登入
+        console.error('[Step4] 全部失敗，強制重新登入');
+        liff.logout();
+        setTimeout(() => liff.login({ redirectUri: window.location.href }), 300);
         return;
       }
     }
