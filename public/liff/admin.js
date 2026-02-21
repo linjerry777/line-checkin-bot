@@ -22,51 +22,80 @@ function getThisMonthLocalAdmin() {
 // Initialize LIFF
 async function initLiff() {
   try {
-    // Get LIFF config
-    const configRes = await fetch('/api/liff-config');
-    liffConfig = await configRes.json();
+    // ── Step 1: Get LIFF config ──────────────────────────
+    let configRes;
+    try {
+      configRes = await fetch('/api/liff-config');
+      liffConfig = await configRes.json();
+    } catch (e) {
+      showToast('無法取得設定，請確認網路', 'error');
+      console.error('[Step1] liff-config 失敗:', e);
+      return;
+    }
 
-    // Initialize LIFF
-    await liff.init({ liffId: liffConfig.liffId });
+    if (!liffConfig.liffId) {
+      showToast('LIFF_ID 未設定，請聯絡管理員', 'error');
+      console.error('[Step1] liffConfig.liffId 為空', liffConfig);
+      return;
+    }
 
+    // ── Step 2: Init LIFF SDK ───────────────────────────
+    try {
+      await liff.init({ liffId: liffConfig.liffId });
+    } catch (e) {
+      showToast('LINE SDK 初始化失敗: ' + e.message, 'error');
+      console.error('[Step2] liff.init 失敗:', e);
+      return;
+    }
+
+    // ── Step 3: Login ───────────────────────────────────
     if (!liff.isLoggedIn()) {
       liff.login();
       return;
     }
 
-    // Get user profile
-    userProfile = await liff.getProfile();
-
-    // Check if user is admin
-    const isAdmin = await checkAdminStatus();
-    if (!isAdmin) {
-      document.body.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; padding: 20px; text-align: center;">
-          <i class="fas fa-lock" style="font-size: 64px; color: #FF3B30; margin-bottom: 20px;"></i>
-          <h2 style="margin-bottom: 10px;">權限不足</h2>
-          <p style="color: #86868B; margin-bottom: 20px;">您沒有存取管理員後台的權限</p>
-          <button onclick="liff.closeWindow()" style="padding: 12px 24px; background: #007AFF; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600;">關閉</button>
-        </div>
-      `;
+    // ── Step 4: Get profile ─────────────────────────────
+    try {
+      userProfile = await liff.getProfile();
+    } catch (e) {
+      showToast('無法取得 LINE 用戶資料', 'error');
+      console.error('[Step4] getProfile 失敗:', e);
       return;
     }
 
-    // Update admin name
-    document.getElementById('adminName').textContent = `管理員：${userProfile.displayName}`;
+    // ── Step 5: Check admin ─────────────────────────────
+    const isAdmin = await checkAdminStatus();
+    if (!isAdmin) {
+      document.body.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;padding:20px;text-align:center;">
+          <i class="fas fa-lock" style="font-size:64px;color:#EF4444;margin-bottom:20px;"></i>
+          <h2 style="margin-bottom:10px;">權限不足</h2>
+          <p style="color:#6B9DAB;margin-bottom:20px;">您沒有存取管理員後台的權限</p>
+          <button onclick="liff.closeWindow()" style="padding:12px 24px;background:#0891B2;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;">關閉</button>
+        </div>`;
+      return;
+    }
 
-    // Load data
-    await loadAllData();
+    // ── Step 6: Update UI ───────────────────────────────
+    const adminNameEl = document.getElementById('adminName');
+    if (adminNameEl) adminNameEl.textContent = `管理員：${userProfile.displayName}`;
 
-    // Set default date for attendance tab (use local date string to avoid UTC offset bug)
+    // ── Step 7: Load data (non-blocking, won't crash init) ──
     const todayLocal = getTodayLocalAdmin();
     const attendanceDateEl = document.getElementById('attendanceDate');
     if (attendanceDateEl) attendanceDateEl.value = todayLocal;
     const exportMonthEl = document.getElementById('exportMonth');
     if (exportMonthEl) exportMonthEl.value = todayLocal.slice(0, 7);
 
+    // loadAllData errors are caught internally — don't crash init
+    loadAllData().catch(e => {
+      console.error('[Step7] loadAllData 失敗:', e);
+      showToast('資料載入失敗: ' + e.message, 'error');
+    });
+
   } catch (error) {
-    console.error('LIFF 初始化失敗:', error);
-    showToast('系統初始化失敗，請重新整理頁面', 'error');
+    console.error('Admin initLiff 未預期錯誤:', error);
+    showToast('初始化錯誤: ' + (error.message || error), 'error');
   }
 }
 
@@ -84,29 +113,37 @@ async function checkAdminStatus() {
 
 // Load all data
 async function loadAllData() {
+  // Load employees
   try {
-    // Load employees
     const empRes = await fetch(`/api/admin?action=employees&userId=${userProfile.userId}`);
+    if (!empRes.ok) throw new Error(`HTTP ${empRes.status}`);
     const empData = await empRes.json();
     allEmployees = empData.employees || [];
+    console.log('[loadAllData] 員工數:', allEmployees.length);
+  } catch (e) {
+    console.error('[loadAllData] employees 失敗:', e);
+    allEmployees = [];
+  }
 
-    // Load all records
+  // Load all records
+  try {
     const recRes = await fetch(`/api/admin?action=records&userId=${userProfile.userId}`);
+    if (!recRes.ok) throw new Error(`HTTP ${recRes.status}`);
     const recData = await recRes.json();
     allRecords = recData.records || [];
-
-    // Update UI
-    updateOverview();
-    updateEmployeeList();
-    loadAttendance();
-
-    // Pre-load leave pending count for badge
-    loadPendingLeaveBadge();
-
-  } catch (error) {
-    console.error('載入資料失敗:', error);
-    showToast('載入資料失敗', 'error');
+    console.log('[loadAllData] 紀錄數:', allRecords.length);
+  } catch (e) {
+    console.error('[loadAllData] records 失敗:', e);
+    allRecords = [];
   }
+
+  // Update UI (these are sync, won't throw)
+  try { updateOverview(); } catch (e) { console.error('updateOverview:', e); }
+  try { updateEmployeeList(); } catch (e) { console.error('updateEmployeeList:', e); }
+  try { loadAttendance(); } catch (e) { console.error('loadAttendance:', e); }
+
+  // Badge (async, fire-and-forget)
+  loadPendingLeaveBadge().catch(() => {});
 }
 
 // Only load pending count for tab badge (lightweight)
