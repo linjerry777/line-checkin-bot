@@ -13,15 +13,31 @@ async function initLiff() {
     liffConfig = await configRes.json();
 
     // Initialize LIFF
-    await liff.init({ liffId: liffConfig.liffId });
+    await liff.init({
+      liffId: liffConfig.liffId,
+      withLoginOnExternalBrowser: true,
+    });
 
     if (!liff.isLoggedIn()) {
-      liff.login();
+      liff.login({ redirectUri: window.location.href });
       return;
     }
 
-    // Get user profile
-    userProfile = await liff.getProfile();
+    // Get user profile - with fallback to idToken
+    try {
+      userProfile = await liff.getProfile();
+    } catch (e) {
+      const idToken = liff.getDecodedIDToken();
+      if (idToken && idToken.sub) {
+        userProfile = {
+          userId: idToken.sub,
+          displayName: idToken.name || idToken.sub,
+          pictureUrl: idToken.picture || '',
+        };
+      } else {
+        throw e;
+      }
+    }
 
     // Load employee data
     await loadEmployeeData();

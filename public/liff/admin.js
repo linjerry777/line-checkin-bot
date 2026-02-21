@@ -41,7 +41,10 @@ async function initLiff() {
 
     // ── Step 2: Init LIFF SDK ───────────────────────────
     try {
-      await liff.init({ liffId: liffConfig.liffId });
+      await liff.init({
+        liffId: liffConfig.liffId,
+        withLoginOnExternalBrowser: true,
+      });
     } catch (e) {
       showToast('LINE SDK 初始化失敗: ' + e.message, 'error');
       console.error('[Step2] liff.init 失敗:', e);
@@ -50,7 +53,8 @@ async function initLiff() {
 
     // ── Step 3: Login ───────────────────────────────────
     if (!liff.isLoggedIn()) {
-      liff.login();
+      // redirectUri 導回 admin.html 確保登入後回到正確頁面
+      liff.login({ redirectUri: window.location.href });
       return;
     }
 
@@ -58,9 +62,24 @@ async function initLiff() {
     try {
       userProfile = await liff.getProfile();
     } catch (e) {
-      showToast('無法取得 LINE 用戶資料', 'error');
-      console.error('[Step4] getProfile 失敗:', e);
-      return;
+      // getProfile 失敗時嘗試用 access token 取得 userId
+      try {
+        const idToken = liff.getDecodedIDToken();
+        if (idToken && idToken.sub) {
+          userProfile = {
+            userId: idToken.sub,
+            displayName: idToken.name || idToken.sub,
+            pictureUrl: idToken.picture || '',
+          };
+          console.warn('[Step4] 改用 idToken 取得 profile:', userProfile);
+        } else {
+          throw new Error('idToken 也無法取得 userId');
+        }
+      } catch (e2) {
+        showToast('無法取得 LINE 用戶資料: ' + e.message, 'error');
+        console.error('[Step4] getProfile 失敗:', e, 'idToken fallback 失敗:', e2);
+        return;
+      }
     }
 
     // ── Step 5: Check admin ─────────────────────────────
