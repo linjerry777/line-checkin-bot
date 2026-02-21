@@ -170,6 +170,9 @@ async function createSheetHeaders(spreadsheetId, sheetName) {
     } else if (sheetName === '員工資料') {
       headers = [['LINE User ID', '員工姓名', 'LINE 顯示名稱', '註冊時間', '狀態']];
       range = '員工資料!A1:E1';
+    } else if (sheetName === '請假紀錄') {
+      headers = [['請假ID', '員工ID', '員工姓名', '假別', '開始日期', '結束日期', '天數', '原因', '狀態', '審核者ID', '審核時間', '拒絕原因', '申請時間']];
+      range = '請假紀錄!A1:M1';
     } else {
       throw new Error(`未知的工作表: ${sheetName}`);
     }

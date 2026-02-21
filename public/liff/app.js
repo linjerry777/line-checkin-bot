@@ -474,6 +474,12 @@ function switchTab(tabName, btnEl) {
   if (targetTab) {
     targetTab.classList.add('active');
   }
+
+  // Tab-specific data loading
+  if (tabName === 'leave') {
+    initLeaveForm();
+    if (userProfile) loadMyLeaves();
+  }
 }
 
 // Show toast
@@ -620,16 +626,6 @@ async function submitLeave() {
     showToast('送出失敗，請稍後再試', 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> 送出申請'; }
-  }
-}
-
-// Override switchTab to load leave data when switching to leave tab
-const _origSwitchTab = switchTab;
-function switchTab(tabName, btnEl) {
-  _origSwitchTab(tabName, btnEl);
-  if (tabName === 'leave') {
-    initLeaveForm();
-    if (userProfile) loadMyLeaves();
   }
 }
 

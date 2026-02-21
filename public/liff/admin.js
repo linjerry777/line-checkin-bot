@@ -455,7 +455,11 @@ function switchTab(tabName, btnEl) {
 // Show toast
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = message;
+  toast.className = 'toast'; // reset
+  if (type === 'success') toast.classList.add('success');
+  if (type === 'error')   toast.classList.add('error');
   toast.classList.add('show');
 
   setTimeout(() => {
@@ -794,7 +798,7 @@ async function loadAllLeaves() {
     renderLeaves();
   } catch (error) {
     console.error('載入請假失敗:', error);
-    if (container) container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);">載入失敗</div>';
+    if (container) container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);">載入失敗</div>';
   }
 }
 
@@ -825,7 +829,7 @@ function renderLeaves() {
 
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center;padding:40px 20px;color:var(--muted);">
+      <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
         <i class="fas fa-inbox" style="font-size:36px;opacity:0.4;display:block;margin-bottom:10px;"></i>
         無${leaveFilter !== 'all' ? ['', '待審核', '已批准', '已拒絕'][['all','pending','approved','rejected'].indexOf(leaveFilter)] : ''}請假紀錄
       </div>`;
@@ -858,7 +862,7 @@ function renderLeaves() {
         </button>
       </div>
     ` : (leave.status === 'rejected' && leave.rejectReason ? `
-      <div style="font-size:12px;color:#EF4444;margin-top:8px;">
+      <div class="leave-reject-row">
         <i class="fas fa-circle-xmark"></i> 拒絕原因：${leave.rejectReason}
       </div>` : '');
 
@@ -866,7 +870,7 @@ function renderLeaves() {
       <div class="leave-card" id="leaveCard-${leave.leaveId}">
         <div class="leave-card-header">
           <div class="leave-card-name">
-            <div class="avatar">${initials}</div>
+            <div class="lc-avatar">${initials}</div>
             <span>${leave.employeeName}</span>
           </div>
           <span class="leave-status-badge ${leave.status}">${statusText}</span>
@@ -875,7 +879,7 @@ function renderLeaves() {
           <span class="leave-type-tag">${typeText}</span>
           ${datesText}（${leave.days} 天）
         </div>
-        ${leave.reason ? `<div class="leave-card-reason"><i class="fas fa-comment-dots" style="color:var(--muted);margin-right:4px;"></i>${leave.reason}</div>` : ''}
+        ${leave.reason ? `<div class="leave-card-reason"><i class="fas fa-comment-dots" style="color:var(--text-muted);margin-right:4px;"></i>${leave.reason}</div>` : ''}
         ${actionHtml}
       </div>`;
   }).join('');
