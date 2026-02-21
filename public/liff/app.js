@@ -126,7 +126,7 @@ function updateAllStats() {
 
   // This month stats
   const monthRecords = allRecords.filter(r => r.date.startsWith(thisMonth));
-  const workDays = new Set(monthRecords.map(r => r.date)).size;
+  const workDays = calculateWorkDays(monthRecords);
 
   const workDaysEl = document.getElementById('workDays');
   if (workDaysEl) workDaysEl.textContent = workDays;
@@ -141,7 +141,7 @@ function updateAllStats() {
   updateStatsTab(monthRecords, totalHours, workDays);
 }
 
-// Calculate month hours
+// Calculate month hours (only counts days with both in+out)
 function calculateMonthHours(records) {
   const dailyHours = {};
 
@@ -149,8 +149,7 @@ function calculateMonthHours(records) {
     if (!dailyHours[record.date]) {
       dailyHours[record.date] = { in: null, out: null };
     }
-
-    if (record.type === 'in') {
+    if (record.type === 'in' && !dailyHours[record.date].in) {
       dailyHours[record.date].in = record.time;
     } else if (record.type === 'out') {
       dailyHours[record.date].out = record.time;
@@ -161,23 +160,35 @@ function calculateMonthHours(records) {
 
   Object.values(dailyHours).forEach(day => {
     if (day.in && day.out) {
-      const inTime = parseTime(day.in);
-      const outTime = parseTime(day.out);
-      const minutes = (outTime - inTime) / 1000 / 60;
-      if (minutes > 0 && minutes < 24 * 60) {
-        totalMinutes += minutes;
+      // Parse HH:MM:SS or HH:MM
+      const parseMinutes = (t) => {
+        const parts = t.split(':');
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+      };
+      const inMin = parseMinutes(day.in);
+      const outMin = parseMinutes(day.out);
+      const diff = outMin - inMin;
+      if (diff > 0 && diff < 24 * 60) {
+        totalMinutes += diff;
       }
     }
   });
 
-  const hours = Math.floor(totalMinutes / 60);
-  return hours;
+  return Math.floor(totalMinutes / 60);
 }
 
-// Parse time string to Date (use local date to avoid UTC offset issues)
-function parseTime(timeStr) {
-  const today = getTodayLocal();
-  return new Date(`${today}T${timeStr}`);
+// Count work days: days with at least one check-in record
+function calculateWorkDays(records) {
+  const daysWithCheckin = new Set(
+    records.filter(r => r.type === 'in').map(r => r.date)
+  );
+  return daysWithCheckin.size;
+}
+
+// Parse time string to Date given a specific date string
+function parseTime(timeStr, dateStr) {
+  const d = dateStr || getTodayLocal();
+  return new Date(`${d}T${timeStr}`);
 }
 
 // Update today records
