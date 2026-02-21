@@ -534,7 +534,7 @@ async function loadMyLeaves() {
   if (!container) return;
 
   try {
-    const res = await fetch(`/api/leave?action=my-leaves&userId=${userProfile.userId}`);
+    const res = await fetch(`/api/admin?action=leave-my&userId=${userProfile.userId}`);
     const data = await res.json();
 
     if (!data.success || data.leaves.length === 0) {
@@ -596,11 +596,10 @@ async function submitLeave() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 送出中…'; }
 
   try {
-    const res = await fetch('/api/leave', {
+    const res = await fetch(`/api/admin?action=leave-apply&userId=${userProfile.userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'apply',
         userId: userProfile.userId,
         employeeName: employeeData?.name || userProfile.displayName,
         leaveType,

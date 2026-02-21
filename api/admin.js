@@ -1,28 +1,78 @@
-// Admin API - Unified endpoint for all admin functions
+// Admin API - Unified endpoint for all admin + leave functions
 const { getAllEmployees, getEmployeeByUserId } = require('../services/employeeService');
 const { getSheetData } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
 const { getTodayAnomalies, getAnomalyStats } = require('../services/alertService');
+const {
+  getAllLeaves,
+  getLeavesByUserId,
+  getPendingLeaves,
+  applyLeave,
+  reviewLeave,
+} = require('../services/leaveService');
 
 module.exports = async (req, res) => {
-  try {
-    const { action, userId } = req.query;
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-    // 'check' action 不需要預先驗證，它本身就是用來查詢 isAdmin 的
+  try {
+    const action = req.query.action;
+    const userId = req.query.userId || req.body?.userId;
+
+    // ── 1. check: 查詢 isAdmin（不需要預先驗證）──────────────
     if (action === 'check') {
-      if (!userId) {
-        return res.status(400).json({ error: '缺少 userId 參數' });
-      }
+      if (!userId) return res.status(400).json({ error: '缺少 userId 參數' });
       const employee = await getEmployeeByUserId(userId);
       const isAdmin = employee?.role === 'admin';
       return res.status(200).json({ isAdmin, employee });
     }
 
-    // 其他所有 action 都需要 admin 權限
-    if (!userId) {
-      return res.status(400).json({ error: '缺少 userId 參數' });
+    // ── 2. 員工請假申請（不需要 admin 權限）────────────────────
+    if (action === 'leave-apply') {
+      if (!userId) return res.status(400).json({ error: '缺少 userId 參數' });
+      const requester = await getEmployeeByUserId(userId);
+      if (!requester) return res.status(403).json({ error: '找不到員工資料' });
+
+      const body = req.method === 'POST' ? req.body : req.query;
+      const { employeeName, leaveType, startDate, endDate, reason } = body;
+
+      if (!leaveType || !startDate || !endDate) {
+        return res.status(400).json({ error: '請填寫完整請假資訊' });
+      }
+      if (!['annual', 'sick', 'personal', 'other'].includes(leaveType)) {
+        return res.status(400).json({ error: '假別不正確' });
+      }
+      if (startDate > endDate) {
+        return res.status(400).json({ error: '結束日期必須大於或等於開始日期' });
+      }
+
+      const result = await applyLeave({
+        userId,
+        employeeName: employeeName || requester.name,
+        leaveType,
+        startDate,
+        endDate,
+        reason,
+      });
+      return res.status(result.success ? 200 : 400).json(result);
     }
+
+    // ── 3. 員工查自己的請假（不需要 admin 權限）────────────────
+    if (action === 'leave-my') {
+      if (!userId) return res.status(400).json({ error: '缺少 userId 參數' });
+      const requester = await getEmployeeByUserId(userId);
+      if (!requester) return res.status(403).json({ error: '找不到員工資料' });
+
+      const leaves = await getLeavesByUserId(userId);
+      return res.status(200).json({ success: true, leaves });
+    }
+
+    // ── 4. 其他所有 action 都需要 admin 權限 ───────────────────
+    if (!userId) return res.status(400).json({ error: '缺少 userId 參數' });
     const requester = await getEmployeeByUserId(userId);
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ success: false, error: '權限不足' });
@@ -31,11 +81,7 @@ module.exports = async (req, res) => {
     switch (action) {
       case 'employees': {
         const employees = await getAllEmployees();
-        return res.status(200).json({
-          success: true,
-          employees,
-          total: employees.length
-        });
+        return res.status(200).json({ success: true, employees, total: employees.length });
       }
 
       case 'records': {
@@ -52,11 +98,7 @@ module.exports = async (req, res) => {
           fullTimestamp: row[5],
           location: row[6] || null
         })).filter(r => r.userId && r.date);
-        return res.status(200).json({
-          success: true,
-          records,
-          total: records.length
-        });
+        return res.status(200).json({ success: true, records, total: records.length });
       }
 
       case 'late-early-stats': {
@@ -82,9 +124,7 @@ module.exports = async (req, res) => {
       }
 
       case 'update-settings': {
-        if (req.method !== 'POST') {
-          return res.status(405).json({ error: '只接受 POST 請求' });
-        }
+        if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
         const newSettings = req.body;
         const validationErrors = validateSettings(newSettings);
         if (validationErrors.length > 0) {
@@ -105,6 +145,33 @@ module.exports = async (req, res) => {
         const end = endDate || new Date().toISOString().split('T')[0];
         const anomalyStats = await getAnomalyStats(start, end);
         return res.status(200).json({ success: true, stats: anomalyStats, startDate: start, endDate: end });
+      }
+
+      // ── Leave admin actions ──────────────────────────────
+      case 'leave-all': {
+        const leaves = await getAllLeaves();
+        return res.status(200).json({ success: true, leaves });
+      }
+
+      case 'leave-pending': {
+        const leaves = await getPendingLeaves();
+        return res.status(200).json({ success: true, leaves });
+      }
+
+      case 'leave-review': {
+        if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
+        const { leaveId, reviewAction, rejectReason } = req.body;
+        if (!leaveId || !reviewAction) return res.status(400).json({ error: '缺少審核資訊' });
+        if (!['approve', 'reject'].includes(reviewAction)) return res.status(400).json({ error: '審核動作不正確' });
+        if (reviewAction === 'reject' && !rejectReason) return res.status(400).json({ error: '拒絕時需填寫原因' });
+
+        const result = await reviewLeave({
+          leaveId,
+          action: reviewAction,
+          reviewerUserId: userId,
+          rejectReason,
+        });
+        return res.status(result.success ? 200 : 400).json(result);
       }
 
       default:

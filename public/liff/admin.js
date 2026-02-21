@@ -94,7 +94,7 @@ async function loadAllData() {
 // Only load pending count for tab badge (lightweight)
 async function loadPendingLeaveBadge() {
   try {
-    const res = await fetch(`/api/leave?action=pending&userId=${userProfile.userId}`);
+    const res = await fetch(`/api/admin?action=leave-pending&userId=${userProfile.userId}`);
     const data = await res.json();
     if (!data.success) return;
     const count = (data.leaves || []).length;
@@ -776,7 +776,7 @@ async function loadAllLeaves() {
   if (container) container.innerHTML = '<div class="loading">載入中...</div>';
 
   try {
-    const res = await fetch(`/api/leave?action=all-leaves&userId=${userProfile.userId}`);
+    const res = await fetch(`/api/admin?action=leave-all&userId=${userProfile.userId}`);
     const data = await res.json();
 
     if (!data.success) throw new Error(data.error);
@@ -911,11 +911,10 @@ async function reviewLeave(leaveId, action, btn) {
   if (btn) btn.disabled = true;
 
   try {
-    const res = await fetch('/api/leave', {
+    const res = await fetch(`/api/admin?action=leave-review&userId=${userProfile.userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'review',
         userId: userProfile.userId,
         leaveId,
         reviewAction: action,
