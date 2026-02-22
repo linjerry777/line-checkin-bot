@@ -1,5 +1,5 @@
 // 系統設定服務
-const { getSheetData, updateSheetData } = require('../config/googleSheets');
+const { getSheetData, updateSheetData, appendToSheet } = require('../config/googleSheets');
 
 /**
  * 取得所有系統設定
@@ -78,8 +78,9 @@ async function updateSettings(settingsObject) {
       throw new Error('系統設定表不存在');
     }
 
-    // 建立更新請求
+    // 建立更新請求（已存在的 key 用 batchUpdate，新 key 用 append）
     const updates = [];
+    const newRows = [];
 
     for (const [key, value] of Object.entries(settingsObject)) {
       const rowIndex = data.findIndex((row, index) => index > 0 && row[0] === key);
@@ -89,7 +90,15 @@ async function updateSettings(settingsObject) {
           range: `系統設定!B${rowIndex + 1}`,
           values: [[value]]
         });
+      } else {
+        // Key 不存在 → 新增一列
+        newRows.push([key, value]);
       }
+    }
+
+    // 新增不存在的設定列
+    for (const row of newRows) {
+      await appendToSheet([row], '系統設定!A:B');
     }
 
     // 執行批次更新
@@ -133,7 +142,13 @@ function getDefaultSettings() {
     morningReminderTime: '09:00',
     eveningReminderTime: '18:00',
     enableReminders: 'true',
-    enableLocationCheck: 'true'
+    enableLocationCheck: 'true',
+    // 第二打卡位置（預設停用）
+    storeAddress2: '',
+    storeLatitude2: '',
+    storeLongitude2: '',
+    storeRadius2: '100',
+    enableLocation2: 'false',
   };
 }
 
@@ -196,6 +211,32 @@ function validateSettings(settings) {
 
   if (settings.enableAlerts && !['true', 'false'].includes(settings.enableAlerts)) {
     errors.push('啟用異常警報必須是 true 或 false');
+  }
+
+  if (settings.enableLocation2 && !['true', 'false'].includes(settings.enableLocation2)) {
+    errors.push('啟用第二位置必須是 true 或 false');
+  }
+
+  // 第二位置座標
+  if (settings.storeLatitude2 && settings.storeLatitude2 !== '') {
+    const lat2 = parseFloat(settings.storeLatitude2);
+    if (isNaN(lat2) || lat2 < -90 || lat2 > 90) {
+      errors.push('第二位置緯度必須在 -90 到 90 之間');
+    }
+  }
+
+  if (settings.storeLongitude2 && settings.storeLongitude2 !== '') {
+    const lng2 = parseFloat(settings.storeLongitude2);
+    if (isNaN(lng2) || lng2 < -180 || lng2 > 180) {
+      errors.push('第二位置經度必須在 -180 到 180 之間');
+    }
+  }
+
+  if (settings.storeRadius2 && settings.storeRadius2 !== '') {
+    const r2 = parseInt(settings.storeRadius2);
+    if (isNaN(r2) || r2 < 0) {
+      errors.push('第二位置打卡範圍必須是正整數');
+    }
   }
 
   // 驗證閾值

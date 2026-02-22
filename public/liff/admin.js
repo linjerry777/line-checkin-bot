@@ -371,10 +371,11 @@ function loadAttendance() {
           if (emp.checkin && emp.checkout) {
             // Pad single-digit hour: "0:15:25" → "00:15:25" (required for valid ISO parsing)
             const pad = t => t.replace(/^(\d):/, '0$1:');
-            const inMin  = emp.checkin.split(':').reduce((a,v,i) => a + parseInt(v) * [60,1,1/60][i], 0);
-            const outMin = emp.checkout.split(':').reduce((a,v,i) => a + parseInt(v) * [60,1,1/60][i], 0);
-            const diff = outMin - inMin;
-            hours = diff > 0 ? diff.toFixed(1) + 'h' : '-';
+            const toMinutes = t => { const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
+            const inMin  = toMinutes(emp.checkin);
+            const outMin = toMinutes(emp.checkout);
+            const diff = outMin - inMin; // diff in minutes
+            hours = diff > 0 ? (diff / 60).toFixed(1) + 'h' : '-';
           }
 
           return `
@@ -410,9 +411,8 @@ function calculateTotalHours(records) {
   let totalMinutes = 0;
   Object.values(dailyHours).forEach(day => {
     if (day.in && day.out) {
-      const inTime = new Date(`2000-01-01T${day.in}`);
-      const outTime = new Date(`2000-01-01T${day.out}`);
-      const minutes = (outTime - inTime) / 1000 / 60;
+      const toMin = t => { const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
+      const minutes = toMin(day.out) - toMin(day.in);
       if (minutes > 0 && minutes < 24 * 60) {
         totalMinutes += minutes;
       }
@@ -462,9 +462,9 @@ function exportMonthData() {
     Object.entries(emp.days).forEach(([date, times]) => {
       let hours = '';
       if (times.in && times.out) {
-        const toMin = t => t.split(':').reduce((a,v,i) => a + parseInt(v) * [60,1,1/60][i], 0);
-        const diff = toMin(times.out) - toMin(times.in);
-        hours = diff > 0 ? diff.toFixed(1) : '';
+        const toMin = t => { const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
+        const diff = toMin(times.out) - toMin(times.in); // diff in minutes
+        hours = diff > 0 ? (diff / 60).toFixed(1) : '';
       }
 
       csv += `${emp.name},${date},${times.in || ''},${times.out || ''},${hours}\n`;
@@ -564,6 +564,12 @@ async function loadSettings() {
     document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
     document.getElementById('earlyThreshold').value = settings.earlyThreshold || '15';
     document.getElementById('enableAlerts').checked = settings.enableAlerts === 'true';
+    // 第二打卡位置
+    document.getElementById('storeAddress2').value = settings.storeAddress2 || '';
+    document.getElementById('storeLatitude2').value = settings.storeLatitude2 || '';
+    document.getElementById('storeLongitude2').value = settings.storeLongitude2 || '';
+    document.getElementById('storeRadius2').value = settings.storeRadius2 || '100';
+    document.getElementById('enableLocation2').checked = settings.enableLocation2 === 'true';
 
   } catch (error) {
     console.error('載入設定錯誤:', error);
@@ -588,7 +594,13 @@ async function saveSettings() {
       enableReminders: document.getElementById('enableReminders').checked ? 'true' : 'false',
       lateThreshold: document.getElementById('lateThreshold').value,
       earlyThreshold: document.getElementById('earlyThreshold').value,
-      enableAlerts: document.getElementById('enableAlerts').checked ? 'true' : 'false'
+      enableAlerts: document.getElementById('enableAlerts').checked ? 'true' : 'false',
+      // 第二打卡位置
+      storeAddress2: document.getElementById('storeAddress2').value,
+      storeLatitude2: document.getElementById('storeLatitude2').value,
+      storeLongitude2: document.getElementById('storeLongitude2').value,
+      storeRadius2: document.getElementById('storeRadius2').value,
+      enableLocation2: document.getElementById('enableLocation2').checked ? 'true' : 'false',
     };
 
     // 發送更新請求

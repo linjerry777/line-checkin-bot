@@ -1095,6 +1095,35 @@
     </div>
 
     <div class="card">
+      <div class="card-title"><span><i class="fas fa-map-marker-alt"></i> 第二打卡位置（選填）</span></div>
+      <label class="form-checkbox" style="margin-bottom:12px;">
+        <input type="checkbox" id="enableLocation2">
+        <span class="form-checkbox-label">啟用第二打卡位置</span>
+      </label>
+      <div class="form-group">
+        <label class="form-label">地址描述</label>
+        <input type="text" id="storeAddress2" class="form-input" placeholder="例：台北市信義區...">
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">緯度</label>
+          <input type="number" step="0.0001" id="storeLatitude2" class="form-input" placeholder="25.0330">
+        </div>
+        <div class="form-group">
+          <label class="form-label">經度</label>
+          <input type="number" step="0.0001" id="storeLongitude2" class="form-input" placeholder="121.5654">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          打卡允許範圍（公尺）
+          <small>建議 50–200 公尺</small>
+        </label>
+        <input type="number" id="storeRadius2" class="form-input" placeholder="100">
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-title"><span><i class="fas fa-bell"></i> 提醒設定</span></div>
       <div class="form-grid">
         <div class="form-group">
@@ -1176,6 +1205,6 @@
 
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.0"></script>
+  <script src="admin.js?v=3.1"></script>
 </body>
 </html>

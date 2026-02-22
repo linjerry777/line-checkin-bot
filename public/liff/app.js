@@ -393,14 +393,25 @@ async function checkLocation() {
 
   try {
     const position = await getCurrentPosition();
-    const distance = calculateDistance(
-      position.coords.latitude,
-      position.coords.longitude,
-      liffConfig.storeLocation.lat,
-      liffConfig.storeLocation.lng
-    );
+    const userLat = position.coords.latitude;
+    const userLng = position.coords.longitude;
 
-    const isNearby = distance <= liffConfig.storeLocation.radius;
+    // 計算第一位置距離
+    const dist1 = calculateDistance(userLat, userLng,
+      liffConfig.storeLocation.lat, liffConfig.storeLocation.lng);
+    const near1 = dist1 <= liffConfig.storeLocation.radius;
+
+    // 計算第二位置距離（如有設定）
+    let near2 = false;
+    let dist2 = null;
+    if (liffConfig.storeLocation2) {
+      dist2 = calculateDistance(userLat, userLng,
+        liffConfig.storeLocation2.lat, liffConfig.storeLocation2.lng);
+      near2 = dist2 <= liffConfig.storeLocation2.radius;
+    }
+
+    const isNearby = near1 || near2;
+    const minDist = dist2 !== null ? Math.min(dist1, dist2) : dist1;
 
     if (isNearby) {
       statusEl.className = 'location-status success';
@@ -409,7 +420,8 @@ async function checkLocation() {
       checkoutBtn.disabled = false;
     } else {
       statusEl.className = 'location-status error';
-      statusEl.innerHTML = `<i class="fas fa-times-circle"></i> 您不在店家附近（距離 ${Math.round(distance)}m）`;
+      const locHint = dist2 !== null ? '（最近打卡點距離' : '（距離';
+      statusEl.innerHTML = `<i class="fas fa-times-circle"></i> 您不在打卡位置附近 ${locHint} ${Math.round(minDist)}m）`;
       checkinBtn.disabled = true;
       checkoutBtn.disabled = true;
     }
