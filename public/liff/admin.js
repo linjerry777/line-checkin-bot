@@ -19,124 +19,107 @@ function getThisMonthLocalAdmin() {
   return `${y}-${m}`;
 }
 
-// Initialize LIFF
-async function initLiff() {
+const SESSION_KEY = 'adminSession_v1';
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+// ── 密碼登入 ────────────────────────────────────────────
+
+function showLoginScreen() {
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'none';
+  setTimeout(() => document.getElementById('adminPasswordInput').focus(), 100);
+}
+
+function showMainScreen() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+}
+
+async function adminLogin() {
+  const password = document.getElementById('adminPasswordInput').value;
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginError');
+
+  if (!password) { errEl.textContent = '請輸入密碼'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 驗證中…';
+  errEl.textContent = '';
+
   try {
-    // ── Step 1: Get LIFF config ──────────────────────────
-    let configRes;
-    try {
-      configRes = await fetch('/api/liff-config');
-      liffConfig = await configRes.json();
-    } catch (e) {
-      showToast('無法取得設定，請確認網路', 'error');
-      console.error('[Step1] liff-config 失敗:', e);
-      return;
-    }
-
-    if (!liffConfig.liffId) {
-      showToast('LIFF_ID 未設定，請聯絡管理員', 'error');
-      console.error('[Step1] liffConfig.liffId 為空', liffConfig);
-      return;
-    }
-
-    // ── Step 2: Init LIFF SDK ───────────────────────────
-    try {
-      await liff.init({
-        liffId: liffConfig.liffId,
-        withLoginOnExternalBrowser: true,
-      });
-    } catch (e) {
-      showToast('LINE SDK 初始化失敗: ' + e.message, 'error');
-      console.error('[Step2] liff.init 失敗:', e);
-      return;
-    }
-
-    // ── Step 3: Login (force re-login if token expired) ─
-    if (!liff.isLoggedIn()) {
-      liff.login({ redirectUri: window.location.href });
-      return;
-    }
-
-    // ── Step 4: Get profile ─────────────────────────────
-    try {
-      userProfile = await liff.getProfile();
-    } catch (e) {
-      console.error('[Step4] getProfile 失敗:', e.message);
-      // Token 過期 → 強制登出再重新登入
-      if (e.message && (e.message.includes('expired') || e.message.includes('token') || e.message.includes('401'))) {
-        console.warn('[Step4] Token 過期，強制重新登入...');
-        liff.logout();
-        setTimeout(() => liff.login({ redirectUri: window.location.href }), 300);
-        return;
-      }
-      // 其他錯誤才 fallback 到 idToken
-      try {
-        const idToken = liff.getDecodedIDToken();
-        if (idToken && idToken.sub) {
-          userProfile = {
-            userId: idToken.sub,
-            displayName: idToken.name || idToken.sub,
-            pictureUrl: idToken.picture || '',
-          };
-          console.warn('[Step4] 改用 idToken:', userProfile.userId);
-        } else {
-          throw new Error('idToken 無 userId');
-        }
-      } catch (e2) {
-        // 全部失敗 → 強制重新登入
-        console.error('[Step4] 全部失敗，強制重新登入');
-        liff.logout();
-        setTimeout(() => liff.login({ redirectUri: window.location.href }), 300);
-        return;
-      }
-    }
-
-    // ── Step 5: Check admin ─────────────────────────────
-    const isAdmin = await checkAdminStatus();
-    if (!isAdmin) {
-      document.body.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;padding:20px;text-align:center;">
-          <i class="fas fa-lock" style="font-size:64px;color:#EF4444;margin-bottom:20px;"></i>
-          <h2 style="margin-bottom:10px;">權限不足</h2>
-          <p style="color:#6B9DAB;margin-bottom:20px;">您沒有存取管理員後台的權限</p>
-          <button onclick="liff.closeWindow()" style="padding:12px 24px;background:#0891B2;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;">關閉</button>
-        </div>`;
-      return;
-    }
-
-    // ── Step 6: Update UI ───────────────────────────────
-    const adminNameEl = document.getElementById('adminName');
-    if (adminNameEl) adminNameEl.textContent = `管理員：${userProfile.displayName}`;
-
-    // ── Step 7: Load data (non-blocking, won't crash init) ──
-    const todayLocal = getTodayLocalAdmin();
-    const attendanceDateEl = document.getElementById('attendanceDate');
-    if (attendanceDateEl) attendanceDateEl.value = todayLocal;
-    const exportMonthEl = document.getElementById('exportMonth');
-    if (exportMonthEl) exportMonthEl.value = todayLocal.slice(0, 7);
-
-    // loadAllData errors are caught internally — don't crash init
-    loadAllData().catch(e => {
-      console.error('[Step7] loadAllData 失敗:', e);
-      showToast('資料載入失敗: ' + e.message, 'error');
+    const res = await fetch('/api/admin?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
     });
+    const data = await res.json();
 
-  } catch (error) {
-    console.error('Admin initLiff 未預期錯誤:', error);
-    showToast('初始化錯誤: ' + (error.message || error), 'error');
+    if (!data.success) {
+      errEl.textContent = data.error || '密碼錯誤';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登入';
+      return;
+    }
+
+    // Save session
+    userProfile = { userId: data.userId, displayName: data.displayName };
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      ...userProfile,
+      expires: Date.now() + SESSION_TTL,
+    }));
+
+    showMainScreen();
+    await initAdminPanel();
+
+  } catch (e) {
+    errEl.textContent = '網路錯誤，請重試';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登入';
   }
 }
 
-// Check admin status
-async function checkAdminStatus() {
+function adminLogout() {
+  localStorage.removeItem(SESSION_KEY);
+  userProfile = null;
+  document.getElementById('adminPasswordInput').value = '';
+  showLoginScreen();
+}
+
+// Allow Enter key on password input
+function onPasswordKeydown(e) {
+  if (e.key === 'Enter') adminLogin();
+}
+
+// ── 初始化 ───────────────────────────────────────────────
+
+async function initAdmin() {
+  // Check stored session
   try {
-    const response = await fetch(`/api/admin?action=check&userId=${userProfile.userId}`);
-    const data = await response.json();
-    return data.isAdmin;
-  } catch (error) {
-    console.error('檢查管理員權限失敗:', error);
-    return false;
-  }
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (raw) {
+      const session = JSON.parse(raw);
+      if (session.expires > Date.now() && session.userId) {
+        userProfile = { userId: session.userId, displayName: session.displayName };
+        showMainScreen();
+        await initAdminPanel();
+        return;
+      }
+    }
+  } catch (_) {}
+  showLoginScreen();
+}
+
+async function initAdminPanel() {
+  const adminNameEl = document.getElementById('adminName');
+  if (adminNameEl) adminNameEl.textContent = `管理員：${userProfile.displayName}`;
+
+  const todayLocal = getTodayLocalAdmin();
+  const attendanceDateEl = document.getElementById('attendanceDate');
+  if (attendanceDateEl) attendanceDateEl.value = todayLocal;
+  const exportMonthEl = document.getElementById('exportMonth');
+  if (exportMonthEl) exportMonthEl.value = todayLocal.slice(0, 7);
+
+  await loadAllData();
 }
 
 // Load all data
@@ -386,10 +369,12 @@ function loadAttendance() {
         ${Object.values(employeeRecords).map(emp => {
           let hours = '-';
           if (emp.checkin && emp.checkout) {
-            const checkinTime = new Date(`${selectedDate}T${emp.checkin}`);
-            const checkoutTime = new Date(`${selectedDate}T${emp.checkout}`);
-            const diff = (checkoutTime - checkinTime) / 1000 / 60 / 60;
-            hours = diff.toFixed(1) + 'h';
+            // Pad single-digit hour: "0:15:25" → "00:15:25" (required for valid ISO parsing)
+            const pad = t => t.replace(/^(\d):/, '0$1:');
+            const inMin  = emp.checkin.split(':').reduce((a,v,i) => a + parseInt(v) * [60,1,1/60][i], 0);
+            const outMin = emp.checkout.split(':').reduce((a,v,i) => a + parseInt(v) * [60,1,1/60][i], 0);
+            const diff = outMin - inMin;
+            hours = diff > 0 ? diff.toFixed(1) + 'h' : '-';
           }
 
           return `
@@ -477,10 +462,9 @@ function exportMonthData() {
     Object.entries(emp.days).forEach(([date, times]) => {
       let hours = '';
       if (times.in && times.out) {
-        const inTime = new Date(`${date}T${times.in}`);
-        const outTime = new Date(`${date}T${times.out}`);
-        const diff = (outTime - inTime) / 1000 / 60 / 60;
-        hours = diff.toFixed(1);
+        const toMin = t => t.split(':').reduce((a,v,i) => a + parseInt(v) * [60,1,1/60][i], 0);
+        const diff = toMin(times.out) - toMin(times.in);
+        hours = diff > 0 ? diff.toFixed(1) : '';
       }
 
       csv += `${emp.name},${date},${times.in || ''},${times.out || ''},${hours}\n`;
@@ -1028,4 +1012,4 @@ async function reviewLeave(leaveId, action, btn) {
 }
 
 // Initialize on load
-window.addEventListener('load', initLiff);
+window.addEventListener('load', initAdmin);

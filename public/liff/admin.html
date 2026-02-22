@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -832,9 +831,73 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* ── Login Overlay ── */
+    #loginOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 999;
+      background: var(--bg);
+      align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 40px 32px;
+      width: 90%; max-width: 360px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .login-logo {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 28px; color: white;
+    }
+    .login-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .login-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+    .login-input {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px; font-size: 16px;
+      font-family: 'Noto Sans TC', sans-serif;
+      color: var(--text); background: var(--bg);
+      outline: none; margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .login-input:focus { border-color: var(--primary); }
+    .login-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700;
+      font-family: 'Noto Sans TC', sans-serif;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 18px; }
   </style>
 </head>
 <body>
+
+  <!-- ── Login Overlay ── -->
+  <div id="loginOverlay">
+    <div class="login-card">
+      <div class="login-logo"><i class="fas fa-shield-halved"></i></div>
+      <div class="login-title">管理員後台</div>
+      <div class="login-sub">請輸入管理員密碼</div>
+      <input type="password" id="adminPasswordInput" class="login-input"
+             placeholder="密碼" onkeydown="onPasswordKeydown(event)">
+      <button id="loginBtn" class="login-btn" onclick="adminLogin()">
+        <i class="fas fa-sign-in-alt"></i> 登入
+      </button>
+      <div id="loginError" class="login-error"></div>
+    </div>
+  </div>
+
+  <!-- ── Main Content (hidden until login) ── -->
+  <div id="mainContent" style="display:none;">
 
   <!-- ── Header ── -->
   <div class="header">
@@ -845,7 +908,13 @@
         </div>
         <div class="header-title">管理後台</div>
       </div>
-      <div id="adminName" class="admin-pill">載入中...</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="adminName" class="admin-pill">載入中...</div>
+        <button onclick="adminLogout()" title="登出"
+          style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text-muted);cursor:pointer;font-size:13px;">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1105,6 +1174,8 @@
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
-  <script src="admin.js?v=2.4"></script>
+  </div><!-- end #mainContent -->
+
+  <script src="admin.js?v=3.0"></script>
 </body>
 </html>

@@ -23,6 +23,22 @@ module.exports = async (req, res) => {
     const action = req.query.action;
     const userId = req.query.userId || req.body?.userId;
 
+    // ── 0. login: 密碼驗證（完全不需要 userId）────────────────
+    if (action === 'login') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+      const { password } = req.body || {};
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      if (!adminPassword) return res.status(500).json({ success: false, error: 'ADMIN_PASSWORD 未設定' });
+      if (!password || password !== adminPassword) {
+        return res.status(401).json({ success: false, error: '密碼錯誤' });
+      }
+      // Find the admin employee in the sheet
+      const allEmps = await getAllEmployees();
+      const adminEmp = allEmps.find(e => e.role === 'admin');
+      if (!adminEmp) return res.status(404).json({ success: false, error: '找不到管理員帳號，請先在員工資料表設定 role=admin' });
+      return res.status(200).json({ success: true, userId: adminEmp.userId, displayName: adminEmp.name });
+    }
+
     // ── 1. check: 查詢 isAdmin（不需要預先驗證）──────────────
     if (action === 'check') {
       if (!userId) return res.status(400).json({ error: '缺少 userId 參數' });
