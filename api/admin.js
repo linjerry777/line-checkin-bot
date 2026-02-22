@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
       const { password } = req.body || {};
       const adminPassword = process.env.ADMIN_PASSWORD;
       if (!adminPassword) return res.status(500).json({ success: false, error: 'ADMIN_PASSWORD 未設定' });
-      if (!password || password !== adminPassword) {
+      if (!password || password.trim() !== adminPassword.trim()) {
         return res.status(401).json({ success: false, error: '密碼錯誤' });
       }
       // Find the admin employee in the sheet
