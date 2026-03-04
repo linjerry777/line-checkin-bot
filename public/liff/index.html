@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     * {
@@ -18,28 +18,27 @@
     }
 
     :root {
-      --primary: #0891B2;
+      --primary:       #0891B2;
       --primary-light: #22D3EE;
-      --primary-dark: #0E7490;
-      --cta: #0891B2;
-      --cta-hover: #0E7490;
-      --bg: #F0FDFF;
-      --bg2: #E0F7FA;
-      --surface: #FFFFFF;
-      --surface2: #F8FFFE;
-      --text: #164E63;
-      --text-sub: #0E7490;
-      --text-muted: #6B9DAB;
-      --border: #BAE6F5;
-      --border-light: #E0F5FB;
-      --success: #0891B2;
-      --danger: #EF4444;
-      --warning: #F59E0B;
-      --shadow-sm: 0 2px 8px rgba(8, 145, 178, 0.08);
-      --shadow: 0 4px 20px rgba(8, 145, 178, 0.12);
-      --shadow-lg: 0 8px 32px rgba(8, 145, 178, 0.18);
-      --radius: 16px;
-      --radius-sm: 10px;
+      --primary-dark:  #0E7490;
+      --bg:            #F0FDFF;
+      --bg2:           #E0F7FA;
+      --surface:       #FFFFFF;
+      --surface2:      #F8FFFE;
+      --text:          #0F172A;
+      --text-sub:      #0E7490;
+      --text-muted:    #64748B;
+      --border:        #BAE6F5;
+      --border-light:  #E0F5FB;
+      --success:       #22C55E;
+      --danger:        #EF4444;
+      --warning:       #F59E0B;
+      --shadow-sm:     0 2px 8px rgba(8,145,178,0.08);
+      --shadow:        0 4px 20px rgba(8,145,178,0.12);
+      --shadow-lg:     0 8px 32px rgba(8,145,178,0.2);
+      --radius:        20px;
+      --radius-sm:     14px;
+      --radius-xs:     8px;
     }
 
     body {
@@ -47,187 +46,197 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding-bottom: 80px;
+      padding-bottom: 90px;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Header ── */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border-light);
-      padding: 14px 20px;
-      box-shadow: var(--shadow-sm);
+    /* ─── HERO ─── */
+    .hero {
+      background: linear-gradient(145deg, #075985 0%, #0891B2 50%, #0EA5E9 100%);
+      padding: 24px 20px 28px;
+      position: relative;
+      overflow: hidden;
     }
 
-    .header-content {
+    /* Decorative blobs */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -70px; left: -40px;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      pointer-events: none;
+    }
+
+    .hero-top {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
+      margin-bottom: 22px;
+      position: relative;
+      z-index: 1;
     }
 
-    .header-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .hero-greeting {
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      font-weight: 400;
+      margin-bottom: 5px;
+      letter-spacing: 0.02em;
     }
 
-    .header-logo {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-light));
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .header-logo svg {
-      width: 18px;
-      height: 18px;
-      fill: white;
-    }
-
-    .header-title {
-      font-size: 17px;
+    #userName {
+      font-size: 22px;
       font-weight: 700;
-      color: var(--text);
-      letter-spacing: 0.01em;
+      color: #FFFFFF;
+      letter-spacing: -0.01em;
     }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .hero-clock {
+      text-align: right;
     }
 
-    .header-greeting {
-      font-size: 13px;
-      color: var(--text-muted);
+    .hero-time {
+      font-family: 'Outfit', sans-serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.03em;
+      line-height: 1;
     }
 
-    .header-user {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-sub);
-      background: var(--bg2);
-      padding: 6px 12px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
+    .hero-date {
+      font-size: 12px;
+      color: rgba(255,255,255,0.65);
+      font-weight: 400;
+      margin-top: 4px;
+      text-align: right;
     }
 
-    /* ── Stats Bar ── */
-    .stats-bar {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-      padding: 20px;
-    }
-
+    /* Stats row */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 10px;
+      position: relative;
+      z-index: 1;
     }
 
     .stat-card {
-      background: rgba(255, 255, 255, 0.18);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255,255,255,0.13);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.22);
       border-radius: var(--radius-sm);
-      padding: 14px 12px;
+      padding: 14px 10px;
       text-align: center;
-      cursor: default;
     }
 
     .stat-value {
+      font-family: 'Outfit', sans-serif;
       font-size: 22px;
       font-weight: 700;
       color: #FFFFFF;
-      margin-bottom: 3px;
       line-height: 1;
+      margin-bottom: 5px;
     }
 
     .stat-label {
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.8);
+      color: rgba(255,255,255,0.72);
       font-weight: 500;
-      letter-spacing: 0.03em;
     }
 
-    /* ── Tab Navigation ── */
+    /* ─── BOTTOM TAB NAV ─── */
     .tab-nav {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 0; left: 0; right: 0;
       background: var(--surface);
       border-top: 1px solid var(--border-light);
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      padding: 6px 8px;
-      padding-bottom: calc(6px + env(safe-area-inset-bottom));
+      grid-template-columns: repeat(5, 1fr);
+      padding: 4px 6px;
+      padding-bottom: calc(4px + env(safe-area-inset-bottom));
       z-index: 50;
-      box-shadow: 0 -4px 20px rgba(8, 145, 178, 0.08);
+      box-shadow: 0 -6px 28px rgba(8,145,178,0.1);
     }
 
     .tab-btn {
       background: none;
       border: none;
-      color: var(--text-muted);
-      padding: 10px 8px;
+      color: #94A3B8;
+      padding: 7px 4px;
       cursor: pointer;
-      transition: color 0.2s ease;
-      border-radius: 10px;
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
-      font-size: 11px;
+      gap: 3px;
+      font-size: 10px;
       font-weight: 500;
-      min-height: 56px;
+      min-height: 52px;
       justify-content: center;
       font-family: 'Noto Sans TC', sans-serif;
+      transition: color 0.2s ease;
+      position: relative;
     }
 
     .tab-btn i {
       font-size: 19px;
-      transition: color 0.2s ease;
+      transition: color 0.2s;
     }
 
     .tab-btn.active {
       color: var(--primary);
     }
 
-    .tab-btn.active i {
-      color: var(--primary);
+    /* Active top indicator */
+    .tab-btn.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 32px;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 0 0 6px 6px;
     }
 
-    /* ── Tab Content ── */
+    /* ─── TAB CONTENT ─── */
     .tab-content {
       display: none;
-      padding: 20px;
+      padding: 18px 16px;
       max-width: 600px;
       margin: 0 auto;
     }
 
     .tab-content.active {
       display: block;
-      animation: fadeUp 0.25s ease;
+      animation: fadeUp 0.22s ease;
     }
 
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── Card ── */
+    /* ─── CARD ─── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border-light);
       border-radius: var(--radius);
       padding: 20px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       box-shadow: var(--shadow-sm);
     }
 
@@ -257,104 +266,158 @@
       color: var(--primary);
       font-weight: 500;
       cursor: pointer;
-      text-decoration: none;
     }
 
-    /* ── Location Status ── */
+    /* ─── LOCATION STATUS ─── */
     .location-status {
-      padding: 14px 18px;
       border-radius: var(--radius-sm);
       font-size: 13px;
       font-weight: 500;
       display: flex;
       align-items: center;
-      gap: 10px;
-      transition: all 0.2s ease;
+      gap: 12px;
+      padding: 14px 18px;
+      transition: all 0.3s ease;
+      line-height: 1.5;
+    }
+
+    .location-status i {
+      font-size: 18px;
+      flex-shrink: 0;
     }
 
     .location-status.loading {
-      background: #F1F5F9;
+      background: #F8FAFC;
       color: var(--text-muted);
       border: 1px solid var(--border-light);
     }
 
     .location-status.success {
-      background: #ECFDF5;
-      color: #059669;
-      border: 1px solid #6EE7B7;
+      background: #F0FDF4;
+      color: #15803D;
+      border: 1px solid #BBF7D0;
     }
 
     .location-status.error {
-      background: #FEF2F2;
-      color: #EF4444;
-      border: 1px solid #FCA5A5;
+      background: #FFF1F2;
+      color: #BE123C;
+      border: 1px solid #FECDD3;
     }
 
-    /* ── Check-in Buttons ── */
+    /* ─── CHECKIN BUTTONS ─── */
     .checkin-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      margin-top: 4px;
+      margin-top: 6px;
     }
 
     .checkin-btn {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-      color: white;
       border: none;
-      border-radius: var(--radius-sm);
-      padding: 18px 12px;
+      border-radius: var(--radius);
+      padding: 24px 12px 20px;
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 14px rgba(8, 145, 178, 0.3);
-      min-height: 90px;
+      gap: 12px;
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      min-height: 126px;
       justify-content: center;
       font-family: 'Noto Sans TC', sans-serif;
+      position: relative;
+      overflow: hidden;
     }
 
-    .checkin-btn i {
-      font-size: 24px;
+    .checkin-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.2s ease;
     }
 
-    .checkin-btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
+    .checkin-btn:hover:not(:disabled)::after {
+      background: rgba(255,255,255,0.1);
     }
 
     .checkin-btn:active:not(:disabled) {
-      transform: translateY(0);
+      transform: scale(0.96) !important;
     }
 
+    /* Icon circle */
+    .btn-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    .checkin-btn:hover:not(:disabled) .btn-icon {
+      transform: scale(1.08);
+    }
+
+    .btn-label {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .btn-sub {
+      font-size: 11px;
+      opacity: 0.75;
+      font-weight: 400;
+      margin-top: -6px;
+    }
+
+    /* Check-in = cyan */
+    .checkin-btn.btn-in {
+      background: linear-gradient(145deg, #0891B2 0%, #22D3EE 100%);
+      color: white;
+      box-shadow: 0 6px 22px rgba(8,145,178,0.35);
+    }
+
+    .checkin-btn.btn-in:hover:not(:disabled) {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(8,145,178,0.45);
+    }
+
+    /* Check-out = dark slate */
+    .checkin-btn.btn-out {
+      background: linear-gradient(145deg, #334155 0%, #64748B 100%);
+      color: white;
+      box-shadow: 0 6px 22px rgba(51,65,85,0.28);
+    }
+
+    .checkin-btn.btn-out:hover:not(:disabled) {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(51,65,85,0.38);
+    }
+
+    /* Disabled state */
     .checkin-btn:disabled {
       background: #E2E8F0;
       color: #94A3B8;
       box-shadow: none;
       cursor: not-allowed;
+      transform: none !important;
     }
 
-    .checkin-btn.btn-out {
-      background: linear-gradient(135deg, #475569 0%, #64748B 100%);
-      box-shadow: 0 4px 14px rgba(71, 85, 105, 0.25);
+    .checkin-btn:disabled .btn-icon {
+      background: rgba(148,163,184,0.2);
     }
 
-    .checkin-btn.btn-out:hover:not(:disabled) {
-      box-shadow: 0 6px 20px rgba(71, 85, 105, 0.35);
-    }
-
-    .checkin-btn.btn-out:disabled {
-      background: #E2E8F0;
-      box-shadow: none;
-    }
-
-    /* ── Record Items ── */
+    /* ─── RECORD ITEMS ─── */
     .record-item {
-      background: var(--surface2);
+      background: var(--bg);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-sm);
       padding: 14px 16px;
@@ -373,48 +436,32 @@
       transform: translateX(2px);
     }
 
-    .record-item:last-child {
-      margin-bottom: 0;
-    }
+    .record-item:last-child { margin-bottom: 0; }
 
     .record-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 17px;
+      font-size: 16px;
       flex-shrink: 0;
     }
 
-    .record-icon.in {
-      background: linear-gradient(135deg, #CFFAFE, #A5F3FC);
-      color: var(--primary-dark);
-    }
+    .record-icon.in  { background: linear-gradient(135deg,#CFFAFE,#A5F3FC); color: var(--primary-dark); }
+    .record-icon.out { background: #F1F5F9; color: #64748B; }
 
-    .record-icon.out {
-      background: #F1F5F9;
-      color: #64748B;
-    }
-
-    .record-details {
-      flex: 1;
-      min-width: 0;
-    }
+    .record-details { flex: 1; min-width: 0; }
 
     .record-type {
       font-size: 14px;
       font-weight: 600;
       color: var(--text);
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
 
-    .record-time {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
+    .record-time { font-size: 12px; color: var(--text-muted); }
 
     .record-badge {
       padding: 4px 10px;
@@ -424,17 +471,10 @@
       flex-shrink: 0;
     }
 
-    .record-badge.in {
-      background: #CFFAFE;
-      color: var(--primary-dark);
-    }
+    .record-badge.in  { background: #CFFAFE; color: var(--primary-dark); }
+    .record-badge.out { background: #F1F5F9; color: #64748B; }
 
-    .record-badge.out {
-      background: #F1F5F9;
-      color: #64748B;
-    }
-
-    /* ── Row (used in stats) ── */
+    /* ─── TABLE ROW ─── */
     .record-row {
       display: flex;
       align-items: center;
@@ -443,23 +483,11 @@
       border-bottom: 1px solid var(--border-light);
     }
 
-    .record-row:last-child {
-      border-bottom: none;
-    }
+    .record-row:last-child { border-bottom: none; }
+    .record-row-label { font-size: 14px; color: var(--text-muted); }
+    .record-row-value { font-size: 14px; font-weight: 600; color: var(--text); }
 
-    .record-row-label {
-      font-size: 14px;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
-
-    .record-row-value {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    /* ── Calendar ── */
+    /* ─── CALENDAR ─── */
     .calendar-nav-row {
       display: flex;
       justify-content: space-between;
@@ -467,37 +495,23 @@
       margin-bottom: 16px;
     }
 
-    .calendar-month {
-      font-size: 17px;
-      font-weight: 700;
-      color: var(--text);
-    }
+    .calendar-month { font-size: 17px; font-weight: 700; color: var(--text); }
 
-    .calendar-nav {
-      display: flex;
-      gap: 6px;
-    }
+    .calendar-nav { display: flex; gap: 6px; }
 
     .calendar-nav button {
-      width: 34px;
-      height: 34px;
+      width: 34px; height: 34px;
       border-radius: 8px;
       background: var(--bg2);
       border: 1px solid var(--border);
       color: var(--primary);
       cursor: pointer;
       transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
       font-size: 13px;
     }
 
-    .calendar-nav button:hover {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
+    .calendar-nav button:hover { background: var(--primary); color: white; border-color: var(--primary); }
 
     .calendar-weekdays {
       display: grid;
@@ -538,43 +552,21 @@
       position: relative;
     }
 
-    .calendar-day:hover:not(.empty):not(.other-month) {
-      background: var(--bg2);
-    }
-
-    .calendar-day.other-month {
-      color: #CBD5E1;
-      cursor: default;
-    }
-
-    .calendar-day.today {
-      background: var(--bg2);
-      color: var(--primary);
-      font-weight: 700;
-      border: 1.5px solid var(--primary);
-    }
-
+    .calendar-day:hover:not(.empty):not(.other-month) { background: var(--bg2); }
+    .calendar-day.other-month  { color: #CBD5E1; cursor: default; }
+    .calendar-day.today        { background: var(--bg2); color: var(--primary); font-weight: 700; border: 1.5px solid var(--primary); }
     .calendar-day.has-checkin::after {
       content: '';
       position: absolute;
-      bottom: 5px;
-      width: 4px;
-      height: 4px;
+      bottom: 4px;
+      width: 4px; height: 4px;
       border-radius: 50%;
       background: var(--primary);
     }
+    .calendar-day.selected              { background: var(--primary); color: white; font-weight: 700; }
+    .calendar-day.selected::after       { background: white; }
 
-    .calendar-day.selected {
-      background: var(--primary);
-      color: white;
-      font-weight: 700;
-    }
-
-    .calendar-day.selected::after {
-      background: white;
-    }
-
-    /* ── Hours Grid ── */
+    /* ─── HOURS GRID ─── */
     .hours-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -583,19 +575,20 @@
     }
 
     .hours-box {
-      background: linear-gradient(135deg, #F0FDFF 0%, #E0F7FA 100%);
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 100%);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 18px 14px;
+      padding: 20px 14px;
       text-align: center;
     }
 
     .hours-value {
-      font-size: 30px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
       font-weight: 700;
       color: var(--primary);
-      margin-bottom: 6px;
       line-height: 1;
+      margin-bottom: 6px;
     }
 
     .hours-label {
@@ -604,10 +597,10 @@
       font-weight: 500;
     }
 
-    /* ── Empty State ── */
+    /* ─── EMPTY STATE ─── */
     .empty-state {
       text-align: center;
-      padding: 32px 20px;
+      padding: 36px 20px;
       color: var(--text-muted);
     }
 
@@ -618,15 +611,11 @@
       display: block;
     }
 
-    .empty-state-text {
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--text-muted);
-    }
+    .empty-state-text { font-size: 14px; color: var(--text-muted); }
 
-    /* ── Section Label ── */
+    /* ─── SECTION LABEL ─── */
     .section-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -635,19 +624,19 @@
       padding: 0 2px;
     }
 
-    /* ── Toast ── */
+    /* ─── TOAST ─── */
     .toast {
       position: fixed;
-      top: 76px;
+      top: 20px;
       left: 50%;
       transform: translateX(-50%) translateY(-120px);
-      background: var(--text);
+      background: #0F172A;
       color: #fff;
-      padding: 13px 22px;
+      padding: 12px 24px;
       border-radius: 30px;
-      box-shadow: 0 8px 24px rgba(22, 78, 99, 0.25);
+      box-shadow: 0 8px 28px rgba(15,23,42,0.25);
       opacity: 0;
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 100;
       font-weight: 500;
       font-size: 14px;
@@ -656,25 +645,15 @@
       pointer-events: none;
     }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.success { background: #059669; }
     .toast.error   { background: #DC2626; }
 
-    /* ── Divider ── */
-    .divider {
-      height: 1px;
-      background: var(--border-light);
-      margin: 8px 0;
-    }
+    /* ─── DIVIDER ─── */
+    .divider { height: 1px; background: var(--border-light); margin: 8px 0; }
 
-    /* ── Leave System ── */
-    .leave-form-group {
-      margin-bottom: 16px;
-    }
+    /* ─── LEAVE SYSTEM ─── */
+    .leave-form-group { margin-bottom: 16px; }
 
     .leave-form-label {
       font-size: 12px;
@@ -704,22 +683,11 @@
 
     .leave-select:focus,
     .leave-input:focus,
-    .leave-textarea:focus {
-      border-color: var(--primary);
-      background: var(--surface);
-    }
+    .leave-textarea:focus { border-color: var(--primary); background: var(--surface); }
 
-    .leave-textarea {
-      resize: none;
-      height: 80px;
-      line-height: 1.5;
-    }
+    .leave-textarea { resize: none; height: 80px; line-height: 1.5; }
 
-    .leave-date-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+    .leave-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     .leave-submit-btn {
       width: 100%;
@@ -727,33 +695,19 @@
       color: white;
       border: none;
       border-radius: var(--radius-sm);
-      padding: 15px;
+      padding: 16px;
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
       font-family: 'Noto Sans TC', sans-serif;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 14px rgba(8, 145, 178, 0.3);
+      box-shadow: 0 4px 16px rgba(8,145,178,0.3);
       margin-top: 4px;
     }
 
-    .leave-submit-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
-    }
+    .leave-submit-btn:hover      { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(8,145,178,0.4); }
+    .leave-submit-btn:disabled   { background: #E2E8F0; color: #94A3B8; box-shadow: none; cursor: not-allowed; }
 
-    .leave-submit-btn:active {
-      transform: translateY(0);
-    }
-
-    .leave-submit-btn:disabled {
-      background: #E2E8F0;
-      color: #94A3B8;
-      box-shadow: none;
-      cursor: not-allowed;
-    }
-
-    /* Leave Status Badge */
     .leave-status {
       padding: 4px 10px;
       border-radius: 20px;
@@ -766,9 +720,8 @@
     .leave-status.approved { background: #D1FAE5; color: #059669; }
     .leave-status.rejected { background: #FEE2E2; color: #DC2626; }
 
-    /* Leave Item */
     .leave-item {
-      background: var(--surface2);
+      background: var(--bg);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-sm);
       padding: 14px 16px;
@@ -791,21 +744,9 @@
       gap: 6px;
     }
 
-    .leave-item-type i {
-      color: var(--primary);
-      font-size: 13px;
-    }
-
-    .leave-item-dates {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .leave-item-reason {
-      font-size: 12px;
-      color: var(--text-sub);
-    }
+    .leave-item-type i    { color: var(--primary); font-size: 13px; }
+    .leave-item-dates     { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .leave-item-reason    { font-size: 12px; color: var(--text-sub); }
 
     .leave-item-reject {
       font-size: 12px;
@@ -816,7 +757,6 @@
       gap: 4px;
     }
 
-    /* Leave type chip */
     .leave-type-chip {
       display: inline-flex;
       align-items: center;
@@ -830,24 +770,24 @@
       color: var(--primary-dark);
     }
 
-    /* ── Loading Spinner ── */
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    /* ─── SPINNER ─── */
+    @keyframes spin { to { transform: rotate(360deg); } }
     .fa-spin { animation: spin 1s linear infinite; }
 
-    /* ── Responsive ── */
+    /* ─── RESPONSIVE ─── */
     @media (max-width: 375px) {
-      .stats-grid { gap: 8px; }
-      .stat-value  { font-size: 19px; }
+      .stats-grid  { gap: 7px; }
+      .stat-value  { font-size: 18px; }
       .stat-label  { font-size: 10px; }
-      .checkin-btn { padding: 14px 10px; min-height: 80px; }
-      .tab-content { padding: 16px; }
+      .checkin-btn { min-height: 112px; padding: 20px 10px 16px; }
+      .tab-content { padding: 14px 12px; }
       .tab-btn     { font-size: 10px; }
-      .tab-btn i   { font-size: 16px; }
+      .tab-btn i   { font-size: 17px; }
+      .hero-time   { font-size: 28px; }
+      #userName    { font-size: 19px; }
     }
 
-    /* ── Reduced Motion ── */
+    /* ─── REDUCED MOTION ─── */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -858,26 +798,18 @@
 </head>
 <body>
 
-  <!-- ── Header ── -->
-  <div class="header">
-    <div class="header-content">
-      <div class="header-brand">
-        <div class="header-logo">
-          <!-- Clock icon SVG -->
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 110-16 8 8 0 010 16zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
-          </svg>
-        </div>
-        <div class="header-title">打卡系統</div>
+  <!-- ── Hero (Greeting + Clock + Stats) ── -->
+  <div class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="hero-greeting" id="heroGreeting">你好，</div>
+        <div id="userName">載入中…</div>
       </div>
-      <div class="header-right">
-        <div id="userName" class="header-user" style="display:none;"></div>
+      <div class="hero-clock">
+        <div class="hero-time" id="heroTime">--:--</div>
+        <div class="hero-date" id="heroDate"></div>
       </div>
     </div>
-  </div>
-
-  <!-- ── Stats Bar ── -->
-  <div class="stats-bar">
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-value" id="todayStatus">--</div>
@@ -895,9 +827,9 @@
   </div>
 
   <!-- ── Bottom Tab Nav ── -->
-  <div class="tab-nav" style="grid-template-columns: repeat(5, 1fr);">
+  <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('checkin', this)" aria-label="打卡">
-      <i class="fas fa-qrcode"></i>
+      <i class="fas fa-fingerprint"></i>
       <span>打卡</span>
     </button>
     <button class="tab-btn" onclick="switchTab('calendar', this)" aria-label="日曆">
@@ -905,7 +837,7 @@
       <span>日曆</span>
     </button>
     <button class="tab-btn" onclick="switchTab('records', this)" aria-label="紀錄">
-      <i class="fas fa-list"></i>
+      <i class="fas fa-list-ul"></i>
       <span>紀錄</span>
     </button>
     <button class="tab-btn" onclick="switchTab('leave', this)" aria-label="請假">
@@ -920,10 +852,11 @@
 
   <!-- ── Tab: 打卡 ── -->
   <div id="checkinTab" class="tab-content active">
+
     <!-- Location -->
     <div class="card">
-      <div class="card-title">
-        <i class="fas fa-map-marker-alt"></i>
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fas fa-location-dot"></i>
         位置驗證
       </div>
       <div id="locationStatus" class="location-status loading">
@@ -932,20 +865,22 @@
       </div>
     </div>
 
-    <!-- Buttons -->
+    <!-- Punch buttons -->
     <div class="card">
-      <div class="card-title" style="margin-bottom:14px;">
-        <i class="fas fa-hand-point-up"></i>
+      <div class="card-title" style="margin-bottom:16px;">
+        <i class="fas fa-hand-pointer"></i>
         快速打卡
       </div>
       <div class="checkin-grid">
-        <button id="checkinBtn" class="checkin-btn" onclick="handleCheckin()" disabled>
-          <i class="fas fa-sign-in-alt"></i>
-          <span>上班打卡</span>
+        <button id="checkinBtn" class="checkin-btn btn-in" onclick="handleCheckin()" disabled>
+          <div class="btn-icon"><i class="fas fa-sign-in-alt"></i></div>
+          <span class="btn-label">上班打卡</span>
+          <span class="btn-sub">點擊記錄上班</span>
         </button>
         <button id="checkoutBtn" class="checkin-btn btn-out" onclick="handleCheckout()" disabled>
-          <i class="fas fa-sign-out-alt"></i>
-          <span>下班打卡</span>
+          <div class="btn-icon"><i class="fas fa-sign-out-alt"></i></div>
+          <span class="btn-label">下班打卡</span>
+          <span class="btn-sub">點擊記錄下班</span>
         </button>
       </div>
     </div>
@@ -954,7 +889,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">
-          <i class="fas fa-history"></i>
+          <i class="fas fa-clock-rotate-left"></i>
           今日打卡
         </div>
       </div>
@@ -1008,7 +943,6 @@
 
   <!-- ── Tab: 請假 ── -->
   <div id="leaveTab" class="tab-content">
-    <!-- Apply Form -->
     <div class="card">
       <div class="card-title" style="margin-bottom:16px;">
         <i class="fas fa-pen-to-square"></i>
@@ -1050,7 +984,6 @@
       </button>
     </div>
 
-    <!-- Leave History -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">
@@ -1090,6 +1023,27 @@
 
   <!-- ── Toast ── -->
   <div id="toast" class="toast"></div>
+
+  <script>
+    /* Live clock + greeting + date in hero */
+    function updateHeroClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const timeEl = document.getElementById('heroTime');
+      if (timeEl) timeEl.textContent = h + ':' + m;
+
+      const weekDays = ['週日','週一','週二','週三','週四','週五','週六'];
+      const dateEl = document.getElementById('heroDate');
+      if (dateEl) dateEl.textContent = (now.getMonth()+1) + '/' + now.getDate() + ' ' + weekDays[now.getDay()];
+
+      const hr = now.getHours();
+      const greetEl = document.getElementById('heroGreeting');
+      if (greetEl) greetEl.textContent = hr < 12 ? '早安，' : hr < 18 ? '午安，' : '晚安，';
+    }
+    updateHeroClock();
+    setInterval(updateHeroClock, 15000);
+  </script>
 
   <script src="app.js?v=5.6"></script>
 </body>
