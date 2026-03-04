@@ -98,7 +98,7 @@ async function updateSettings(settingsObject) {
 
     // 新增不存在的設定列
     for (const row of newRows) {
-      await appendToSheet([row], '系統設定!A:B');
+      await appendToSheet(row, '系統設定!A:B');
     }
 
     // 執行批次更新
