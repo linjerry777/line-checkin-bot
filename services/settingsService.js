@@ -101,23 +101,9 @@ async function updateSettings(settingsObject) {
       await appendToSheet(row, '系統設定!A:B');
     }
 
-    // 執行批次更新
-    if (updates.length > 0) {
-      const { google } = require('googleapis');
-      const auth = new google.auth.GoogleAuth({
-        keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_PATH,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets']
-      });
-
-      const sheets = google.sheets({ version: 'v4', auth });
-
-      await sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        resource: {
-          valueInputOption: 'RAW',
-          data: updates
-        }
-      });
+    // 執行更新（逐一呼叫 updateSheetData，使用已初始化的 sheets client）
+    for (const update of updates) {
+      await updateSheetData(update.range, update.values[0]);
     }
 
     return true;
