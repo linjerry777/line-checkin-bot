@@ -579,6 +579,16 @@ async function loadSettings() {
 
 // Save system settings
 async function saveSettings() {
+  const btn = document.getElementById('saveSettingsBtn');
+  const originalHTML = btn ? btn.innerHTML : null;
+
+  // 按鈕 loading 狀態
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 儲存中…';
+    btn.style.background = 'linear-gradient(135deg, #aaa, #888)';
+  }
+
   try {
     // 收集表單資料
     const settings = {
@@ -624,15 +634,35 @@ async function saveSettings() {
     showSettingsMessage('✅ 設定已成功儲存', 'success');
     showToast('設定已儲存', 'success');
 
-    // 3 秒後重新載入設定
-    setTimeout(() => {
-      loadSettings();
-    }, 1000);
+    // 按鈕成功狀態
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-check"></i> 儲存成功！';
+      btn.style.background = 'linear-gradient(135deg, #34C759, #28a745)';
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    }
+
+    // 1 秒後重新載入設定（讓勾勾反映最新狀態）
+    setTimeout(() => loadSettings(), 1000);
 
   } catch (error) {
     console.error('儲存設定錯誤:', error);
     showSettingsMessage('❌ ' + error.message, 'error');
     showToast('儲存失敗', 'error');
+
+    // 按鈕錯誤狀態，恢復
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-times"></i> 儲存失敗';
+      btn.style.background = 'linear-gradient(135deg, #FF3B30, #c0392b)';
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    }
   }
 }
 

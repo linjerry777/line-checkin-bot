@@ -16,8 +16,12 @@ async function getAllSettings() {
     const settings = {};
     data.slice(1).forEach(row => {
       const key = row[0];
-      const value = row[1];
+      let value = row[1];
       if (key && value !== undefined) {
+        // Google Sheets USER_ENTERED 會把 'true'/'false' 轉成 TRUE/FALSE
+        // 統一轉成小寫 string 讓 === 'true' 比對正確
+        if (value === 'TRUE') value = 'true';
+        if (value === 'FALSE') value = 'false';
         settings[key] = value;
       }
     });
