@@ -45,10 +45,8 @@ module.exports = async (req, res) => {
       };
     }
 
-    // 上班時間（供遲到判斷用）
-    if (settings.workStartTime) {
-      response.workStartTime = settings.workStartTime;
-    }
+    // 上班時間（供遲到判斷用，Sheet 沒設定時預設 09:00）
+    response.workStartTime = settings.workStartTime || '09:00';
 
     return res.status(200).json(response);
 
