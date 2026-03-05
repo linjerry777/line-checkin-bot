@@ -95,6 +95,24 @@
       letter-spacing: 0.02em;
     }
 
+    /* Hero user row */
+    .hero-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.45);
+      object-fit: cover;
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.2);
+      display: none;
+    }
+
     #userName {
       font-size: 22px;
       font-weight: 700;
@@ -801,9 +819,12 @@
   <!-- ── Hero (Greeting + Clock + Stats) ── -->
   <div class="hero">
     <div class="hero-top">
-      <div>
-        <div class="hero-greeting" id="heroGreeting">你好，</div>
-        <div id="userName">載入中…</div>
+      <div class="hero-user">
+        <img id="heroAvatar" class="hero-avatar" src="" alt="頭像" onerror="this.style.display='none'">
+        <div>
+          <div class="hero-greeting" id="heroGreeting">你好，</div>
+          <div id="userName">載入中…</div>
+        </div>
       </div>
       <div class="hero-clock">
         <div class="hero-time" id="heroTime">--:--</div>
@@ -855,9 +876,14 @@
 
     <!-- Location -->
     <div class="card">
-      <div class="card-title" style="margin-bottom:14px;">
-        <i class="fas fa-location-dot"></i>
-        位置驗證
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-location-dot"></i>
+          位置驗證
+        </div>
+        <span class="card-link" onclick="checkLocation()" style="display:flex;align-items:center;gap:4px;">
+          <i class="fas fa-rotate-right"></i> 重新定位
+        </span>
       </div>
       <div id="locationStatus" class="location-status loading">
         <i class="fas fa-spinner fa-spin"></i>

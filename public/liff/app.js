@@ -105,6 +105,12 @@ function updateUserInfo() {
     userNameEl.textContent = name;
     userNameEl.style.display = 'block';
   }
+  // Profile avatar
+  const avatarEl = document.getElementById('heroAvatar');
+  if (avatarEl && userProfile.pictureUrl) {
+    avatarEl.src = userProfile.pictureUrl;
+    avatarEl.style.display = 'block';
+  }
 }
 
 // Update all statistics
@@ -382,6 +388,12 @@ async function checkLocation() {
   const checkinBtn = document.getElementById('checkinBtn');
   const checkoutBtn = document.getElementById('checkoutBtn');
 
+  // Show loading while checking
+  statusEl.className = 'location-status loading';
+  statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在取得位置…';
+  checkinBtn.disabled = true;
+  checkoutBtn.disabled = true;
+
   // 如果未啟用位置檢查，直接允許打卡
   if (!liffConfig.storeLocation.enableLocationCheck) {
     statusEl.className = 'location-status success';
@@ -477,6 +489,13 @@ async function handleCheckout() {
 
 // Perform checkin
 async function performCheckin(type) {
+  const btn = document.getElementById(type === 'in' ? 'checkinBtn' : 'checkoutBtn');
+  const originalHTML = btn.innerHTML;
+
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<div class="btn-icon"><i class="fas fa-spinner fa-spin"></i></div><span class="btn-label">打卡中…</span><span class="btn-sub"></span>';
+
   try {
     const position = await getCurrentPosition();
 
@@ -505,6 +524,9 @@ async function performCheckin(type) {
   } catch (error) {
     console.error('打卡失敗:', error);
     showToast('打卡失敗，請稍後再試', 'error');
+  } finally {
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
   }
 }
 
