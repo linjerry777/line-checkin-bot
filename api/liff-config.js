@@ -1,6 +1,37 @@
 // Vercel Serverless Function - 提供 LIFF 設定
 const { getAllSettings } = require('../services/settingsService');
 
+/**
+ * 將 Google Sheets 時間值轉換為 "HH:MM" 字串
+ * 處理：小數 (0.375)、"9:00"、"9:00 AM"、"09:00:00" 等格式
+ */
+function normalizeTime(val, fallback) {
+  if (!val && val !== 0) return fallback;
+  const str = String(val).trim();
+
+  // 如果是小數（Sheets 時間格式，例如 0.375 = 09:00）
+  const num = parseFloat(str);
+  if (!isNaN(num) && !str.includes(':')) {
+    const totalMin = Math.round(num * 24 * 60);
+    const h = Math.floor(totalMin / 60) % 24;
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  // 從字串中擷取 HH:MM（處理 "9:00 AM"、"9:00:00"、"09:00" 等）
+  const match = str.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    // 處理 AM/PM
+    if (/pm/i.test(str) && h !== 12) h += 12;
+    if (/am/i.test(str) && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  return fallback;
+}
+
 module.exports = async (req, res) => {
   // 允許 CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,8 +76,10 @@ module.exports = async (req, res) => {
       };
     }
 
-    // 上班時間（供遲到判斷用，Sheet 沒設定時預設 09:00）
-    response.workStartTime = settings.workStartTime || '09:00';
+    // 上班時間（正規化為 "HH:MM"，Sheet 沒設定時預設 09:00）
+    response.workStartTime = normalizeTime(settings.workStartTime, '09:00');
+    // 遲到容忍時間（分鐘，預設 0）
+    response.lateThreshold = parseInt(settings.lateThreshold || '0', 10) || 0;
 
     return res.status(200).json(response);
 

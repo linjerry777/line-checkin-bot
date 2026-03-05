@@ -483,9 +483,10 @@ async function handleCheckin() {
   if (liffConfig && liffConfig.workStartTime) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
-    const [wh, wm] = liffConfig.workStartTime.split(':').map(Number);
-    const startMin = wh * 60 + wm;
-    if (currentMin > startMin) {
+    const parts = liffConfig.workStartTime.split(':').map(Number);
+    const startMin = parts[0] * 60 + (parts[1] || 0);
+    const threshold = Number(liffConfig.lateThreshold) || 0;
+    if (!isNaN(startMin) && currentMin > startMin + threshold) {
       // Late — show reason modal
       showLateModal(async (reason) => {
         await performCheckin('in', reason);
