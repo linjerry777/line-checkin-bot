@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { userId, employeeName, type, location } = req.body;
+    const { userId, employeeName, type, location, reason } = req.body;
 
     if (!userId || !employeeName || !type) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
     }
 
     // 打卡
-    const result = await attendanceService.checkIn(userId, employeeName, type, location);
+    const result = await attendanceService.checkIn(userId, employeeName, type, location, reason || '');
 
     if (!result.success) {
       return res.status(400).json({

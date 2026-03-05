@@ -477,8 +477,22 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Handle checkin
+// Handle checkin (with late check)
 async function handleCheckin() {
+  // Check if late (only for clock-in)
+  if (liffConfig && liffConfig.workStartTime) {
+    const now = new Date();
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const [wh, wm] = liffConfig.workStartTime.split(':').map(Number);
+    const startMin = wh * 60 + wm;
+    if (currentMin > startMin) {
+      // Late — show reason modal
+      showLateModal(async (reason) => {
+        await performCheckin('in', reason);
+      });
+      return;
+    }
+  }
   await performCheckin('in');
 }
 
@@ -487,13 +501,16 @@ async function handleCheckout() {
   await performCheckin('out');
 }
 
-// Perform checkin
-async function performCheckin(type) {
-  const btn = document.getElementById(type === 'in' ? 'checkinBtn' : 'checkoutBtn');
+// Perform checkin (reason optional, for late cases)
+async function performCheckin(type, reason) {
+  const checkinBtn = document.getElementById('checkinBtn');
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  const btn = type === 'in' ? checkinBtn : checkoutBtn;
   const originalHTML = btn.innerHTML;
 
-  // Show loading state
-  btn.disabled = true;
+  // Lock BOTH buttons to prevent spam
+  checkinBtn.disabled = true;
+  checkoutBtn.disabled = true;
   btn.innerHTML = '<div class="btn-icon"><i class="fas fa-spinner fa-spin"></i></div><span class="btn-label">打卡中…</span><span class="btn-sub"></span>';
 
   try {
@@ -506,6 +523,7 @@ async function performCheckin(type) {
         userId: userProfile.userId,
         employeeName: employeeData?.name || userProfile.displayName,
         type: type,
+        reason: reason || '',
         location: {
           lat: position.coords.latitude,
           lng: position.coords.longitude
@@ -526,8 +544,41 @@ async function performCheckin(type) {
     showToast('打卡失敗，請稍後再試', 'error');
   } finally {
     btn.innerHTML = originalHTML;
-    btn.disabled = false;
+    // Re-check location to re-enable buttons properly
+    checkLocation();
   }
+}
+
+// Show late check-in reason modal
+function showLateModal(onConfirm) {
+  const modal = document.getElementById('lateModal');
+  const textarea = document.getElementById('lateReason');
+  if (!modal) return;
+  textarea.value = '';
+  modal.classList.add('show');
+  textarea.focus();
+
+  // Confirm button handler (one-time)
+  const confirmBtn = document.getElementById('lateConfirmBtn');
+  const cancelBtn = document.getElementById('lateCancelBtn');
+
+  const cleanup = () => {
+    modal.classList.remove('show');
+    confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+  };
+
+  document.getElementById('lateConfirmBtn').onclick = () => {
+    const reason = document.getElementById('lateReason').value.trim();
+    if (!reason) {
+      document.getElementById('lateReason').style.borderColor = '#EF4444';
+      return;
+    }
+    cleanup();
+    onConfirm(reason);
+  };
+
+  document.getElementById('lateCancelBtn').onclick = cleanup;
 }
 
 // Switch tab  (btnEl is passed as `this` from onclick)

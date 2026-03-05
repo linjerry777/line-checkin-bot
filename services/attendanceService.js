@@ -4,7 +4,7 @@ const { getCurrentTime, getToday } = require('../utils/timeHelper');
 /**
  * 打卡功能
  */
-async function checkIn(userId, employeeName, type, location = null) {
+async function checkIn(userId, employeeName, type, location = null, reason = '') {
   try {
     const now = new Date();
     const timestamp = getCurrentTime();
@@ -18,6 +18,7 @@ async function checkIn(userId, employeeName, type, location = null) {
       time: timestamp,
       fullTimestamp: now.toISOString(),
       location: location ? `${location.lat},${location.lng}` : null,
+      reason,
     };
 
     // 儲存到 Google Sheets
@@ -53,9 +54,10 @@ async function saveToGoogleSheets(record) {
       record.time,             // E 欄：時間
       record.fullTimestamp,    // F 欄：完整時間戳記
       record.location || '',   // G 欄：位置
+      record.reason || '',     // H 欄：遲到原因
     ];
 
-    await appendToSheet(row, '打卡紀錄!A:G');
+    await appendToSheet(row, '打卡紀錄!A:H');
     console.log('✅ 已儲存到 Google Sheets');
   } catch (error) {
     console.error('❌ Google Sheets 儲存失敗:', error.message);

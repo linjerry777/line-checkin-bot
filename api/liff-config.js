@@ -45,6 +45,11 @@ module.exports = async (req, res) => {
       };
     }
 
+    // 上班時間（供遲到判斷用）
+    if (settings.workStartTime) {
+      response.workStartTime = settings.workStartTime;
+    }
+
     return res.status(200).json(response);
 
   } catch (error) {
