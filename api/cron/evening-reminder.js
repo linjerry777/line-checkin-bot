@@ -64,11 +64,21 @@ module.exports = async (req, res) => {
 
         let workHours = '';
         if (checkinTime) {
-          const checkinDate = new Date(`${today}T${checkinTime}`);
+          // 正規化時間格式：單位數小時 "0:11:14" → "00:11:14"
+          const tp = checkinTime.split(':');
+          const normalizedTime = [
+            tp[0].padStart(2, '0'),
+            (tp[1] || '00').padStart(2, '0'),
+            (tp[2] || '00').padStart(2, '0')
+          ].join(':');
+          const checkinDate = new Date(`${today}T${normalizedTime}`);
           const now = new Date();
-          const hours = Math.floor((now - checkinDate) / 1000 / 60 / 60);
-          const minutes = Math.floor(((now - checkinDate) / 1000 / 60) % 60);
-          workHours = `已工作 ${hours} 小時 ${minutes} 分鐘`;
+          const diffMs = now - checkinDate;
+          if (!isNaN(diffMs) && diffMs > 0) {
+            const hours = Math.floor(diffMs / 1000 / 60 / 60);
+            const minutes = Math.floor((diffMs / 1000 / 60) % 60);
+            workHours = `已工作 ${hours} 小時 ${minutes} 分鐘`;
+          }
         }
 
         const message = {

@@ -345,11 +345,13 @@ function loadAttendance() {
       employeeRecords[record.userId] = {
         name: emp?.name || record.employeeName,
         checkin: null,
-        checkout: null
+        checkout: null,
+        lateReason: ''
       };
     }
     if (record.type === 'in') {
       employeeRecords[record.userId].checkin = record.time;
+      if (record.reason) employeeRecords[record.userId].lateReason = record.reason;
     } else {
       employeeRecords[record.userId].checkout = record.time;
     }
@@ -363,20 +365,23 @@ function loadAttendance() {
           <th>上班</th>
           <th>下班</th>
           <th>工時</th>
+          <th>遲到原因</th>
         </tr>
       </thead>
       <tbody>
         ${Object.values(employeeRecords).map(emp => {
           let hours = '-';
           if (emp.checkin && emp.checkout) {
-            // Pad single-digit hour: "0:15:25" → "00:15:25" (required for valid ISO parsing)
-            const pad = t => t.replace(/^(\d):/, '0$1:');
             const toMinutes = t => { const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
             const inMin  = toMinutes(emp.checkin);
             const outMin = toMinutes(emp.checkout);
-            const diff = outMin - inMin; // diff in minutes
+            const diff = outMin - inMin;
             hours = diff > 0 ? (diff / 60).toFixed(1) + 'h' : '-';
           }
+
+          const reasonCell = emp.lateReason
+            ? `<span style="color:#D97706;font-size:12px;" title="${emp.lateReason}">⚠️ ${emp.lateReason.length > 20 ? emp.lateReason.slice(0, 20) + '…' : emp.lateReason}</span>`
+            : '<span style="color:#94A3B8;font-size:12px;">-</span>';
 
           return `
             <tr>
@@ -384,6 +389,7 @@ function loadAttendance() {
               <td class="time-cell">${emp.checkin || '-'}</td>
               <td class="time-cell">${emp.checkout || '-'}</td>
               <td>${hours}</td>
+              <td>${reasonCell}</td>
             </tr>
           `;
         }).join('')}

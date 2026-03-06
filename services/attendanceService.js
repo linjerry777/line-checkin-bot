@@ -71,14 +71,13 @@ async function saveToGoogleSheets(record) {
 async function getTodayRecords(userId) {
   try {
     const today = getToday();
-    const records = await getSheetData('打卡紀錄!A:G');
+    const records = await getSheetData('打卡紀錄!A:H');
 
     if (!records || records.length <= 1) {
       return [];
     }
 
-    // 過濾今日該使用者的紀錄
-    // 正確順序：員工ID(A), 員工姓名(B), 類型(C), 日期(D), 時間(E), 完整時間戳記(F), 位置(G)
+    // 正確順序：員工ID(A), 員工姓名(B), 類型(C), 日期(D), 時間(E), 完整時間戳記(F), 位置(G), 原因(H)
     const todayRecords = [];
     for (let i = 1; i < records.length; i++) {
       const row = records[i];
@@ -91,6 +90,7 @@ async function getTodayRecords(userId) {
           time: row[4],
           fullTimestamp: row[5],
           location: row[6] || null,
+          reason: row[7] || '',
         });
       }
     }
@@ -107,13 +107,13 @@ async function getTodayRecords(userId) {
  */
 async function getAllRecords() {
   try {
-    const records = await getSheetData('打卡紀錄!A:G');
+    const records = await getSheetData('打卡紀錄!A:H');
 
     if (!records || records.length <= 1) {
       return [];
     }
 
-    // 正確順序：員工ID(A), 員工姓名(B), 類型(C), 日期(D), 時間(E), 完整時間戳記(F), 位置(G)
+    // 正確順序：員工ID(A), 員工姓名(B), 類型(C), 日期(D), 時間(E), 完整時間戳記(F), 位置(G), 原因(H)
     return records.slice(1).map(row => ({
       userId: row[0],
       employeeName: row[1],
@@ -122,6 +122,7 @@ async function getAllRecords() {
       time: row[4],
       fullTimestamp: row[5],
       location: row[6] || null,
+      reason: row[7] || '',
     }));
   } catch (error) {
     console.error('取得所有紀錄錯誤:', error);
@@ -134,7 +135,7 @@ async function getAllRecords() {
  */
 async function getAllRecordsByUserId(userId) {
   try {
-    const records = await getSheetData('打卡紀錄!A:G');
+    const records = await getSheetData('打卡紀錄!A:H');
 
     if (!records || records.length <= 1) {
       return [];
@@ -150,6 +151,7 @@ async function getAllRecordsByUserId(userId) {
         time: row[4],
         fullTimestamp: row[5],
         location: row[6] || null,
+        reason: row[7] || '',
       }));
   } catch (error) {
     console.error('取得員工紀錄錯誤:', error);

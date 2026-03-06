@@ -176,6 +176,16 @@ async function processCommand(userId, profile, message) {
     return helpText;
   }
 
+  // 還在加班
+  if (message === '還在加班' || message === '還在加班中' || message === '加班中') {
+    return `⌚ 收到！繼續加油 ${employee.name}！\n\n記得完成後打下班卡喔 💪`;
+  }
+
+  // 稍後提醒
+  if (message === '稍後提醒' || message === '稍後提醒我') {
+    return `⏰ 好的，稍後記得打上班卡喔！\n\n${employee.name} 加油 😊`;
+  }
+
   // 未知指令
   return '❓ 未知的指令\n\n請輸入「說明」查看可用指令';
 }
