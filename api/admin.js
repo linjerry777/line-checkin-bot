@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
       }
 
       case 'records': {
-        const data = await getSheetData('打卡紀錄!A:G');
+        const data = await getSheetData('打卡紀錄!A:H');
         if (!data || data.length <= 1) {
           return res.status(200).json({ success: true, records: [] });
         }
@@ -112,7 +112,8 @@ module.exports = async (req, res) => {
           date: row[3],
           time: row[4],
           fullTimestamp: row[5],
-          location: row[6] || null
+          location: row[6] || null,
+          reason: row[7] || ''
         })).filter(r => r.userId && r.date);
         return res.status(200).json({ success: true, records, total: records.length });
       }
