@@ -497,8 +497,24 @@ async function handleCheckin() {
   await performCheckin('in');
 }
 
-// Handle checkout
+// Handle checkout (with overtime check)
 async function handleCheckout() {
+  if (liffConfig && liffConfig.workEndTime) {
+    const now = new Date();
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const parts = liffConfig.workEndTime.split(':').map(Number);
+    const endMin = parts[0] * 60 + (parts[1] || 0);
+    if (!isNaN(endMin) && currentMin > endMin) {
+      showLateModal(async (reason) => {
+        await performCheckin('out', reason);
+      }, {
+        title: '您有加班，請說明原因',
+        sub: '填寫說明後才能完成下班打卡',
+        placeholder: '請輸入加班原因…'
+      });
+      return;
+    }
+  }
   await performCheckin('out');
 }
 
@@ -550,11 +566,19 @@ async function performCheckin(type, reason) {
   }
 }
 
-// Show late check-in reason modal
-function showLateModal(onConfirm) {
+// Show reason modal (reused for late check-in and overtime check-out)
+function showLateModal(onConfirm, { title, sub, placeholder } = {}) {
   const modal = document.getElementById('lateModal');
   const textarea = document.getElementById('lateReason');
   if (!modal) return;
+
+  // Update modal text dynamically
+  const titleEl = document.getElementById('modalTitle');
+  const subEl = document.getElementById('modalSub');
+  if (titleEl) titleEl.innerHTML = `<i class="fas fa-clock"></i>${title || '您有遲到，請說明原因'}`;
+  if (subEl) subEl.textContent = sub || '填寫說明後才能完成上班打卡';
+  textarea.placeholder = placeholder || '請輸入遲到原因…';
+
   textarea.value = '';
   modal.classList.add('show');
   textarea.focus();

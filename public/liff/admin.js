@@ -346,7 +346,8 @@ function loadAttendance() {
         name: emp?.name || record.employeeName,
         checkin: null,
         checkout: null,
-        lateReason: ''
+        lateReason: '',
+        overtimeReason: ''
       };
     }
     if (record.type === 'in') {
@@ -354,6 +355,7 @@ function loadAttendance() {
       if (record.reason) employeeRecords[record.userId].lateReason = record.reason;
     } else {
       employeeRecords[record.userId].checkout = record.time;
+      if (record.reason) employeeRecords[record.userId].overtimeReason = record.reason;
     }
   });
 
@@ -366,6 +368,7 @@ function loadAttendance() {
           <th>下班</th>
           <th>工時</th>
           <th>遲到原因</th>
+          <th>加班原因</th>
         </tr>
       </thead>
       <tbody>
@@ -379,8 +382,8 @@ function loadAttendance() {
             hours = diff > 0 ? (diff / 60).toFixed(1) + 'h' : '-';
           }
 
-          const reasonCell = emp.lateReason
-            ? `<span style="color:#D97706;font-size:12px;" title="${emp.lateReason}">⚠️ ${emp.lateReason.length > 20 ? emp.lateReason.slice(0, 20) + '…' : emp.lateReason}</span>`
+          const mkReasonCell = (reason) => reason
+            ? `<span style="color:#D97706;font-size:12px;" title="${reason}">⚠️ ${reason.length > 20 ? reason.slice(0, 20) + '…' : reason}</span>`
             : '<span style="color:#94A3B8;font-size:12px;">-</span>';
 
           return `
@@ -389,7 +392,8 @@ function loadAttendance() {
               <td class="time-cell">${emp.checkin || '-'}</td>
               <td class="time-cell">${emp.checkout || '-'}</td>
               <td>${hours}</td>
-              <td>${reasonCell}</td>
+              <td>${mkReasonCell(emp.lateReason)}</td>
+              <td>${mkReasonCell(emp.overtimeReason)}</td>
             </tr>
           `;
         }).join('')}

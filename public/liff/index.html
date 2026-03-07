@@ -1161,11 +1161,11 @@
   <div id="lateModal" class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title">
+      <div id="modalTitle" class="modal-title">
         <i class="fas fa-clock"></i>
         您有遲到，請說明原因
       </div>
-      <div class="modal-sub">填寫說明後才能完成上班打卡</div>
+      <div id="modalSub" class="modal-sub">填寫說明後才能完成上班打卡</div>
       <textarea id="lateReason" class="modal-textarea" placeholder="請輸入遲到原因…" maxlength="200"></textarea>
       <div class="modal-actions">
         <button id="lateCancelBtn" class="modal-cancel">取消</button>
@@ -1200,6 +1200,6 @@
     setInterval(updateHeroClock, 15000);
   </script>
 
-  <script src="app.js?v=5.8"></script>
+  <script src="app.js?v=5.9"></script>
 </body>
 </html>
