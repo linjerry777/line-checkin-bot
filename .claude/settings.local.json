@@ -18,7 +18,16 @@
       "WebFetch(domain:www.google.com)",
       "Bash(openssl rand:*)",
       "Bash(dir:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(Get-ChildItem:*)",
+      "Bash(Select-Object FullName)",
+      "Bash(git rm:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npx vercel:*)",
+      "WebFetch(domain:nominatim.openstreetmap.org)",
+      "Bash(del \"api\\\\cron\\\\morning-reminder.js\")",
+      "Bash(del \"api\\\\cron\\\\evening-reminder.js\")"
     ]
   }
 }

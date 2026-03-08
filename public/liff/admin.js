@@ -689,8 +689,7 @@ async function loadSettings() {
     document.getElementById('storeLongitude').value = settings.storeLongitude || '';
     document.getElementById('storeRadius').value = settings.storeRadius || '100';
     document.getElementById('enableLocationCheck').checked = settings.enableLocationCheck === 'true';
-    document.getElementById('enableReminders').checked = settings.enableReminders === 'true';
-    document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
+document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
     document.getElementById('earlyThreshold').value = settings.earlyThreshold || '15';
     document.getElementById('enableAlerts').checked = settings.enableAlerts === 'true';
     // 第二打卡位置
@@ -726,8 +725,7 @@ async function saveSettings() {
       storeLongitude: document.getElementById('storeLongitude').value,
       storeRadius: document.getElementById('storeRadius').value,
       enableLocationCheck: document.getElementById('enableLocationCheck').checked ? 'true' : 'false',
-      enableReminders: document.getElementById('enableReminders').checked ? 'true' : 'false',
-      lateThreshold: document.getElementById('lateThreshold').value,
+lateThreshold: document.getElementById('lateThreshold').value,
       earlyThreshold: document.getElementById('earlyThreshold').value,
       enableAlerts: document.getElementById('enableAlerts').checked ? 'true' : 'false',
       // 第二打卡位置
