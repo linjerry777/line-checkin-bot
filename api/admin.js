@@ -1,5 +1,5 @@
 // Admin API - Unified endpoint for all admin + leave functions
-const { getAllEmployees, getEmployeeByUserId, updateEmployeeShift } = require('../services/employeeService');
+const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule } = require('../services/employeeService');
 const { getSheetData } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
@@ -193,9 +193,9 @@ module.exports = async (req, res) => {
 
       case 'update-employee-shift': {
         if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-        const { targetUserId, shiftStart, shiftEnd } = req.body;
+        const { targetUserId, schedule } = req.body;
         if (!targetUserId) return res.status(400).json({ error: '缺少 targetUserId' });
-        const result = await updateEmployeeShift(targetUserId, shiftStart || '', shiftEnd || '');
+        const result = await updateEmployeeSchedule(targetUserId, schedule || '{}');
         return res.status(result.success ? 200 : 400).json(result);
       }
 

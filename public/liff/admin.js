@@ -331,21 +331,34 @@ function updateEmployeeList() {
     if (hasCheckedIn && !hasCheckedOut) status = 'present';
     if (hasCheckedIn && hasCheckedOut) status = 'off';
 
-    const shiftLabel = (emp.shiftStart || emp.shiftEnd)
-      ? `${emp.shiftStart || '--'} ~ ${emp.shiftEnd || '--'}`
-      : '使用全域時間';
+    // Build a compact schedule summary e.g. "一~五 09:00-18:00 ｜ 六 09:00-14:00"
+    const sched = emp.weeklySchedule || {};
+    const hasSchedule = Object.values(sched).some(v => v);
+    const dayNames = ['日','一','二','三','四','五','六'];
+    let schedLabel = hasSchedule ? '' : '未設定班表';
+    if (hasSchedule) {
+      // Group consecutive days with same time
+      const groups = {};
+      ['1','2','3','4','5','6','0'].forEach(k => {
+        const v = sched[k] || '';
+        if (!v) return;
+        if (!groups[v]) groups[v] = [];
+        groups[v].push(dayNames[parseInt(k)]);
+      });
+      schedLabel = Object.entries(groups).map(([time, days]) => `${days.join('')} ${time}`).join(' ｜ ');
+    }
 
     return `
       <div class="employee-item">
         <div class="employee-avatar">${emp.name.charAt(0)}</div>
         <div class="employee-info">
           <div class="employee-name">${emp.name}</div>
-          <div class="employee-stats">本月出勤 ${workDays} 天 ｜ ${shiftLabel}</div>
+          <div class="employee-stats" style="font-size:11px;">${schedLabel}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button onclick="openShiftEdit('${emp.userId}','${emp.name}','${emp.shiftStart||''}','${emp.shiftEnd||''}')"
+          <button onclick="openShiftEdit('${emp.userId}','${emp.name}')"
             style="background:var(--bg2);color:var(--primary);border:none;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;">
-            <i class="fas fa-clock"></i>
+            <i class="fas fa-calendar-week"></i>
           </button>
           <div class="status-badge ${status}">
             ${status === 'present' ? '在班' : status === 'off' ? '已下班' : '未到'}
@@ -583,14 +596,42 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
-// ── Shift Edit Modal ──────────────────────────────────────
-function openShiftEdit(userId, name, shiftStart, shiftEnd) {
+// ── Weekly Schedule Modal ─────────────────────────────────
+// Days displayed Mon→Sun (JS day keys: 1,2,3,4,5,6,0)
+const SCHEDULE_DAYS = ['1','2','3','4','5','6','0'];
+
+function openShiftEdit(userId, name) {
   const modal = document.getElementById('shiftEditModal');
+  const emp = allEmployees.find(e => e.userId === userId);
+  const schedule = emp?.weeklySchedule || {};
+
   document.getElementById('shiftEditEmpName').textContent = name;
-  document.getElementById('shiftEditStart').value = shiftStart || '';
-  document.getElementById('shiftEditEnd').value = shiftEnd || '';
   modal.dataset.userId = userId;
+
+  SCHEDULE_DAYS.forEach(key => {
+    const val = schedule[key] || '';
+    const working = val !== '';
+    const [start, end] = working ? val.split('-') : ['', ''];
+
+    const cb = document.getElementById(`day-active-${key}`);
+    const s  = document.getElementById(`day-start-${key}`);
+    const e2 = document.getElementById(`day-end-${key}`);
+    if (!cb) return;
+
+    cb.checked    = working;
+    s.value       = start || '';
+    e2.value      = end   || '';
+    s.disabled    = !working;
+    e2.disabled   = !working;
+  });
+
   modal.classList.add('show');
+}
+
+function toggleDay(key) {
+  const working = document.getElementById(`day-active-${key}`).checked;
+  document.getElementById(`day-start-${key}`).disabled = !working;
+  document.getElementById(`day-end-${key}`).disabled   = !working;
 }
 
 function closeShiftEdit() {
@@ -598,23 +639,29 @@ function closeShiftEdit() {
 }
 
 async function saveShift() {
-  const modal = document.getElementById('shiftEditModal');
+  const modal  = document.getElementById('shiftEditModal');
   const userId = modal.dataset.userId;
-  const shiftStart = document.getElementById('shiftEditStart').value;
-  const shiftEnd = document.getElementById('shiftEditEnd').value;
+
+  const schedule = {};
+  SCHEDULE_DAYS.forEach(key => {
+    const cb    = document.getElementById(`day-active-${key}`);
+    const start = document.getElementById(`day-start-${key}`).value;
+    const end   = document.getElementById(`day-end-${key}`).value;
+    schedule[key] = (cb?.checked && start && end) ? `${start}-${end}` : '';
+  });
 
   try {
     const res = await fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: userId, shiftStart, shiftEnd }),
+      body: JSON.stringify({ targetUserId: userId, schedule: JSON.stringify(schedule) }),
     });
     const result = await res.json();
     if (result.success) {
       const emp = allEmployees.find(e => e.userId === userId);
-      if (emp) { emp.shiftStart = shiftStart; emp.shiftEnd = shiftEnd; }
+      if (emp) emp.weeklySchedule = schedule;
       closeShiftEdit();
-      showToast('班別時間已儲存', 'success');
+      showToast('週班表已儲存', 'success');
       updateEmployeeList();
     } else {
       showToast(result.error || '儲存失敗', 'error');
@@ -637,14 +684,10 @@ async function loadSettings() {
     const settings = data.settings;
 
     // 填入表單
-    document.getElementById('workStartTime').value = normTimeInput(settings.workStartTime, '09:00');
-    document.getElementById('workEndTime').value = normTimeInput(settings.workEndTime, '18:00');
     document.getElementById('storeAddress').value = settings.storeAddress || '';
     document.getElementById('storeLatitude').value = settings.storeLatitude || '';
     document.getElementById('storeLongitude').value = settings.storeLongitude || '';
     document.getElementById('storeRadius').value = settings.storeRadius || '100';
-    document.getElementById('morningReminderTime').value = normTimeInput(settings.morningReminderTime, '09:00');
-    document.getElementById('eveningReminderTime').value = normTimeInput(settings.eveningReminderTime, '18:00');
     document.getElementById('enableLocationCheck').checked = settings.enableLocationCheck === 'true';
     document.getElementById('enableReminders').checked = settings.enableReminders === 'true';
     document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
@@ -678,14 +721,10 @@ async function saveSettings() {
   try {
     // 收集表單資料
     const settings = {
-      workStartTime: document.getElementById('workStartTime').value,
-      workEndTime: document.getElementById('workEndTime').value,
       storeAddress: document.getElementById('storeAddress').value,
       storeLatitude: document.getElementById('storeLatitude').value,
       storeLongitude: document.getElementById('storeLongitude').value,
       storeRadius: document.getElementById('storeRadius').value,
-      morningReminderTime: document.getElementById('morningReminderTime').value,
-      eveningReminderTime: document.getElementById('eveningReminderTime').value,
       enableLocationCheck: document.getElementById('enableLocationCheck').checked ? 'true' : 'false',
       enableReminders: document.getElementById('enableReminders').checked ? 'true' : 'false',
       lateThreshold: document.getElementById('lateThreshold').value,

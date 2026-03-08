@@ -634,6 +634,45 @@
     .shift-btn-cancel { background: var(--bg2); color: var(--text-sub); }
     .shift-btn-save { background: var(--primary); color: #fff; }
 
+    /* ── Schedule Grid ── */
+    .schedule-grid { margin-bottom: 12px; }
+    .sch-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 0 6px; border-bottom: 2px solid var(--border);
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .sch-day-col { width: 22px; }
+    .sch-active-col { width: 38px; text-align: center; }
+    .sch-times-col { flex: 1; text-align: center; }
+    .sch-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 0; border-bottom: 1px solid var(--border-light);
+    }
+    .sch-day {
+      width: 22px; font-weight: 700; font-size: 14px;
+      color: var(--text); text-align: center; flex-shrink: 0;
+    }
+    .sch-toggle {
+      width: 38px; display: flex; justify-content: center;
+      flex-shrink: 0; cursor: pointer;
+    }
+    .sch-toggle input[type="checkbox"] {
+      width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);
+    }
+    .sch-time {
+      flex: 1; min-width: 0; padding: 7px 6px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; color: var(--text); background: var(--surface2);
+      font-family: inherit; text-align: center;
+    }
+    .sch-time:focus { outline: none; border-color: var(--primary); }
+    .sch-time:disabled {
+      background: var(--bg); color: var(--text-muted);
+      border-color: var(--border-light);
+    }
+    .sch-sep { color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
+
     /* ── Toast ── */
     .toast {
       position: fixed;
@@ -1114,20 +1153,6 @@
   <div id="settingsTab" class="tab-content">
 
     <div class="card">
-      <div class="card-title"><span><i class="fas fa-clock"></i> 上下班時間</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">標準上班時間</label>
-          <input type="time" id="workStartTime" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">標準下班時間</label>
-          <input type="time" id="workEndTime" class="form-input">
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
       <div class="card-title"><span><i class="fas fa-map-marker-alt"></i> 打卡位置</span></div>
       <div class="form-group">
         <label class="form-label">店家地址</label>
@@ -1187,16 +1212,7 @@
 
     <div class="card">
       <div class="card-title"><span><i class="fas fa-bell"></i> 提醒設定</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">早上提醒時間</label>
-          <input type="time" id="morningReminderTime" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">晚上提醒時間</label>
-          <input type="time" id="eveningReminderTime" class="form-input">
-        </div>
-      </div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">提醒時間依各員工的個人班表決定，請至「員工」頁籤設定週班表。</p>
       <label class="form-checkbox">
         <input type="checkbox" id="enableReminders">
         <span class="form-checkbox-label">啟用自動提醒推播</span>
@@ -1265,21 +1281,69 @@
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
-  <!-- Shift Edit Modal -->
+  <!-- Weekly Schedule Modal -->
   <div id="shiftEditModal" class="shift-modal-overlay" onclick="if(event.target===this)closeShiftEdit()">
     <div class="shift-modal-sheet">
       <div class="shift-modal-handle"></div>
-      <div class="shift-modal-title"><i class="fas fa-clock"></i> 設定班別時間</div>
+      <div class="shift-modal-title"><i class="fas fa-calendar-week"></i> 設定週班表</div>
       <div id="shiftEditEmpName" class="shift-modal-sub"></div>
-      <div class="shift-modal-row">
-        <label class="shift-label">上班時間</label>
-        <input type="time" id="shiftEditStart" class="shift-time-input">
+      <div class="schedule-grid">
+        <div class="sch-header">
+          <span class="sch-day-col"></span>
+          <span class="sch-active-col">上班</span>
+          <span class="sch-times-col">上班時間 ─ 下班時間</span>
+        </div>
+        <div class="sch-row" id="sch-row-1">
+          <span class="sch-day">一</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-1" onchange="toggleDay('1')"></label>
+          <input type="time" id="day-start-1" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-1" class="sch-time">
+        </div>
+        <div class="sch-row" id="sch-row-2">
+          <span class="sch-day">二</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-2" onchange="toggleDay('2')"></label>
+          <input type="time" id="day-start-2" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-2" class="sch-time">
+        </div>
+        <div class="sch-row" id="sch-row-3">
+          <span class="sch-day">三</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-3" onchange="toggleDay('3')"></label>
+          <input type="time" id="day-start-3" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-3" class="sch-time">
+        </div>
+        <div class="sch-row" id="sch-row-4">
+          <span class="sch-day">四</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-4" onchange="toggleDay('4')"></label>
+          <input type="time" id="day-start-4" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-4" class="sch-time">
+        </div>
+        <div class="sch-row" id="sch-row-5">
+          <span class="sch-day">五</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-5" onchange="toggleDay('5')"></label>
+          <input type="time" id="day-start-5" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-5" class="sch-time">
+        </div>
+        <div class="sch-row" id="sch-row-6">
+          <span class="sch-day" style="color:var(--primary);">六</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-6" onchange="toggleDay('6')"></label>
+          <input type="time" id="day-start-6" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-6" class="sch-time">
+        </div>
+        <div class="sch-row" id="sch-row-0">
+          <span class="sch-day" style="color:var(--danger);">日</span>
+          <label class="sch-toggle"><input type="checkbox" id="day-active-0" onchange="toggleDay('0')"></label>
+          <input type="time" id="day-start-0" class="sch-time">
+          <span class="sch-sep">─</span>
+          <input type="time" id="day-end-0" class="sch-time">
+        </div>
       </div>
-      <div class="shift-modal-row">
-        <label class="shift-label">下班時間</label>
-        <input type="time" id="shiftEditEnd" class="shift-time-input">
-      </div>
-      <div class="shift-modal-hint">若不設定則使用系統全域上下班時間</div>
+      <div class="shift-modal-hint">未勾選的日期視為休假，不會發送提醒；若全部空白則使用系統預設時間</div>
       <div class="shift-modal-actions">
         <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
         <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
@@ -1289,6 +1353,6 @@
 
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.3"></script>
+  <script src="admin.js?v=3.4"></script>
 </body>
 </html>

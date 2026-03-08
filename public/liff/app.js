@@ -477,10 +477,22 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Get today's shift from employee's weekly schedule
+// Returns { start, end } if working today, null if day off, or null if no schedule set
+function getTodayShift() {
+  const schedule = employeeData?.weeklySchedule;
+  if (!schedule || Object.keys(schedule).length === 0) return null;
+  const dayKey = String(new Date().getDay()); // 0=Sun,1=Mon,...,6=Sat
+  const val = schedule[dayKey];
+  if (!val) return null; // day off
+  const [start, end] = val.split('-');
+  return (start && end) ? { start, end } : null;
+}
+
 // Handle checkin (with late check)
 async function handleCheckin() {
-  // Use employee's personal shift start time if set, else global config
-  const workStart = employeeData?.shiftStart || liffConfig?.workStartTime;
+  const todayShift = getTodayShift();
+  const workStart = todayShift?.start || liffConfig?.workStartTime;
   if (workStart) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
@@ -499,8 +511,8 @@ async function handleCheckin() {
 
 // Handle checkout (with overtime check)
 async function handleCheckout() {
-  // Use employee's personal shift end time if set, else global config
-  const workEnd = employeeData?.shiftEnd || liffConfig?.workEndTime;
+  const todayShift = getTodayShift();
+  const workEnd = todayShift?.end || liffConfig?.workEndTime;
   if (workEnd) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
