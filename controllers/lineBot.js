@@ -1,13 +1,10 @@
-const { TextMessage } = require('@line/bot-sdk');
 const attendanceService = require('../services/attendanceService');
 const employeeService = require('../services/employeeService');
-const { getCurrentTime } = require('../utils/timeHelper');
 
 /**
  * 處理 LINE 事件
  */
 async function handleLineEvent(event, client) {
-  // 只處理文字訊息
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
@@ -18,7 +15,6 @@ async function handleLineEvent(event, client) {
   console.log(`收到訊息: ${userMessage} (來自: ${userId})`);
 
   try {
-    // 取得使用者資料
     const profile = await client.getProfile(userId);
     const replyMessage = await processCommand(userId, profile, userMessage);
 
@@ -36,54 +32,51 @@ async function handleLineEvent(event, client) {
 }
 
 /**
+ * 將 "H:MM:SS" 或 "HH:MM:SS" 或 "HH:MM" 轉成分鐘數
+ */
+function timeToMinutes(t) {
+  if (!t) return null;
+  const parts = String(t).split(':');
+  const h = parseInt(parts[0], 10) || 0;
+  const m = parseInt(parts[1], 10) || 0;
+  return h * 60 + m;
+}
+
+/**
  * 處理使用者指令
  */
 async function processCommand(userId, profile, message) {
-  // 註冊指令
-  if (message.startsWith('註冊')) {
-    const name = message.replace('註冊', '').trim();
-    if (!name) {
-      return '請使用格式：註冊 [姓名]\n例如：註冊 王小明';
-    }
-
-    // 使用 Employee Service 註冊
-    const result = await employeeService.registerEmployee(userId, name, profile.displayName);
-
-    if (!result.success) {
-      if (result.error === '此帳號已註冊') {
-        return `⚠️ 您已經註冊過了！\n\n員工姓名：${result.employee.name}\n\n可直接使用打卡功能`;
-      }
-      return `❌ 註冊失敗：${result.error}`;
-    }
-
-    console.log(`✅ 新員工註冊: ${name} (${userId})`);
-    return `✅ 註冊成功！\n\n員工姓名：${name}\n\n您現在可以使用以下指令：\n• 上班 - 上班打卡\n• 下班 - 下班打卡\n• 查詢 - 查詢今日紀錄`;
+  // 查詢自己的 LINE ID（給管理員新增帳號用）
+  if (message === '我的ID' || message === 'ID' || message === 'id') {
+    return `🪪 您的 LINE User ID：\n\n${userId}\n\n請將此 ID 提供給管理員，由管理員為您建立帳號`;
   }
 
-  // 檢查是否已註冊
+  // 檢查是否已有帳號
   const employee = await employeeService.getEmployeeByUserId(userId);
   if (!employee) {
-    return '❌ 您尚未註冊\n\n請先使用「註冊 [姓名]」進行註冊\n例如：註冊 王小明';
+    return '❌ 您尚未建立帳號\n\n請輸入「我的ID」取得您的 LINE ID\n並提供給管理員建立帳號';
   }
 
   // 上班打卡
   if (message === '上班' || message === '打卡') {
     const result = await attendanceService.checkIn(userId, employee.name, 'in');
-    return result.success ? `✅ 上班打卡成功！\n\n員工：${employee.name}\n時間：${result.time}` : `❌ 打卡失敗：${result.error}`;
+    return result.success
+      ? `✅ 上班打卡成功！\n\n員工：${employee.name}\n時間：${result.time}`
+      : `❌ 打卡失敗：${result.error}`;
   }
 
   // 下班打卡
   if (message === '下班') {
     const result = await attendanceService.checkIn(userId, employee.name, 'out');
-    return result.success ? `✅ 下班打卡成功！\n\n員工：${employee.name}\n時間：${result.time}` : `❌ 打卡失敗：${result.error}`;
+    return result.success
+      ? `✅ 下班打卡成功！\n\n員工：${employee.name}\n時間：${result.time}`
+      : `❌ 打卡失敗：${result.error}`;
   }
 
   // 查詢紀錄
   if (message === '查詢' || message === '查詢紀錄') {
     const records = await attendanceService.getTodayRecords(userId);
-    if (records.length === 0) {
-      return '今日尚無打卡紀錄';
-    }
+    if (records.length === 0) return '今日尚無打卡紀錄';
 
     let response = `📋 ${employee.name} 今日打卡紀錄：\n\n`;
     records.forEach((record, index) => {
@@ -95,50 +88,49 @@ async function processCommand(userId, profile, message) {
   // 本月工時統計
   if (message === '本月工時' || message === '工時' || message === '統計') {
     const allRecords = await attendanceService.getAllRecords();
-    const thisMonth = new Date().toISOString().slice(0, 7);
 
-    // 過濾本月該員工的紀錄
+    // 使用台灣時間取本月 YYYY-MM
+    const thisMonth = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }).slice(0, 7);
+
     const monthRecords = allRecords.filter(r =>
-      r.userId === userId && r.date.startsWith(thisMonth)
+      r.userId === userId && r.date && r.date.startsWith(thisMonth)
     );
 
     if (monthRecords.length === 0) {
       return `📊 ${employee.name} 本月統計\n\n本月尚無打卡紀錄`;
     }
 
-    // 計算工作天數
-    const workDays = new Set(monthRecords.map(r => r.date)).size;
-
-    // 計算總工時
+    // 每天：取「第一筆 in」和「最後一筆 out」（與 LIFF app 邏輯一致）
     const dailyHours = {};
     monthRecords.forEach(record => {
       if (!dailyHours[record.date]) {
         dailyHours[record.date] = { in: null, out: null };
       }
-      if (record.type === 'in') {
-        dailyHours[record.date].in = record.time;
+      if (record.type === 'in' && !dailyHours[record.date].in) {
+        dailyHours[record.date].in = record.time;   // 只取第一筆 in
       } else if (record.type === 'out') {
-        dailyHours[record.date].out = record.time;
+        dailyHours[record.date].out = record.time;  // 取最後一筆 out
       }
     });
 
+    const workDays = new Set(monthRecords.filter(r => r.type === 'in').map(r => r.date)).size;
     let totalMinutes = 0;
     let completeDays = 0;
 
     Object.values(dailyHours).forEach(day => {
       if (day.in && day.out) {
-        const inTime = new Date(`2000-01-01T${day.in}`);
-        const outTime = new Date(`2000-01-01T${day.out}`);
-        const minutes = (outTime - inTime) / 1000 / 60;
-        if (minutes > 0 && minutes < 24 * 60) {
-          totalMinutes += minutes;
+        const inMin  = timeToMinutes(day.in);
+        const outMin = timeToMinutes(day.out);
+        const diff = outMin - inMin;
+        if (diff > 0 && diff < 24 * 60) {
+          totalMinutes += diff;
           completeDays++;
         }
       }
     });
 
     const totalHours = Math.floor(totalMinutes / 60);
-    const avgHours = completeDays > 0 ? (totalMinutes / 60 / completeDays).toFixed(1) : 0;
+    const avgHours   = completeDays > 0 ? (totalMinutes / 60 / completeDays).toFixed(1) : 0;
 
     let response = `📊 ${employee.name} 本月統計\n`;
     response += `━━━━━━━━━━━━━━━\n\n`;
@@ -156,23 +148,11 @@ async function processCommand(userId, profile, message) {
     let helpText = `🤖 LINE 打卡系統使用說明\n`;
     helpText += `━━━━━━━━━━━━━━━\n\n`;
     helpText += `📝 基本指令：\n`;
-    helpText += `• 註冊 [姓名] - 員工註冊\n`;
     helpText += `• 上班 - 上班打卡\n`;
     helpText += `• 下班 - 下班打卡\n`;
     helpText += `• 查詢 - 查詢今日紀錄\n`;
-    helpText += `• 本月工時 - 查看本月統計\n\n`;
-    helpText += `📱 網頁功能：\n`;
-    helpText += `• 打卡介面 - 含日曆、統計\n`;
-
-    // 如果是管理員，顯示管理員功能
-    if (employee.role === 'admin') {
-      helpText += `• 管理員後台 - 查看所有員工\n\n`;
-      helpText += `👨‍💼 管理員功能：\n`;
-      helpText += `• 查看所有員工出勤\n`;
-      helpText += `• 匯出月報表\n`;
-      helpText += `• 出勤統計分析\n`;
-    }
-
+    helpText += `• 本月工時 - 查看本月統計\n`;
+    helpText += `• 我的ID - 取得 LINE ID（給管理員建帳號用）\n`;
     return helpText;
   }
 
@@ -186,10 +166,7 @@ async function processCommand(userId, profile, message) {
     return `⏰ 好的，稍後記得打上班卡喔！\n\n${employee.name} 加油 😊`;
   }
 
-  // 未知指令
   return '❓ 未知的指令\n\n請輸入「說明」查看可用指令';
 }
 
-module.exports = {
-  handleLineEvent,
-};
+module.exports = { handleLineEvent };

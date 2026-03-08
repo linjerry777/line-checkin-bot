@@ -1,5 +1,5 @@
 // Admin API - Unified endpoint for all admin + leave functions
-const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule } = require('../services/employeeService');
+const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule, getPendingEmployees, activateEmployee, adminAddEmployee } = require('../services/employeeService');
 const { getSheetData } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
@@ -196,6 +196,27 @@ module.exports = async (req, res) => {
         const { targetUserId, schedule } = req.body;
         if (!targetUserId) return res.status(400).json({ error: '缺少 targetUserId' });
         const result = await updateEmployeeSchedule(targetUserId, schedule || '{}');
+        return res.status(result.success ? 200 : 400).json(result);
+      }
+
+      case 'pending-employees': {
+        const pending = await getPendingEmployees();
+        return res.status(200).json({ success: true, employees: pending });
+      }
+
+      case 'activate-employee': {
+        if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+        const { targetUserId, name } = req.body;
+        if (!targetUserId || !name) return res.status(400).json({ error: '缺少 targetUserId 或 name' });
+        const result = await activateEmployee(targetUserId, name);
+        return res.status(result.success ? 200 : 400).json(result);
+      }
+
+      case 'add-employee': {
+        if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+        const { targetUserId, name, lineDisplayName } = req.body;
+        if (!targetUserId || !name) return res.status(400).json({ error: '缺少 targetUserId 或 name' });
+        const result = await adminAddEmployee(targetUserId, name, lineDisplayName || '');
         return res.status(result.success ? 200 : 400).json(result);
       }
 

@@ -1093,9 +1093,35 @@
     <div class="card">
       <div class="card-title">
         <span><i class="fas fa-users"></i> 員工列表</span>
-        <span class="card-badge" id="employeeCount"></span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="card-badge" id="employeeCount"></span>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="openAddEmployee()">
+            <i class="fas fa-user-plus"></i> 新增
+          </button>
+        </div>
       </div>
       <div id="employeeList"><div class="loading">載入中...</div></div>
+    </div>
+  </div>
+
+  <!-- ── Add Employee Modal ── -->
+  <div id="addEmployeeModal" class="shift-modal-overlay" onclick="if(event.target===this)closeAddEmployee()">
+    <div class="shift-modal-sheet" style="max-width:400px;">
+      <div class="shift-modal-title"><i class="fas fa-user-plus"></i> 新增員工</div>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">請員工在 LINE 聊天室輸入「我的ID」，將 ID 貼入下方。</p>
+      <div class="form-group">
+        <label class="form-label">LINE User ID <span style="color:#e53935">*</span></label>
+        <input type="text" id="newEmpUserId" class="form-input" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label class="form-label">員工姓名 <span style="color:#e53935">*</span></label>
+        <input type="text" id="newEmpName" class="form-input" placeholder="例：王小明">
+      </div>
+      <div id="addEmpMsg" style="font-size:13px;min-height:20px;margin-bottom:8px;"></div>
+      <div class="shift-modal-actions">
+        <button onclick="closeAddEmployee()">取消</button>
+        <button onclick="saveAddEmployee()" id="saveAddEmpBtn">新增</button>
+      </div>
     </div>
   </div>
 
@@ -1344,6 +1370,6 @@
 
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.4"></script>
+  <script src="admin.js?v=3.5"></script>
 </body>
 </html>

@@ -144,12 +144,86 @@ async function updateEmployeeSchedule(userId, scheduleJSON) {
   }
 }
 
+/**
+ * 員工自行申請加入（status = pending）
+ * 管理員後台審核後再啟用
+ */
+async function applyEmployee(userId, lineDisplayName) {
+  try {
+    const existing = await getEmployeeByUserId(userId);
+    if (existing) {
+      return { success: false, error: existing.status === 'pending' ? '申請已送出，等待管理員審核' : '此帳號已存在' };
+    }
+    const row = [userId, '', lineDisplayName, new Date().toISOString(), 'pending', '', '{}'];
+    await appendToSheet(row, '員工資料!A:G');
+    return { success: true };
+  } catch (error) {
+    console.error('申請員工錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 管理員新增員工（直接 active，指定姓名）
+ */
+async function adminAddEmployee(userId, name, lineDisplayName) {
+  try {
+    const existing = await getEmployeeByUserId(userId);
+    if (existing) {
+      return { success: false, error: existing.status === 'pending' ? 'pending' : '此帳號已存在' };
+    }
+    const row = [userId, name, lineDisplayName || '', new Date().toISOString(), 'active', '', '{}'];
+    await appendToSheet(row, '員工資料!A:G');
+    return { success: true };
+  } catch (error) {
+    console.error('管理員新增員工錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 管理員啟用 pending 員工（設名稱 + status → active）
+ */
+async function activateEmployee(userId, name) {
+  try {
+    const employees = await getSheetData('員工資料!A:G');
+    if (!employees || employees.length <= 1) return { success: false, error: '找不到員工' };
+    for (let i = 1; i < employees.length; i++) {
+      if (employees[i][0] === userId) {
+        await updateSheetData(`員工資料!B${i + 1}`, [name]);
+        await updateSheetData(`員工資料!E${i + 1}`, ['active']);
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到員工' };
+  } catch (error) {
+    console.error('啟用員工錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 取得所有 pending 員工
+ */
+async function getPendingEmployees() {
+  try {
+    const all = await getAllEmployees();
+    return all.filter(e => e.status === 'pending');
+  } catch (error) {
+    console.error('取得待審核員工錯誤:', error);
+    return [];
+  }
+}
+
 module.exports = {
   registerEmployee,
+  applyEmployee,
+  adminAddEmployee,
+  activateEmployee,
+  getPendingEmployees,
   getEmployeeByUserId,
   getAllEmployees,
   updateEmployeeSchedule,
   getEmployeeTodayShift,
-  // Keep old name as alias for backward compat during transition
   updateEmployeeShift: updateEmployeeSchedule,
 };

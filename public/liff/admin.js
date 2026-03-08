@@ -671,6 +671,58 @@ async function saveShift() {
   }
 }
 
+// ── Add Employee ──────────────────────────────────────
+function openAddEmployee() {
+  document.getElementById('newEmpUserId').value = '';
+  document.getElementById('newEmpName').value = '';
+  document.getElementById('addEmpMsg').textContent = '';
+  document.getElementById('addEmployeeModal').classList.add('show');
+}
+
+function closeAddEmployee() {
+  document.getElementById('addEmployeeModal').classList.remove('show');
+}
+
+async function saveAddEmployee() {
+  const userId = document.getElementById('newEmpUserId').value.trim();
+  const name   = document.getElementById('newEmpName').value.trim();
+  const msgEl  = document.getElementById('addEmpMsg');
+  const btn    = document.getElementById('saveAddEmpBtn');
+
+  if (!userId || !name) {
+    msgEl.style.color = '#e53935';
+    msgEl.textContent = '請填寫 LINE User ID 和員工姓名';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '新增中…';
+  msgEl.textContent = '';
+
+  try {
+    const res = await fetch(`/api/admin?action=add-employee&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: userId, name }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      closeAddEmployee();
+      showToast(`✅ ${name} 已新增`, 'success');
+      await loadEmployees();
+    } else {
+      msgEl.style.color = '#e53935';
+      msgEl.textContent = result.error || '新增失敗';
+    }
+  } catch (e) {
+    msgEl.style.color = '#e53935';
+    msgEl.textContent = '新增失敗，請稍後再試';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '新增';
+  }
+}
+
 // Load system settings
 async function loadSettings() {
   try {
