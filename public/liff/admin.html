@@ -572,6 +572,68 @@
       font-size: 14px;
     }
 
+    /* ── Shift Edit Modal ── */
+    .shift-modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 900;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .shift-modal-overlay.show { display: flex; }
+    .shift-modal-sheet {
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      padding: 12px 20px 36px;
+      width: 100%; max-width: 480px;
+      animation: slideUp .25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .shift-modal-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--border); margin: 0 auto 16px;
+    }
+    .shift-modal-title {
+      font-size: 16px; font-weight: 700; color: var(--text);
+      margin-bottom: 4px;
+    }
+    .shift-modal-title i { color: var(--primary); margin-right: 6px; }
+    .shift-modal-sub {
+      font-size: 13px; color: var(--text-sub);
+      margin-bottom: 18px; font-weight: 500;
+    }
+    .shift-modal-row {
+      display: flex; align-items: center;
+      gap: 12px; margin-bottom: 14px;
+    }
+    .shift-label {
+      font-size: 14px; font-weight: 500; color: var(--text-sub);
+      width: 68px; flex-shrink: 0;
+    }
+    .shift-time-input {
+      flex: 1; padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 15px;
+      color: var(--text); background: var(--surface2);
+      font-family: inherit;
+    }
+    .shift-time-input:focus { outline: none; border-color: var(--primary); }
+    .shift-modal-hint {
+      font-size: 11px; color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+    .shift-modal-actions {
+      display: flex; gap: 10px;
+    }
+    .shift-btn-cancel, .shift-btn-save {
+      flex: 1; padding: 13px; border-radius: 12px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      border: none; font-family: inherit;
+    }
+    .shift-btn-cancel { background: var(--bg2); color: var(--text-sub); }
+    .shift-btn-save { background: var(--primary); color: #fff; }
+
     /* ── Toast ── */
     .toast {
       position: fixed;
@@ -1203,8 +1265,30 @@
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
+  <!-- Shift Edit Modal -->
+  <div id="shiftEditModal" class="shift-modal-overlay" onclick="if(event.target===this)closeShiftEdit()">
+    <div class="shift-modal-sheet">
+      <div class="shift-modal-handle"></div>
+      <div class="shift-modal-title"><i class="fas fa-clock"></i> 設定班別時間</div>
+      <div id="shiftEditEmpName" class="shift-modal-sub"></div>
+      <div class="shift-modal-row">
+        <label class="shift-label">上班時間</label>
+        <input type="time" id="shiftEditStart" class="shift-time-input">
+      </div>
+      <div class="shift-modal-row">
+        <label class="shift-label">下班時間</label>
+        <input type="time" id="shiftEditEnd" class="shift-time-input">
+      </div>
+      <div class="shift-modal-hint">若不設定則使用系統全域上下班時間</div>
+      <div class="shift-modal-actions">
+        <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
+        <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
+      </div>
+    </div>
+  </div>
+
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.2"></script>
+  <script src="admin.js?v=3.3"></script>
 </body>
 </html>

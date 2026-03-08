@@ -479,15 +479,15 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 // Handle checkin (with late check)
 async function handleCheckin() {
-  // Check if late (only for clock-in)
-  if (liffConfig && liffConfig.workStartTime) {
+  // Use employee's personal shift start time if set, else global config
+  const workStart = employeeData?.shiftStart || liffConfig?.workStartTime;
+  if (workStart) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
-    const parts = liffConfig.workStartTime.split(':').map(Number);
+    const parts = workStart.split(':').map(Number);
     const startMin = parts[0] * 60 + (parts[1] || 0);
-    const threshold = Number(liffConfig.lateThreshold) || 0;
+    const threshold = Number(liffConfig?.lateThreshold) || 0;
     if (!isNaN(startMin) && currentMin > startMin + threshold) {
-      // Late — show reason modal
       showLateModal(async (reason) => {
         await performCheckin('in', reason);
       });
@@ -499,10 +499,12 @@ async function handleCheckin() {
 
 // Handle checkout (with overtime check)
 async function handleCheckout() {
-  if (liffConfig && liffConfig.workEndTime) {
+  // Use employee's personal shift end time if set, else global config
+  const workEnd = employeeData?.shiftEnd || liffConfig?.workEndTime;
+  if (workEnd) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
-    const parts = liffConfig.workEndTime.split(':').map(Number);
+    const parts = workEnd.split(':').map(Number);
     const endMin = parts[0] * 60 + (parts[1] || 0);
     if (!isNaN(endMin) && currentMin > endMin) {
       showLateModal(async (reason) => {

@@ -1,5 +1,29 @@
 const { getSheetData, appendToSheet, updateSheetData } = require('../config/googleSheets');
 
+// Normalize Sheets time value to "HH:MM" string
+function normTime(val) {
+  if (!val) return '';
+  const str = String(val).trim();
+  const num = parseFloat(str);
+  if (!isNaN(num) && !str.includes(':')) {
+    const totalMin = Math.round(num * 24 * 60);
+    const h = Math.floor(totalMin / 60) % 24;
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  const match = str.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    if (/pm/i.test(str) && h !== 12) h += 12;
+    if (/am/i.test(str) && h === 12) h = 0;
+    if (/下午/.test(str) && h !== 12) h += 12;
+    if (/上午/.test(str) && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  return '';
+}
+
 /**
  * 員工管理服務 - 使用 Google Sheets 儲存
  * 工作表名稱：員工資料
@@ -55,7 +79,7 @@ async function registerEmployee(userId, name, lineDisplayName) {
  */
 async function getEmployeeByUserId(userId) {
   try {
-    const employees = await getSheetData('員工資料!A:F');
+    const employees = await getSheetData('員工資料!A:H');
 
     if (!employees || employees.length <= 1) {
       // 只有標題列或沒資料
@@ -73,6 +97,8 @@ async function getEmployeeByUserId(userId) {
           registeredAt: row[3],
           status: row[4] || 'active',
           role: row[5] || 'employee',
+          shiftStart: normTime(row[6]),
+          shiftEnd: normTime(row[7]),
         };
       }
     }
@@ -89,7 +115,7 @@ async function getEmployeeByUserId(userId) {
  */
 async function getAllEmployees() {
   try {
-    const employees = await getSheetData('員工資料!A:F');
+    const employees = await getSheetData('員工資料!A:H');
 
     if (!employees || employees.length <= 1) {
       return [];
@@ -103,6 +129,8 @@ async function getAllEmployees() {
       registeredAt: row[3],
       status: row[4] || 'active',
       role: row[5] || 'employee',
+      shiftStart: normTime(row[6]),
+      shiftEnd: normTime(row[7]),
     }));
   } catch (error) {
     console.error('取得員工列表錯誤:', error);
@@ -110,8 +138,32 @@ async function getAllEmployees() {
   }
 }
 
+/**
+ * 更新員工班別時間
+ */
+async function updateEmployeeShift(userId, shiftStart, shiftEnd) {
+  try {
+    const employees = await getSheetData('員工資料!A:H');
+    if (!employees || employees.length <= 1) {
+      return { success: false, error: '找不到員工' };
+    }
+    for (let i = 1; i < employees.length; i++) {
+      if (employees[i][0] === userId) {
+        // Row i in array = row i+1 in sheet (1-indexed, +1 for header)
+        await updateSheetData(`員工資料!G${i + 1}:H${i + 1}`, [shiftStart || '', shiftEnd || '']);
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到員工' };
+  } catch (error) {
+    console.error('更新班別錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   registerEmployee,
   getEmployeeByUserId,
   getAllEmployees,
+  updateEmployeeShift,
 };

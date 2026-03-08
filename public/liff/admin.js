@@ -4,6 +4,31 @@ let userProfile = null;
 let allEmployees = [];
 let allRecords = [];
 
+// Normalize Google Sheets time values to HH:MM for <input type="time">
+// Handles: decimal (0.375), "下午4:00", "4:00 PM", "09:00", "09:00:00"
+function normTimeInput(val, fallback) {
+  if (!val) return fallback;
+  const str = String(val).trim();
+  const num = parseFloat(str);
+  if (!isNaN(num) && !str.includes(':')) {
+    const totalMin = Math.round(num * 24 * 60);
+    const h = Math.floor(totalMin / 60) % 24;
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  const match = str.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    if (/pm/i.test(str) && h !== 12) h += 12;
+    if (/am/i.test(str) && h === 12) h = 0;
+    if (/下午/.test(str) && h !== 12) h += 12;
+    if (/上午/.test(str) && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  return fallback;
+}
+
 // Get today's date string in LOCAL timezone (avoids UTC midnight shift bug in Taiwan UTC+8)
 function getTodayLocalAdmin() {
   const now = new Date();
@@ -306,15 +331,25 @@ function updateEmployeeList() {
     if (hasCheckedIn && !hasCheckedOut) status = 'present';
     if (hasCheckedIn && hasCheckedOut) status = 'off';
 
+    const shiftLabel = (emp.shiftStart || emp.shiftEnd)
+      ? `${emp.shiftStart || '--'} ~ ${emp.shiftEnd || '--'}`
+      : '使用全域時間';
+
     return `
       <div class="employee-item">
         <div class="employee-avatar">${emp.name.charAt(0)}</div>
         <div class="employee-info">
           <div class="employee-name">${emp.name}</div>
-          <div class="employee-stats">本月出勤 ${workDays} 天</div>
+          <div class="employee-stats">本月出勤 ${workDays} 天 ｜ ${shiftLabel}</div>
         </div>
-        <div class="status-badge ${status}">
-          ${status === 'present' ? '在班' : status === 'off' ? '已下班' : '未到'}
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button onclick="openShiftEdit('${emp.userId}','${emp.name}','${emp.shiftStart||''}','${emp.shiftEnd||''}')"
+            style="background:var(--bg2);color:var(--primary);border:none;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;">
+            <i class="fas fa-clock"></i>
+          </button>
+          <div class="status-badge ${status}">
+            ${status === 'present' ? '在班' : status === 'off' ? '已下班' : '未到'}
+          </div>
         </div>
       </div>
     `;
@@ -548,6 +583,47 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+// ── Shift Edit Modal ──────────────────────────────────────
+function openShiftEdit(userId, name, shiftStart, shiftEnd) {
+  const modal = document.getElementById('shiftEditModal');
+  document.getElementById('shiftEditEmpName').textContent = name;
+  document.getElementById('shiftEditStart').value = shiftStart || '';
+  document.getElementById('shiftEditEnd').value = shiftEnd || '';
+  modal.dataset.userId = userId;
+  modal.classList.add('show');
+}
+
+function closeShiftEdit() {
+  document.getElementById('shiftEditModal').classList.remove('show');
+}
+
+async function saveShift() {
+  const modal = document.getElementById('shiftEditModal');
+  const userId = modal.dataset.userId;
+  const shiftStart = document.getElementById('shiftEditStart').value;
+  const shiftEnd = document.getElementById('shiftEditEnd').value;
+
+  try {
+    const res = await fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: userId, shiftStart, shiftEnd }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      const emp = allEmployees.find(e => e.userId === userId);
+      if (emp) { emp.shiftStart = shiftStart; emp.shiftEnd = shiftEnd; }
+      closeShiftEdit();
+      showToast('班別時間已儲存', 'success');
+      updateEmployeeList();
+    } else {
+      showToast(result.error || '儲存失敗', 'error');
+    }
+  } catch (e) {
+    showToast('儲存失敗，請稍後再試', 'error');
+  }
+}
+
 // Load system settings
 async function loadSettings() {
   try {
@@ -561,14 +637,14 @@ async function loadSettings() {
     const settings = data.settings;
 
     // 填入表單
-    document.getElementById('workStartTime').value = settings.workStartTime || '09:00';
-    document.getElementById('workEndTime').value = settings.workEndTime || '18:00';
+    document.getElementById('workStartTime').value = normTimeInput(settings.workStartTime, '09:00');
+    document.getElementById('workEndTime').value = normTimeInput(settings.workEndTime, '18:00');
     document.getElementById('storeAddress').value = settings.storeAddress || '';
     document.getElementById('storeLatitude').value = settings.storeLatitude || '';
     document.getElementById('storeLongitude').value = settings.storeLongitude || '';
     document.getElementById('storeRadius').value = settings.storeRadius || '100';
-    document.getElementById('morningReminderTime').value = settings.morningReminderTime || '09:00';
-    document.getElementById('eveningReminderTime').value = settings.eveningReminderTime || '18:00';
+    document.getElementById('morningReminderTime').value = normTimeInput(settings.morningReminderTime, '09:00');
+    document.getElementById('eveningReminderTime').value = normTimeInput(settings.eveningReminderTime, '18:00');
     document.getElementById('enableLocationCheck').checked = settings.enableLocationCheck === 'true';
     document.getElementById('enableReminders').checked = settings.enableReminders === 'true';
     document.getElementById('lateThreshold').value = settings.lateThreshold || '15';

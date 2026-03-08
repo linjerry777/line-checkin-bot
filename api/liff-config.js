@@ -23,9 +23,12 @@ function normalizeTime(val, fallback) {
   if (match) {
     let h = parseInt(match[1], 10);
     const m = parseInt(match[2], 10);
-    // 處理 AM/PM
+    // 處理 AM/PM（英文）
     if (/pm/i.test(str) && h !== 12) h += 12;
     if (/am/i.test(str) && h === 12) h = 0;
+    // 處理 上午/下午（中文，Google Sheets 中文介面）
+    if (/下午/.test(str) && h !== 12) h += 12;
+    if (/上午/.test(str) && h === 12) h = 0;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 
