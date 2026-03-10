@@ -592,12 +592,44 @@ function calculateTotalHours(records) {
   return Math.floor(totalMinutes / 60);
 }
 
-// Export month data
 // ── Overtime salary calculation helpers ──────────────────────────────────────
 
 /**
  * For a given employee, calculate per-day data for a month.
- * Returns { daysData, totalRegularMin, totalOvertimeMin, basePay, overtimePay, totalPay }
+ *
+ * Returns {
+ *   perDayData[],           // one entry per calendar day (index = day-1)
+ *   totalRegularHours,      // string "XXX.X"
+ *   totalOvertimeHours,     // string "XXX.X"
+ *   basePay,                // number
+ *   overtimePay,            // number
+ *   deductions,             // number (lateness + early-leave + leave)
+ *   totalPay,               // number = basePay + overtimePay - deductions
+ *   hasSalary               // boolean
+ * }
+ *
+ * perDayData[i] = {
+ *   dateStr, inStr, outStr,
+ *   shift,       // {start,end} | null (day-off) | {hasSchedule:false}
+ *   leave,       // leave object or null
+ *   onLeave,     // boolean
+ *   otDetail,    // e.g. "加班80分(提前80分)：前80分×1.34=NT$89 合計NT$89"
+ *   deductDetail,// e.g. "遲到40分(2單位) 扣-NT$208"
+ *   dailyPayStr, // e.g. "NT$1820"
+ *   dayOTMin     // raw OT minutes
+ * }
+ *
+ * Overtime rules:
+ *  - Scheduled work day : earlyArrival + lateStay = OT
+ *  - Scheduled day-off  : entire worked duration = OT
+ *  - No schedule set    : entire worked duration = OT
+ *
+ * Deduction rules (monthly salary only, half-hour unit):
+ *  - unit_rate = salary / 30 / 16
+ *  - units = ceil(lateMin / 30) + ceil(earlyLvMin / 30)
+ *  - deduction = units × unit_rate
+ *
+ * Leave deduction: full daily rate deducted for each leave day (no punch)
  */
 function calcEmpMonthSalary(emp, month) {
   const [year, mon] = month.split('-').map(Number);
@@ -605,68 +637,179 @@ function calcEmpMonthSalary(emp, month) {
 
   const salaryType   = emp.salaryType   || '';
   const salaryAmount = emp.salaryAmount || 0;
-  // Hourly rate: for monthly → salary/240; for hourly → salary
-  const hourlyRate = salaryType === 'monthly' ? salaryAmount / 240 : salaryAmount;
+  // Hourly equivalent rate: monthly → ÷240 (based on 240h/month); hourly → as-is
+  const hourlyRate   = salaryType === 'monthly' ? salaryAmount / 240 : salaryAmount;
+  // Daily rate & half-hour deduction unit (monthly only)
+  const dailyRate    = salaryType === 'monthly' && salaryAmount > 0 ? salaryAmount / 30 : 0;
+  const halfHourRate = dailyRate / 16; // 8h day = 16 half-hour units
 
   let totalRegularMin  = 0;
   let totalOvertimeMin = 0;
   let totalOvertimePay = 0;
+  let totalDeductions  = 0;
+
+  // Approved leaves this month for this employee (fix operator-precedence bug with parentheses)
+  const empLeaves = allLeavesData.filter(l =>
+    l.userId === emp.userId &&
+    l.status === 'approved' &&
+    (l.startDate.slice(0, 7) === month || l.endDate.slice(0, 7) === month)
+  );
+
+  const perDayData = [];
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${month}-${String(d).padStart(2, '0')}`;
     const shift   = getShiftForDate(emp, dateStr);
-    if (!shift || !shift.start || !shift.end) continue; // day off or no schedule
 
-    // Get records for this day
+    // First punch-in of the day, last punch-out
     const dayRecs = allRecords.filter(r => r.userId === emp.userId && r.date === dateStr);
-    let actualIn = null, actualOut = null;
+    let inStr = null, outStr = null, lateReason = '', otReason = '';
     dayRecs.forEach(r => {
-      if (r.type === 'in'  && !actualIn)   actualIn  = r.time;
-      if (r.type === 'out')                actualOut = r.time; // keep last out
+      if (r.type === 'in'  && !inStr) { inStr = r.time; lateReason = r.reason || ''; }
+      if (r.type === 'out')           { outStr = r.time; otReason   = r.reason || ''; }
     });
-    if (!actualIn || !actualOut) continue;
 
-    const schedStart = parseMinutes(shift.start);
-    const schedEnd   = parseMinutes(shift.end);
-    const aIn        = parseMinutes(actualIn);
-    const aOut       = parseMinutes(actualOut);
-    if (aIn === null || aOut === null || aOut <= aIn) continue;
+    const leave   = empLeaves.find(l => l.startDate <= dateStr && l.endDate >= dateStr) || null;
+    const onLeave = !!leave;
 
-    // Regular scheduled minutes
-    totalRegularMin += (schedEnd - schedStart);
+    let otDetail = '', deductDetail = '', dailyPayStr = '';
+    let dayOTMin = 0, dayOTPay = 0, dayDeduction = 0;
 
-    // Daily overtime: early arrival + late departure
-    const earlyArrival = aIn  < schedStart ? schedStart - aIn  : 0;
-    const lateStay     = aOut > schedEnd   ? aOut - schedEnd   : 0;
-    const dayOT        = earlyArrival + lateStay;
-    totalOvertimeMin  += dayOT;
+    if (onLeave && !inStr) {
+      // ── Approved full-day leave, no attendance ────────────────────────
+      if (salaryType === 'monthly' && salaryAmount > 0) {
+        dayDeduction = Math.round(dailyRate);
+        totalDeductions += dayDeduction;
+        deductDetail = `${leave.leaveTypeText || '請假'}全天 扣-NT$${dayDeduction}`;
+      }
+      dailyPayStr = leave.leaveTypeText || '請假';
 
-    // Daily overtime pay (in minutes → hours)
-    if (dayOT > 0 && hourlyRate > 0) {
-      const first2h  = Math.min(dayOT, 120) / 60;
-      const beyond2h = Math.max(0, dayOT - 120) / 60;
-      totalOvertimePay += first2h * hourlyRate * 1.34 + beyond2h * hourlyRate * 1.67;
+    } else if (inStr) {
+      const aIn  = parseMinutes(inStr);
+      const aOut = outStr ? parseMinutes(outStr) : null;
+      const hasShift = !!(shift && shift.start && shift.end);
+      const isOffDay = shift === null;
+
+      if (hasShift) {
+        // ── Normal scheduled work day ─────────────────────────────────
+        const ss = parseMinutes(shift.start);
+        const se = parseMinutes(shift.end);
+        totalRegularMin += (se - ss);
+
+        const earlyArr = aIn  < ss ? ss - aIn  : 0;
+        const lateArr  = aIn  > ss ? aIn - ss  : 0;
+        const lateStay = aOut !== null && aOut > se ? aOut - se : 0;
+        const earlyLv  = aOut !== null && aOut < se ? se - aOut : 0;
+        dayOTMin = earlyArr + lateStay;
+        totalOvertimeMin += dayOTMin;
+
+        // OT pay + detail
+        if (dayOTMin > 0 && hourlyRate > 0) {
+          const first2h  = Math.min(dayOTMin, 120) / 60;
+          const beyond2h = Math.max(0, dayOTMin - 120) / 60;
+          const pay1 = first2h  * hourlyRate * 1.34;
+          const pay2 = beyond2h * hourlyRate * 1.67;
+          dayOTPay = Math.round(pay1 + pay2);
+          totalOvertimePay += dayOTPay;
+
+          const otParts = [];
+          if (earlyArr > 0) otParts.push(`提前${earlyArr}分`);
+          if (lateStay > 0) otParts.push(`延後${lateStay}分`);
+          otDetail = `加班${dayOTMin}分`;
+          if (otParts.length) otDetail += `(${otParts.join('+')})`;
+          otDetail += '：';
+          if (dayOTMin <= 120) {
+            otDetail += `前${dayOTMin}分×1.34=NT$${Math.round(pay1)}`;
+          } else {
+            otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${dayOTMin - 120}分×1.67=NT$${Math.round(pay2)}`;
+          }
+          otDetail += ` 合計NT$${dayOTPay}`;
+        }
+
+        // Deduction: lateness + early-leave (monthly only, half-hour units)
+        if (salaryType === 'monthly' && salaryAmount > 0 && (lateArr > 0 || earlyLv > 0)) {
+          const lateUnits  = lateArr > 0  ? Math.ceil(lateArr  / 30) : 0;
+          const earlyUnits = earlyLv > 0  ? Math.ceil(earlyLv  / 30) : 0;
+          dayDeduction = Math.round(halfHourRate * (lateUnits + earlyUnits));
+          totalDeductions += dayDeduction;
+          const dParts = [];
+          if (lateArr > 0) dParts.push(`遲到${lateArr}分(${lateUnits}單位)`);
+          if (earlyLv > 0) dParts.push(`早退${earlyLv}分(${earlyUnits}單位)`);
+          deductDetail = dParts.join(' ') + ` 扣-NT$${dayDeduction}`;
+        }
+
+      } else if (isOffDay || !shift || shift.hasSchedule === false) {
+        // ── Scheduled day-off OR no schedule → all worked time = OT ─────
+        if (aOut !== null && aOut > aIn) {
+          dayOTMin = aOut - aIn;
+          totalOvertimeMin += dayOTMin;
+          const label = isOffDay ? '休假日出勤' : '非排班出勤';
+
+          if (hourlyRate > 0) {
+            const first2h  = Math.min(dayOTMin, 120) / 60;
+            const beyond2h = Math.max(0, dayOTMin - 120) / 60;
+            const pay1 = first2h  * hourlyRate * 1.34;
+            const pay2 = beyond2h * hourlyRate * 1.67;
+            dayOTPay = Math.round(pay1 + pay2);
+            totalOvertimePay += dayOTPay;
+
+            otDetail = `加班${dayOTMin}分(${label})：`;
+            if (dayOTMin <= 120) {
+              otDetail += `前${dayOTMin}分×1.34=NT$${Math.round(pay1)}`;
+            } else {
+              otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${dayOTMin - 120}分×1.67=NT$${Math.round(pay2)}`;
+            }
+            otDetail += ` 合計NT$${dayOTPay}`;
+          }
+        }
+      }
+
+      // Daily pay string
+      if (salaryType === 'monthly' && salaryAmount > 0) {
+        const net = Math.round(dailyRate) + dayOTPay - dayDeduction;
+        dailyPayStr = `NT$${net}`;
+      } else if (salaryType === 'hourly' && salaryAmount > 0) {
+        const workedMin = aOut !== null && aOut > aIn ? aOut - aIn : 0;
+        const schedMin  = hasShift ? parseMinutes(shift.end) - parseMinutes(shift.start) : 0;
+        const regMin    = schedMin > 0 ? Math.min(workedMin, schedMin) : workedMin;
+        dailyPayStr = `NT$${Math.round((regMin / 60) * salaryAmount) + dayOTPay}`;
+      }
     }
+
+    perDayData.push({
+      dateStr, inStr, outStr, lateReason, otReason,
+      shift, leave, onLeave,
+      otDetail, deductDetail, dailyPayStr, dayOTMin,
+    });
   }
 
   let basePay = 0;
   if (salaryType === 'monthly') {
-    basePay = salaryAmount; // fixed monthly
+    basePay = salaryAmount;
   } else if (salaryType === 'hourly') {
     basePay = (totalRegularMin / 60) * salaryAmount;
   }
 
   return {
+    perDayData,
     totalRegularHours:  (totalRegularMin  / 60).toFixed(1),
     totalOvertimeHours: (totalOvertimeMin / 60).toFixed(1),
-    basePay:   Math.round(basePay),
+    basePay:     Math.round(basePay),
     overtimePay: Math.round(totalOvertimePay),
-    totalPay:  Math.round(basePay + totalOvertimePay),
-    hasSalary: !!salaryType && salaryAmount > 0,
+    deductions:  Math.round(totalDeductions),
+    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions),
+    hasSalary:   !!salaryType && salaryAmount > 0,
   };
 }
 
-// ── Export: 日期為列、員工為欄（每人3欄）──────────────────────────────────────
+// ── Export: 日期為列（每日5子列）、員工為欄（每人1欄）─────────────────────────
+// Layout:
+//   Header : 日期 | 項目       | 員工A（月薪） | 員工B（時薪） | ...
+//   Per day: d(三) | 上班      | 09:05        | 08:50        | ...
+//            (空白)| 下班      | 18:45        | 17:30        | ...
+//            (空白)| 加班明細  | 加班45分：…  | 加班80分：…  | ...
+//            (空白)| 扣薪      | 遲到15分扣…  | (空)         | ...
+//            (空白)| 當日薪資  | NT$1820      | NT$890       | ...
 function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
@@ -677,144 +820,98 @@ function exportMonthData() {
 
   const activeEmps = allEmployees.filter(e => e.status === 'active');
 
-  // Approved leaves this month
-  const monthLeaves = allLeavesData.filter(l =>
-    l.status === 'approved' &&
-    l.startDate.slice(0, 7) === month || l.endDate.slice(0, 7) === month
-  );
+  // Pre-compute per-employee monthly data (includes per-day breakdown)
+  const empSalaries = activeEmps.map(emp => calcEmpMonthSalary(emp, month));
 
-  // Build punch map: punchMap[userId][dateStr] = { in, out, lateReason, otReason }
-  const punchMap = {};
-  allRecords.filter(r => r.date.startsWith(month)).forEach(r => {
-    if (!punchMap[r.userId]) punchMap[r.userId] = {};
-    if (!punchMap[r.userId][r.date])
-      punchMap[r.userId][r.date] = { in: null, out: null, lateReason: '', otReason: '' };
-    const d = punchMap[r.userId][r.date];
-    if (r.type === 'in' && !d.in)  { d.in = r.time; if (r.reason) d.lateReason = r.reason; }
-    if (r.type === 'out')           { d.out = r.time; if (r.reason) d.otReason   = r.reason; }
-  });
-
-  // ── Build CSV rows ────────────────────────────────────────────────────
   const csvRows = [];
 
-  // Row 1: "日期 | 星期 | 員工A | | | 員工B | | | ..."
-  const nameRow = ['日期', '星期'];
+  // ── Header row ─────────────────────────────────────────────────────────
+  const headerRow = ['日期', '項目'];
   activeEmps.forEach(emp => {
     const salLbl = emp.salaryType === 'monthly' ? '（月薪）'
                  : emp.salaryType === 'hourly'  ? '（時薪）' : '';
-    nameRow.push(`${emp.name}${salLbl}`, '', '');
+    headerRow.push(`${emp.name}${salLbl}`);
   });
-  csvRows.push(nameRow);
+  csvRows.push(headerRow);
 
-  // Row 2: "  |   | 上班 | 下班 | 加班/狀態 | 上班 | 下班 | 加班/狀態 | ..."
-  const subRow = ['', ''];
-  activeEmps.forEach(() => subRow.push('上班', '下班', '加班/備註'));
-  csvRows.push(subRow);
+  // ── Data rows: 5 sub-rows per date ─────────────────────────────────────
+  const SUB_LABELS = ['上班', '下班', '加班明細', '扣薪', '當日薪資'];
 
-  // Rows 3~: one row per date
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${month}-${String(d).padStart(2, '0')}`;
     const dow     = new Date(dateStr + 'T12:00:00').getDay();
-    const row     = [d, DOW_NAMES[dow]];
 
-    activeEmps.forEach(emp => {
-      const punch   = punchMap[emp.userId]?.[dateStr];
-      const shift   = getShiftForDate(emp, dateStr);
-      const onLeave = monthLeaves.some(
-        l => l.userId === emp.userId && l.startDate <= dateStr && l.endDate >= dateStr
-      );
+    for (let sub = 0; sub < 5; sub++) {
+      const row = [
+        sub === 0 ? `${d}(${DOW_NAMES[dow]})` : '',
+        SUB_LABELS[sub],
+      ];
 
-      if (onLeave) {
-        // Find leave type
-        const lv = monthLeaves.find(l => l.userId === emp.userId && l.startDate <= dateStr && l.endDate >= dateStr);
-        const lvText = lv ? (lv.leaveTypeText || '假') : '假';
-        row.push('假', '假', lvText);
+      activeEmps.forEach((emp, ei) => {
+        const sal = empSalaries[ei];
+        const dd  = sal.perDayData[d - 1];
+        const { inStr, outStr, shift, leave, onLeave, otDetail, deductDetail, dailyPayStr } = dd;
+        const hasShift = !!(shift && shift.start && shift.end);
+        const isOffDay = shift === null;
 
-      } else if (!shift || shift.hasSchedule === false) {
-        // No weekly schedule set at all
-        row.push(
-          punch?.in  ? punch.in.slice(0, 5)  : '',
-          punch?.out ? punch.out.slice(0, 5) : '',
-          punch?.in  ? '非排班出勤' : ''
-        );
+        if (sub === 0) {
+          // 上班
+          if (onLeave && !inStr)       row.push(leave?.leaveTypeText || '請假');
+          else if (isOffDay && !inStr) row.push('休');
+          else if (hasShift && !inStr) row.push('曠');
+          else                         row.push(inStr ? inStr.slice(0, 5) : '');
 
-      } else if (shift === null) {
-        // Scheduled day-off
-        if (punch?.in) {
-          // Worked on day off → all overtime
-          const otMin = punch.out
-            ? Math.max(0, parseMinutes(punch.out) - parseMinutes(punch.in))
-            : 0;
-          row.push(punch.in.slice(0,5), punch.out ? punch.out.slice(0,5) : '--', `加班 ${otMin} 分`);
+        } else if (sub === 1) {
+          // 下班
+          if (onLeave && !inStr)       row.push('');
+          else if (isOffDay && !inStr) row.push('');
+          else if (hasShift && !inStr) row.push('曠');
+          else                         row.push(inStr ? (outStr ? outStr.slice(0, 5) : '--') : '');
+
+        } else if (sub === 2) {
+          // 加班明細
+          if (hasShift && !inStr) row.push('應出勤未打卡');
+          else                    row.push(otDetail || '');
+
+        } else if (sub === 3) {
+          // 扣薪
+          row.push(deductDetail || '');
+
         } else {
-          row.push('休', '', '');
+          // 當日薪資
+          row.push(dailyPayStr || '');
         }
+      });
 
-      } else if (!punch?.in) {
-        // Scheduled but no punch
-        row.push('曠', '曠', '應出勤未打卡');
-
-      } else {
-        // Normal day with punch
-        const inStr  = punch.in.slice(0, 5);
-        const outStr = punch.out ? punch.out.slice(0, 5) : '--';
-
-        let note = '';
-        if (shift.start && shift.end) {
-          const ss  = parseMinutes(shift.start);
-          const se  = parseMinutes(shift.end);
-          const aIn = parseMinutes(punch.in);
-          const aOut = punch.out ? parseMinutes(punch.out) : null;
-
-          const earlyArr = aIn < ss ? ss - aIn : 0;
-          const lateStay = aOut !== null && aOut > se ? aOut - se : 0;
-          const earlyLv  = aOut !== null && aOut < se ? se - aOut : 0;
-          const lateArr  = aIn > ss ? aIn - ss : 0;
-
-          const otParts = [];
-          if (earlyArr > 0) otParts.push(`提前${earlyArr}分`);
-          if (lateStay > 0) otParts.push(`延後${lateStay}分`);
-          const totalOT = earlyArr + lateStay;
-
-          if (totalOT > 0) note += `加班${totalOT}分(${otParts.join('+')}）`;
-          if (earlyLv  > 0) note += (note ? ' ' : '') + `早退${earlyLv}分`;
-          if (lateArr  > 0) note += (note ? ' ' : '') + `遲到${lateArr}分`;
-          if (punch.otReason)   note += (note ? ' ' : '') + `[加班:${punch.otReason}]`;
-          if (punch.lateReason) note += (note ? ' ' : '') + `[遲到:${punch.lateReason}]`;
-        }
-
-        row.push(inStr, outStr, note || '');
-      }
-    });
-
-    csvRows.push(row);
+      csvRows.push(row);
+    }
   }
 
-  // ── Summary rows ──────────────────────────────────────────────────────
-  csvRows.push([]); // blank separator
+  // ── Summary rows ───────────────────────────────────────────────────────
+  csvRows.push([]);
 
-  const salaries = activeEmps.map(emp => calcEmpMonthSalary(emp, month));
   const summaryDefs = [
     ['總工時(h)',   sal => sal.totalRegularHours],
     ['加班時數(h)', sal => sal.totalOvertimeHours],
-    ['基本薪資',    sal => sal.hasSalary ? sal.basePay    : '-'],
-    ['加班費',      sal => sal.hasSalary ? sal.overtimePay : '-'],
-    ['合計薪資',    sal => sal.hasSalary ? sal.totalPay   : '-'],
+    ['扣薪合計',   sal => sal.hasSalary ? `-NT$${sal.deductions}`  : '-'],
+    ['基本薪資',   sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
+    ['加班費',     sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
+    ['合計薪資',   sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
   ];
 
   summaryDefs.forEach(([label, fn]) => {
     const row = [label, ''];
-    activeEmps.forEach((_, i) => row.push(fn(salaries[i]), '', ''));
+    empSalaries.forEach(sal => row.push(fn(sal)));
     csvRows.push(row);
   });
 
-  // ── Serialize ─────────────────────────────────────────────────────────
+  // ── Serialize to CSV ───────────────────────────────────────────────────
   const escapeCsv = v => {
     const s = String(v ?? '');
-    return s.includes(',') || s.includes('"') || s.includes('\n')
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
       ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const csv = csvRows.map(row => row.map(escapeCsv).join(',')).join('\n');
+  const csv = csvRows.map(r => r.map(escapeCsv).join(',')).join('\n');
 
   document.getElementById('exportPreview').style.display = 'block';
   document.getElementById('exportContent').textContent = csv;
