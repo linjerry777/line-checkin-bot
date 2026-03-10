@@ -66,7 +66,17 @@ async function processCommand(userId, profile, message) {
   // 檢查是否已有帳號
   const employee = await employeeService.getEmployeeByUserId(userId);
   if (!employee) {
-    return '❌ 您尚未建立帳號\n\n請使用「註冊 [姓名]」自行註冊\n例如：註冊 王小明';
+    // 未知指令一律視為姓名，自動完成註冊
+    const knownCmds = ['上班','打卡','下班','查詢','查詢紀錄','本月工時','工時','統計',
+                       '說明','幫助','help','使用說明','還在加班','還在加班中','加班中','稍後提醒','稍後提醒我'];
+    const name = knownCmds.includes(message) ? null : message.slice(0, 20).trim();
+    if (!name) return '❌ 您尚未建立帳號\n\n請輸入您的姓名來完成註冊\n例如直接輸入：王小明';
+    const result = await employeeService.registerEmployee(userId, name, profile.displayName);
+    if (!result.success) {
+      if (result.error === '此帳號已註冊') return `⚠️ 您已經註冊過了！員工姓名：${result.employee.name}`;
+      return `❌ 註冊失敗：${result.error}`;
+    }
+    return `✅ 註冊成功！\n\n員工姓名：${name}\n\n您現在可以使用：\n• 上班 - 上班打卡\n• 下班 - 下班打卡\n• 查詢 - 查詢今日紀錄`;
   }
 
   // 上班打卡
@@ -179,7 +189,7 @@ async function processCommand(userId, profile, message) {
     return `⏰ 好的，稍後記得打上班卡喔！\n\n${employee.name} 加油 😊`;
   }
 
-  return '❓ 未知的指令\n\n請輸入「說明」查看可用指令';
+  return '請輸入「說明」查看可用指令';
 }
 
 module.exports = { handleLineEvent };

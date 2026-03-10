@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="1686" viewBox="0 0 2500 1686">
+  <rect x="0" y="0" width="833" height="843" fill="#06C755"/>
+  <rect x="833" y="0" width="834" height="843" fill="#00B900"/>
+  <rect x="1667" y="0" width="833" height="843" fill="#007AFF"/>
+  <rect x="0" y="843" width="2500" height="843" fill="#5856D6"/>
+  <rect x="3" y="3" width="827" height="837"
+      fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6"/>
+  <rect x="836" y="3" width="828" height="837"
+      fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6"/>
+  <rect x="1670" y="3" width="827" height="837"
+      fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6"/>
+  <rect x="3" y="846" width="2494" height="837"
+      fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6"/>
+  <text x="416.5" y="321.5" font-size="220" text-anchor="middle" dominant-baseline="middle"
+      font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, Arial">📱</text>
+  <text x="1250" y="321.5" font-size="220" text-anchor="middle" dominant-baseline="middle"
+      font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, Arial">📊</text>
+  <text x="2083.5" y="321.5" font-size="220" text-anchor="middle" dominant-baseline="middle"
+      font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, Arial">📋</text>
+  <text x="1250" y="1164.5" font-size="220" text-anchor="middle" dominant-baseline="middle"
+      font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, Arial">❓</text>
+  <text x="416.5" y="581.5" font-size="120" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      font-family="Microsoft JhengHei, 微軟正黑體, 標楷體, PingFang TC, Noto Sans TC, Arial"
+      fill="white">打卡</text>
+  <text x="1250" y="581.5" font-size="120" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      font-family="Microsoft JhengHei, 微軟正黑體, 標楷體, PingFang TC, Noto Sans TC, Arial"
+      fill="white">本月工時</text>
+  <text x="2083.5" y="581.5" font-size="120" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      font-family="Microsoft JhengHei, 微軟正黑體, 標楷體, PingFang TC, Noto Sans TC, Arial"
+      fill="white">查詢紀錄</text>
+  <text x="1250" y="1424.5" font-size="120" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      font-family="Microsoft JhengHei, 微軟正黑體, 標楷體, PingFang TC, Noto Sans TC, Arial"
+      fill="white">使用說明</text>
+</svg>
