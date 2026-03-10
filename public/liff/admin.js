@@ -802,14 +802,11 @@ function calcEmpMonthSalary(emp, month) {
   };
 }
 
-// ── Export: 日期為列（每日5子列）、員工為欄（每人1欄）─────────────────────────
+// ── Export: 日期為列（每日1列）、員工為欄（每人5欄橫向）────────────────────────
 // Layout:
-//   Header : 日期 | 項目       | 員工A（月薪） | 員工B（時薪） | ...
-//   Per day: d(三) | 上班      | 09:05        | 08:50        | ...
-//            (空白)| 下班      | 18:45        | 17:30        | ...
-//            (空白)| 加班明細  | 加班45分：…  | 加班80分：…  | ...
-//            (空白)| 扣薪      | 遲到15分扣…  | (空)         | ...
-//            (空白)| 當日薪資  | NT$1820      | NT$890       | ...
+//   Row 1 : 日期 | 星期 | 員工A（月薪） |      |        |    |        | 員工B…
+//   Row 2 :      |      | 上班          | 下班  | 加班明細| 扣薪 | 當日薪資 | 上班…
+//   Row 3~: 1(日)| 日   | 09:05         | 18:45 | 加班45… |    | NT$1820  | …
 function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
@@ -825,66 +822,60 @@ function exportMonthData() {
 
   const csvRows = [];
 
-  // ── Header row ─────────────────────────────────────────────────────────
-  const headerRow = ['日期', '項目'];
+  // ── Header row 1: 日期 | 星期 | 員工A（佔5欄）| 員工B（佔5欄）| … ───────────
+  const nameRow = ['日期', '星期'];
   activeEmps.forEach(emp => {
     const salLbl = emp.salaryType === 'monthly' ? '（月薪）'
                  : emp.salaryType === 'hourly'  ? '（時薪）' : '';
-    headerRow.push(`${emp.name}${salLbl}`);
+    nameRow.push(`${emp.name}${salLbl}`, '', '', '', '');
   });
-  csvRows.push(headerRow);
+  csvRows.push(nameRow);
 
-  // ── Data rows: 5 sub-rows per date ─────────────────────────────────────
-  const SUB_LABELS = ['上班', '下班', '加班明細', '扣薪', '當日薪資'];
+  // ── Header row 2: | | 上班 | 下班 | 加班明細 | 扣薪 | 當日薪資 | … ──────────
+  const subRow = ['', ''];
+  activeEmps.forEach(() => subRow.push('上班', '下班', '加班明細', '扣薪', '當日薪資'));
+  csvRows.push(subRow);
 
+  // ── Data rows: 1 row per date, 5 cells per employee ───────────────────
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${month}-${String(d).padStart(2, '0')}`;
     const dow     = new Date(dateStr + 'T12:00:00').getDay();
+    const row     = [d, DOW_NAMES[dow]];
 
-    for (let sub = 0; sub < 5; sub++) {
-      const row = [
-        sub === 0 ? `${d}(${DOW_NAMES[dow]})` : '',
-        SUB_LABELS[sub],
-      ];
+    activeEmps.forEach((emp, ei) => {
+      const sal = empSalaries[ei];
+      const dd  = sal.perDayData[d - 1];
+      const { inStr, outStr, shift, leave, onLeave, otDetail, deductDetail, dailyPayStr } = dd;
+      const hasShift = !!(shift && shift.start && shift.end);
+      const isOffDay = shift === null;
 
-      activeEmps.forEach((emp, ei) => {
-        const sal = empSalaries[ei];
-        const dd  = sal.perDayData[d - 1];
-        const { inStr, outStr, shift, leave, onLeave, otDetail, deductDetail, dailyPayStr } = dd;
-        const hasShift = !!(shift && shift.start && shift.end);
-        const isOffDay = shift === null;
+      // 上班
+      let inCell;
+      if (onLeave && !inStr)       inCell = leave?.leaveTypeText || '請假';
+      else if (isOffDay && !inStr) inCell = '休';
+      else if (hasShift && !inStr) inCell = '曠';
+      else                         inCell = inStr ? inStr.slice(0, 5) : '';
 
-        if (sub === 0) {
-          // 上班
-          if (onLeave && !inStr)       row.push(leave?.leaveTypeText || '請假');
-          else if (isOffDay && !inStr) row.push('休');
-          else if (hasShift && !inStr) row.push('曠');
-          else                         row.push(inStr ? inStr.slice(0, 5) : '');
+      // 下班
+      let outCell;
+      if (onLeave && !inStr)       outCell = '';
+      else if (isOffDay && !inStr) outCell = '';
+      else if (hasShift && !inStr) outCell = '曠';
+      else                         outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
 
-        } else if (sub === 1) {
-          // 下班
-          if (onLeave && !inStr)       row.push('');
-          else if (isOffDay && !inStr) row.push('');
-          else if (hasShift && !inStr) row.push('曠');
-          else                         row.push(inStr ? (outStr ? outStr.slice(0, 5) : '--') : '');
+      // 加班明細
+      const otCell = (hasShift && !inStr) ? '應出勤未打卡' : (otDetail || '');
 
-        } else if (sub === 2) {
-          // 加班明細
-          if (hasShift && !inStr) row.push('應出勤未打卡');
-          else                    row.push(otDetail || '');
+      // 扣薪
+      const dedCell = deductDetail || '';
 
-        } else if (sub === 3) {
-          // 扣薪
-          row.push(deductDetail || '');
+      // 當日薪資
+      const payCell = dailyPayStr || '';
 
-        } else {
-          // 當日薪資
-          row.push(dailyPayStr || '');
-        }
-      });
+      row.push(inCell, outCell, otCell, dedCell, payCell);
+    });
 
-      csvRows.push(row);
-    }
+    csvRows.push(row);
   }
 
   // ── Summary rows ───────────────────────────────────────────────────────
@@ -901,7 +892,7 @@ function exportMonthData() {
 
   summaryDefs.forEach(([label, fn]) => {
     const row = [label, ''];
-    empSalaries.forEach(sal => row.push(fn(sal)));
+    empSalaries.forEach(sal => row.push(fn(sal), '', '', '', ''));
     csvRows.push(row);
   });
 
