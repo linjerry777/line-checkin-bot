@@ -677,7 +677,9 @@ function calcEmpMonthSalary(emp, month) {
 
     if (onLeave && !inStr) {
       // ── Approved full-day leave, no attendance ────────────────────────
-      if (salaryType === 'monthly' && salaryAmount > 0) {
+      // 特休（annual）：給全薪不扣；其餘假別（病假/事假/其他）：扣全日薪
+      const isPaidLeave = leave?.leaveType === 'annual';
+      if (!isPaidLeave && salaryType === 'monthly' && salaryAmount > 0) {
         dayDeduction = Math.round(dailyRate);
         totalDeductions += dayDeduction;
         deductDetail = `${leave.leaveTypeText || '請假'}全天 扣-NT$${dayDeduction}`;
