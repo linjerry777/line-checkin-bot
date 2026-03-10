@@ -772,9 +772,9 @@ function calcEmpMonthSalary(emp, month) {
         dailyPayStr = `NT$${net}`;
       } else if (salaryType === 'hourly' && salaryAmount > 0) {
         const workedMin = aOut !== null && aOut > aIn ? aOut - aIn : 0;
-        const schedMin  = hasShift ? parseMinutes(shift.end) - parseMinutes(shift.start) : 0;
-        const regMin    = schedMin > 0 ? Math.min(workedMin, schedMin) : workedMin;
-        dailyPayStr = `NT$${Math.round((regMin / 60) * salaryAmount) + dayOTPay}`;
+        // 正常時薪 = 實際工作時間 - 加班時間（加班費已含完整1.34x/1.67x，不能重複計入底薪）
+        const regWorkedMin = Math.max(0, workedMin - dayOTMin);
+        dailyPayStr = `NT$${Math.round((regWorkedMin / 60) * salaryAmount) + dayOTPay}`;
       }
     }
 
