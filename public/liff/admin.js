@@ -2,7 +2,8 @@
 let liffConfig = null;
 let userProfile = null;
 let allEmployees = [];
-let allRecords = [];
+let allRecords   = [];
+let allLeavesData = [];  // all leave records (loaded in loadAllData)
 
 // Normalize Google Sheets time values to HH:MM for <input type="time">
 // Handles: decimal (0.375), "下午4:00", "4:00 PM", "09:00", "09:00:00"
@@ -171,6 +172,18 @@ async function loadAllData() {
   } catch (e) {
     console.error('[loadAllData] records 失敗:', e);
     allRecords = [];
+  }
+
+  // Load all leaves (for 曠職/請假 cross-reference)
+  try {
+    const lvRes = await fetch(`/api/admin?action=leave-all&userId=${userProfile.userId}`);
+    if (lvRes.ok) {
+      const lvData = await lvRes.json();
+      allLeavesData = lvData.leaves || [];
+    }
+  } catch (e) {
+    console.error('[loadAllData] leaves 失敗:', e);
+    allLeavesData = [];
   }
 
   // Update UI (these are sync, won't throw)
@@ -369,43 +382,128 @@ function updateEmployeeList() {
   }).join('');
 }
 
+// Helper: parse "HH:MM" or "HH:MM:SS" → total minutes
+function parseMinutes(t) {
+  if (!t) return null;
+  const p = String(t).split(':');
+  return parseInt(p[0], 10) * 60 + (parseInt(p[1], 10) || 0);
+}
+
+// Helper: get employee's shift for a specific date (not today)
+function getShiftForDate(emp, dateStr) {
+  const schedule = emp.weeklySchedule;
+  if (!schedule || Object.keys(schedule).length === 0) return { hasSchedule: false };
+  // Use noon to avoid DST ambiguity
+  const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay(); // 0=Sun...6=Sat
+  const val = schedule[String(dayOfWeek)];
+  if (!val) return null; // day off
+  const [start, end] = val.split('-');
+  return (start && end) ? { start, end } : null;
+}
+
 // Load attendance for selected date
 function loadAttendance() {
-  const dateInput = document.getElementById('attendanceDate');
+  const dateInput    = document.getElementById('attendanceDate');
   const selectedDate = dateInput.value;
-  const container = document.getElementById('attendanceList');
-  const title = document.getElementById('attendanceTitle');
+  const container    = document.getElementById('attendanceList');
+  const title        = document.getElementById('attendanceTitle');
 
   title.textContent = `${selectedDate} 出勤紀錄`;
 
   const dayRecords = allRecords.filter(r => r.date === selectedDate);
 
-  if (dayRecords.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>當日無打卡紀錄</p></div>';
+  // Build check-in/out map from actual records
+  const recordMap = {};
+  dayRecords.forEach(record => {
+    if (!recordMap[record.userId]) {
+      recordMap[record.userId] = { checkin: null, checkout: null, lateReason: '', overtimeReason: '' };
+    }
+    if (record.type === 'in') {
+      if (!recordMap[record.userId].checkin) recordMap[record.userId].checkin = record.time;
+      if (record.reason) recordMap[record.userId].lateReason = record.reason;
+    } else {
+      recordMap[record.userId].checkout = record.time; // keep last out
+      if (record.reason) recordMap[record.userId].overtimeReason = record.reason;
+    }
+  });
+
+  // Approved leaves on this date
+  const dayLeaves = allLeavesData.filter(l =>
+    l.status === 'approved' && l.startDate <= selectedDate && l.endDate >= selectedDate
+  );
+  const leaveUserIds = new Set(dayLeaves.map(l => l.userId));
+
+  // Build rows: all active employees
+  const rows = [];
+
+  allEmployees.filter(e => e.status === 'active').forEach(emp => {
+    const shift = getShiftForDate(emp, selectedDate);
+    const rec   = recordMap[emp.userId];
+
+    // Determine row type
+    let rowType = 'normal'; // normal / absent / leave / offday
+    if (!rec) {
+      if (leaveUserIds.has(emp.userId)) rowType = 'leave';
+      else if (shift === null) rowType = 'offday';
+      else if (shift && shift.start) rowType = 'absent'; // scheduled but no punch
+      else rowType = 'normal'; // no schedule set, just skip
+    } else if (shift === null) {
+      rowType = 'nonscheduled'; // worked on a day-off (e.g. unscheduled Saturday)
+    }
+
+    // Skip: offday AND no punch record
+    if (rowType === 'offday') return;
+    // Skip: no schedule AND no punch
+    if (!rec && !shift && !leaveUserIds.has(emp.userId)) return;
+
+    // Actual hours worked
+    let workedMin = null;
+    if (rec?.checkin && rec?.checkout) {
+      const diff = parseMinutes(rec.checkout) - parseMinutes(rec.checkin);
+      if (diff > 0 && diff < 1440) workedMin = diff;
+    }
+
+    // Overtime / early calculations (only when shift is known)
+    let shiftNote = '';
+    if (rec && shift && shift.start && shift.end) {
+      const schedStart = parseMinutes(shift.start);
+      const schedEnd   = parseMinutes(shift.end);
+      const actualIn   = parseMinutes(rec.checkin);
+      const actualOut  = parseMinutes(rec.checkout);
+      const notes = [];
+      if (actualIn !== null && actualIn < schedStart) {
+        notes.push(`早到 ${schedStart - actualIn} 分`);
+      } else if (actualIn !== null && actualIn > schedStart) {
+        // late — shown in lateReason already
+      }
+      if (actualOut !== null && actualOut > schedEnd) {
+        notes.push(`加班 ${actualOut - schedEnd} 分`);
+      } else if (actualOut !== null && actualOut < schedEnd) {
+        notes.push(`早退 ${schedEnd - actualOut} 分`);
+      }
+      if (notes.length) shiftNote = notes.join('、');
+    } else if (rowType === 'nonscheduled' && rec?.checkin) {
+      shiftNote = '非排班日出勤';
+    }
+
+    // Leave info for this employee on this date
+    const leave = dayLeaves.find(l => l.userId === emp.userId);
+
+    rows.push({ emp, rec, rowType, workedMin, shiftNote, shift, leave });
+  });
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>當日無出勤紀錄</p></div>';
     return;
   }
 
-  // Group by employee
-  const employeeRecords = {};
-  dayRecords.forEach(record => {
-    if (!employeeRecords[record.userId]) {
-      const emp = allEmployees.find(e => e.userId === record.userId);
-      employeeRecords[record.userId] = {
-        name: emp?.name || record.employeeName,
-        checkin: null,
-        checkout: null,
-        lateReason: '',
-        overtimeReason: ''
-      };
-    }
-    if (record.type === 'in') {
-      employeeRecords[record.userId].checkin = record.time;
-      if (record.reason) employeeRecords[record.userId].lateReason = record.reason;
-    } else {
-      employeeRecords[record.userId].checkout = record.time;
-      if (record.reason) employeeRecords[record.userId].overtimeReason = record.reason;
-    }
-  });
+  const mkReason = (reason) => reason
+    ? `<span style="color:#D97706;font-size:12px;" title="${reason}">⚠️ ${reason.length > 22 ? reason.slice(0, 22) + '…' : reason}</span>`
+    : '<span style="color:#94A3B8;font-size:12px;">-</span>';
+
+  const mkNote = (note) => note
+    ? `<span style="color:#0891b2;font-size:12px;">${note}</span>`
+    : '<span style="color:#94A3B8;font-size:12px;">-</span>';
 
   container.innerHTML = `
     <table class="data-table">
@@ -415,33 +513,37 @@ function loadAttendance() {
           <th>上班</th>
           <th>下班</th>
           <th>工時</th>
+          <th>加班/早退</th>
           <th>遲到原因</th>
           <th>加班原因</th>
         </tr>
       </thead>
       <tbody>
-        ${Object.values(employeeRecords).map(emp => {
-          let hours = '-';
-          if (emp.checkin && emp.checkout) {
-            const toMinutes = t => { const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
-            const inMin  = toMinutes(emp.checkin);
-            const outMin = toMinutes(emp.checkout);
-            const diff = outMin - inMin;
-            hours = diff > 0 ? (diff / 60).toFixed(1) + 'h' : '-';
+        ${rows.map(({ emp, rec, rowType, workedMin, shiftNote, leave }) => {
+          if (rowType === 'absent') {
+            return `<tr style="background:#fff1f0;">
+              <td>${emp.name}</td>
+              <td colspan="6" style="color:#e53935;font-weight:600;">🚫 曠職（應出勤未打卡）</td>
+            </tr>`;
           }
-
-          const mkReasonCell = (reason) => reason
-            ? `<span style="color:#D97706;font-size:12px;" title="${reason}">⚠️ ${reason.length > 20 ? reason.slice(0, 20) + '…' : reason}</span>`
-            : '<span style="color:#94A3B8;font-size:12px;">-</span>';
-
+          if (rowType === 'leave') {
+            const lt = leave ? ` - ${leave.leaveTypeText}${leave.startTime ? ' ' + leave.startTime + '–' + leave.endTime : ''}` : '';
+            return `<tr style="background:#f0f9ff;">
+              <td>${emp.name}</td>
+              <td colspan="6" style="color:#0891b2;font-weight:600;">🏖️ 請假${lt}</td>
+            </tr>`;
+          }
+          const hours = workedMin !== null ? (workedMin / 60).toFixed(1) + 'h' : '-';
+          const schedHint = shiftNote ? '' : (rec?.checkin && !rec?.checkout ? '<span style="color:#f59e0b;font-size:11px;">未下班打卡</span>' : '');
           return `
             <tr>
               <td>${emp.name}</td>
-              <td class="time-cell">${emp.checkin || '-'}</td>
-              <td class="time-cell">${emp.checkout || '-'}</td>
-              <td>${hours}</td>
-              <td>${mkReasonCell(emp.lateReason)}</td>
-              <td>${mkReasonCell(emp.overtimeReason)}</td>
+              <td class="time-cell">${rec?.checkin || '-'}</td>
+              <td class="time-cell">${rec?.checkout || '-'}</td>
+              <td>${hours}${schedHint}</td>
+              <td>${mkNote(shiftNote)}</td>
+              <td>${mkReason(rec?.lateReason)}</td>
+              <td>${mkReason(rec?.overtimeReason)}</td>
             </tr>
           `;
         }).join('')}

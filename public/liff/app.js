@@ -705,6 +705,15 @@ function initLeaveForm() {
   const endEl   = document.getElementById('leaveEndDate');
   if (startEl && !startEl.value) startEl.value = today;
   if (endEl   && !endEl.value)   endEl.value   = today;
+  updateLeaveTimeVisibility();
+}
+
+// Show/hide time pickers: only visible when start == end (same day)
+function updateLeaveTimeVisibility() {
+  const start = document.getElementById('leaveStartDate')?.value;
+  const end   = document.getElementById('leaveEndDate')?.value;
+  const row   = document.getElementById('leaveTimeRow');
+  if (row) row.style.display = (start && end && start === end) ? 'block' : 'none';
 }
 
 // Load and render employee's leave records
@@ -728,9 +737,12 @@ async function loadMyLeaves() {
       const typeText   = LEAVE_TYPE_TEXT[leave.leaveType] || leave.leaveType;
       const statusMap  = { pending: '審核中', approved: '已批准', rejected: '已拒絕' };
       const statusText = statusMap[leave.status] || leave.status;
+      const timeLabel = (leave.startTime && leave.endTime)
+        ? ` ${leave.startTime}–${leave.endTime}` : '';
       const datesText  = leave.startDate === leave.endDate
-        ? leave.startDate
+        ? leave.startDate + timeLabel
         : `${leave.startDate} ~ ${leave.endDate}`;
+      const daysDisplay = leave.days < 1 ? `${leave.days} 天（部分時段）` : `${leave.days} 天`;
 
       return `
         <div class="leave-item">
@@ -738,7 +750,7 @@ async function loadMyLeaves() {
             <div class="leave-item-type">
               <i class="fas fa-umbrella-beach"></i>
               <span class="leave-type-chip">${typeText}</span>
-              ${leave.days} 天
+              ${daysDisplay}
             </div>
             <span class="leave-status ${leave.status}">${statusText}</span>
           </div>
@@ -758,10 +770,12 @@ async function loadMyLeaves() {
 // Submit leave application
 async function submitLeave() {
   const btn       = document.getElementById('leaveSubmitBtn');
-  const leaveType = document.getElementById('leaveType')?.value;
-  const startDate = document.getElementById('leaveStartDate')?.value;
-  const endDate   = document.getElementById('leaveEndDate')?.value;
-  const reason    = document.getElementById('leaveReason')?.value?.trim();
+  const leaveType  = document.getElementById('leaveType')?.value;
+  const startDate  = document.getElementById('leaveStartDate')?.value;
+  const endDate    = document.getElementById('leaveEndDate')?.value;
+  const reason     = document.getElementById('leaveReason')?.value?.trim();
+  const startTime  = document.getElementById('leaveStartTime')?.value || '';
+  const endTime    = document.getElementById('leaveEndTime')?.value || '';
 
   if (!startDate || !endDate) {
     showToast('請選擇請假日期', 'error');
@@ -769,6 +783,11 @@ async function submitLeave() {
   }
   if (startDate > endDate) {
     showToast('結束日期不能早於開始日期', 'error');
+    return;
+  }
+  // Validate partial-day times
+  if (startDate === endDate && startTime && endTime && startTime >= endTime) {
+    showToast('結束時間必須晚於開始時間', 'error');
     return;
   }
 
@@ -785,16 +804,19 @@ async function submitLeave() {
         startDate,
         endDate,
         reason,
+        startTime,
+        endTime,
       }),
     });
 
     const result = await res.json();
 
     if (result.success) {
-      showToast(`請假申請成功（${result.days} 天），等待審核`, 'success');
-      // Reset form
+      const daysLabel = result.days < 1 ? `${result.days} 天（部分時段）` : `${result.days} 天`;
+      showToast(`請假申請成功（${daysLabel}），等待審核`, 'success');
       document.getElementById('leaveReason').value = '';
-      // Reload list
+      document.getElementById('leaveStartTime').value = '';
+      document.getElementById('leaveEndTime').value = '';
       await loadMyLeaves();
     } else {
       showToast(result.error || '申請失敗', 'error');

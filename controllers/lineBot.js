@@ -51,10 +51,22 @@ async function processCommand(userId, profile, message) {
     return `🪪 您的 LINE User ID：\n\n${userId}\n\n請將此 ID 提供給管理員，由管理員為您建立帳號`;
   }
 
+  // 自行註冊
+  if (message.startsWith('註冊')) {
+    const name = message.replace('註冊', '').trim();
+    if (!name) return '請使用格式：註冊 [姓名]\n例如：註冊 王小明';
+    const result = await employeeService.registerEmployee(userId, name, profile.displayName);
+    if (!result.success) {
+      if (result.error === '此帳號已註冊') return `⚠️ 您已經註冊過了！\n\n員工姓名：${result.employee.name}\n\n可直接使用打卡功能`;
+      return `❌ 註冊失敗：${result.error}`;
+    }
+    return `✅ 註冊成功！\n\n員工姓名：${name}\n\n您現在可以使用：\n• 上班 - 上班打卡\n• 下班 - 下班打卡\n• 查詢 - 查詢今日紀錄`;
+  }
+
   // 檢查是否已有帳號
   const employee = await employeeService.getEmployeeByUserId(userId);
   if (!employee) {
-    return '❌ 您尚未建立帳號\n\n請輸入「我的ID」取得您的 LINE ID\n並提供給管理員建立帳號';
+    return '❌ 您尚未建立帳號\n\n請使用「註冊 [姓名]」自行註冊\n例如：註冊 王小明';
   }
 
   // 上班打卡
@@ -152,7 +164,8 @@ async function processCommand(userId, profile, message) {
     helpText += `• 下班 - 下班打卡\n`;
     helpText += `• 查詢 - 查詢今日紀錄\n`;
     helpText += `• 本月工時 - 查看本月統計\n`;
-    helpText += `• 我的ID - 取得 LINE ID（給管理員建帳號用）\n`;
+    helpText += `• 註冊 [姓名] - 首次使用請先註冊\n`;
+    helpText += `• 我的ID - 取得 LINE ID\n`;
     return helpText;
   }
 

@@ -3,24 +3,26 @@ const { getSheetData, appendToSheet, updateSheetData } = require('../config/goog
 /**
  * 請假服務 - 使用 Google Sheets「請假紀錄」工作表
  *
- * 欄位定義 (A~J):
- * A: leaveId      (唯一 ID, YYYYMMDD-userId-timestamp)
+ * 欄位定義 (A~O):
+ * A: leaveId      (唯一 ID)
  * B: userId
  * C: employeeName
  * D: leaveType    (annual/sick/personal/other)
  * E: startDate    (YYYY-MM-DD)
  * F: endDate      (YYYY-MM-DD)
- * G: days         (天數)
+ * G: days         (天數，半天為 0.5)
  * H: reason       (原因)
  * I: status       (pending/approved/rejected)
- * J: reviewedBy   (審核者 userId)
- * K: reviewedAt   (審核時間 ISO)
- * L: rejectReason (拒絕原因)
- * M: createdAt    (申請時間 ISO)
+ * J: reviewedBy
+ * K: reviewedAt
+ * L: rejectReason
+ * M: createdAt
+ * N: startTime    (HH:MM, 空 = 全天)
+ * O: endTime      (HH:MM, 空 = 全天)
  */
 
 const SHEET_NAME = '請假紀錄';
-const SHEET_RANGE = `${SHEET_NAME}!A:M`;
+const SHEET_RANGE = `${SHEET_NAME}!A:O`;
 
 const LEAVE_TYPES = {
   annual:   '特休',
@@ -29,9 +31,6 @@ const LEAVE_TYPES = {
   other:    '其他',
 };
 
-/**
- * 取得所有請假紀錄
- */
 async function getAllLeaves() {
   try {
     const data = await getSheetData(SHEET_RANGE);
@@ -43,17 +42,11 @@ async function getAllLeaves() {
   }
 }
 
-/**
- * 取得指定員工的請假紀錄
- */
 async function getLeavesByUserId(userId) {
   const all = await getAllLeaves();
   return all.filter(l => l.userId === userId);
 }
 
-/**
- * 取得待審核的請假紀錄
- */
 async function getPendingLeaves() {
   const all = await getAllLeaves();
   return all.filter(l => l.status === 'pending');
@@ -61,47 +54,40 @@ async function getPendingLeaves() {
 
 /**
  * 申請請假
+ * startTime / endTime: 'HH:MM' or '' (全天)
  */
-async function applyLeave({ userId, employeeName, leaveType, startDate, endDate, reason }) {
+async function applyLeave({ userId, employeeName, leaveType, startDate, endDate, reason, startTime, endTime }) {
   try {
-    // 計算天數
-    const days = calcDays(startDate, endDate);
-    if (days <= 0) {
-      return { success: false, error: '結束日期必須大於或等於開始日期' };
+    const isPartialDay = !!(startTime && endTime && startDate === endDate);
+    let days;
+    if (isPartialDay) {
+      // 計算部分天數
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      const mins = (eh * 60 + em) - (sh * 60 + sm);
+      days = mins > 0 ? Math.round((mins / 480) * 2) / 2 : 0.5; // 以 8h 為一天，最小 0.5
+    } else {
+      days = calcDays(startDate, endDate);
     }
+    if (days <= 0) return { success: false, error: '結束時間必須晚於開始時間' };
 
-    // 檢查同期間是否已有申請
     const existing = await getLeavesByUserId(userId);
     const conflict = existing.find(l =>
-      l.status !== 'rejected' &&
-      datesOverlap(l.startDate, l.endDate, startDate, endDate)
+      l.status !== 'rejected' && datesOverlap(l.startDate, l.endDate, startDate, endDate)
     );
-    if (conflict) {
-      return { success: false, error: `與既有請假（${conflict.startDate}~${conflict.endDate}）重疊` };
-    }
+    if (conflict) return { success: false, error: `與既有請假（${conflict.startDate}~${conflict.endDate}）重疊` };
 
     const leaveId = `${startDate.replace(/-/g, '')}-${userId.slice(-6)}-${Date.now()}`;
     const now = new Date().toISOString();
 
     const row = [
-      leaveId,
-      userId,
-      employeeName,
-      leaveType,
-      startDate,
-      endDate,
-      days,
-      reason || '',
-      'pending',
-      '',   // reviewedBy
-      '',   // reviewedAt
-      '',   // rejectReason
-      now,  // createdAt
+      leaveId, userId, employeeName, leaveType,
+      startDate, endDate, days, reason || '',
+      'pending', '', '', '', now,
+      startTime || '', endTime || '',
     ];
 
     await appendToSheet(row, SHEET_RANGE);
-    console.log(`✅ 請假申請: ${employeeName} ${startDate}~${endDate}`);
-
     return { success: true, leaveId, days };
   } catch (error) {
     console.error('申請請假失敗:', error);
@@ -109,41 +95,22 @@ async function applyLeave({ userId, employeeName, leaveType, startDate, endDate,
   }
 }
 
-/**
- * 審核請假（approve / reject）
- */
 async function reviewLeave({ leaveId, action, reviewerUserId, rejectReason }) {
   try {
     const data = await getSheetData(SHEET_RANGE);
-    if (!data || data.length <= 1) {
-      return { success: false, error: '找不到請假紀錄' };
-    }
+    if (!data || data.length <= 1) return { success: false, error: '找不到請假紀錄' };
 
-    // 找到該筆紀錄的行號（1-indexed, row 1 = headers）
     let rowIndex = -1;
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === leaveId) {
-        rowIndex = i + 1; // Sheets 行號從 1 起算，且 row 1 是標題
-        break;
-      }
+      if (data[i][0] === leaveId) { rowIndex = i + 1; break; }
     }
-
-    if (rowIndex === -1) {
-      return { success: false, error: '找不到此請假申請' };
-    }
+    if (rowIndex === -1) return { success: false, error: '找不到此請假申請' };
 
     const now = new Date().toISOString();
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
-
-    // 更新 I(status) J(reviewedBy) K(reviewedAt) L(rejectReason)
     await updateSheetData(`${SHEET_NAME}!I${rowIndex}:L${rowIndex}`, [
-      newStatus,
-      reviewerUserId,
-      now,
-      rejectReason || '',
+      newStatus, reviewerUserId, now, rejectReason || '',
     ]);
-
-    console.log(`✅ 請假審核: ${leaveId} → ${newStatus}`);
     return { success: true, status: newStatus };
   } catch (error) {
     console.error('審核請假失敗:', error);
@@ -170,14 +137,15 @@ function rowToLeave(row) {
     reviewedAt:   row[10] || '',
     rejectReason: row[11] || '',
     createdAt:    row[12] || '',
+    startTime:    row[13] || '',
+    endTime:      row[14] || '',
   };
 }
 
 function calcDays(startDate, endDate) {
   const start = new Date(startDate);
   const end   = new Date(endDate);
-  const diff  = (end - start) / (1000 * 60 * 60 * 24);
-  return Math.floor(diff) + 1;
+  return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 function datesOverlap(s1, e1, s2, e2) {

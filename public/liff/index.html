@@ -1100,11 +1100,26 @@
         <div class="leave-date-row">
           <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">開始日期</div>
-            <input type="date" id="leaveStartDate" class="leave-input">
+            <input type="date" id="leaveStartDate" class="leave-input" onchange="updateLeaveTimeVisibility()">
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">結束日期</div>
-            <input type="date" id="leaveEndDate" class="leave-input">
+            <input type="date" id="leaveEndDate" class="leave-input" onchange="updateLeaveTimeVisibility()">
+          </div>
+        </div>
+      </div>
+
+      <!-- 部分時段（只有同一天才顯示）-->
+      <div class="leave-form-group" id="leaveTimeRow" style="display:none;">
+        <label class="leave-form-label">請假時段（選填，不填為全天）</label>
+        <div class="leave-date-row">
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">開始時間</div>
+            <input type="time" id="leaveStartTime" class="leave-input">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">結束時間</div>
+            <input type="time" id="leaveEndTime" class="leave-input">
           </div>
         </div>
       </div>

@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
       if (!requester) return res.status(403).json({ error: '找不到員工資料' });
 
       const body = req.method === 'POST' ? req.body : req.query;
-      const { employeeName, leaveType, startDate, endDate, reason } = body;
+      const { employeeName, leaveType, startDate, endDate, reason, startTime, endTime } = body;
 
       if (!leaveType || !startDate || !endDate) {
         return res.status(400).json({ error: '請填寫完整請假資訊' });
@@ -73,6 +73,8 @@ module.exports = async (req, res) => {
         startDate,
         endDate,
         reason,
+        startTime: startTime || '',
+        endTime: endTime || '',
       });
       return res.status(result.success ? 200 : 400).json(result);
     }
