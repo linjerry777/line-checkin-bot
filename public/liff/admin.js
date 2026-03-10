@@ -845,7 +845,8 @@ function exportMonthData() {
     activeEmps.forEach((emp, ei) => {
       const sal = empSalaries[ei];
       const dd  = sal.perDayData[d - 1];
-      const { inStr, outStr, shift, leave, onLeave, otDetail, deductDetail, dailyPayStr } = dd;
+      const { inStr, outStr, shift, leave, onLeave, otDetail, deductDetail, dailyPayStr,
+              lateReason, otReason } = dd;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
 
@@ -863,11 +864,13 @@ function exportMonthData() {
       else if (hasShift && !inStr) outCell = '曠';
       else                         outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
 
-      // 加班明細
-      const otCell = (hasShift && !inStr) ? '應出勤未打卡' : (otDetail || '');
+      // 加班明細（含加班備註理由）
+      let otCell = (hasShift && !inStr) ? '應出勤未打卡' : (otDetail || '');
+      if (otReason) otCell += (otCell ? ' ' : '') + `[加班:${otReason}]`;
 
-      // 扣薪
-      const dedCell = deductDetail || '';
+      // 扣薪（含遲到備註理由）
+      let dedCell = deductDetail || '';
+      if (lateReason) dedCell += (dedCell ? ' ' : '') + `[遲到:${lateReason}]`;
 
       // 當日薪資
       const payCell = dailyPayStr || '';
