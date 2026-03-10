@@ -666,115 +666,166 @@ function calcEmpMonthSalary(emp, month) {
   };
 }
 
-// ── Export (horizontal calendar format) ──────────────────────────────────────
+// ── Export: 日期為列、員工為欄（每人3欄）──────────────────────────────────────
 function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
+  const DOW_NAMES   = ['日','一','二','三','四','五','六'];
+
+  const activeEmps = allEmployees.filter(e => e.status === 'active');
 
   // Approved leaves this month
   const monthLeaves = allLeavesData.filter(l =>
-    l.status === 'approved' && l.startDate.startsWith(month)
+    l.status === 'approved' &&
+    l.startDate.slice(0, 7) === month || l.endDate.slice(0, 7) === month
   );
 
-  // Build per-employee per-day punch map (first in / last out)
-  const punchMap = {}; // punchMap[userId][dateStr] = { in, out }
+  // Build punch map: punchMap[userId][dateStr] = { in, out, lateReason, otReason }
+  const punchMap = {};
   allRecords.filter(r => r.date.startsWith(month)).forEach(r => {
     if (!punchMap[r.userId]) punchMap[r.userId] = {};
-    if (!punchMap[r.userId][r.date]) punchMap[r.userId][r.date] = { in: null, out: null };
-    if (r.type === 'in'  && !punchMap[r.userId][r.date].in)  punchMap[r.userId][r.date].in  = r.time;
-    if (r.type === 'out')                                      punchMap[r.userId][r.date].out = r.time;
+    if (!punchMap[r.userId][r.date])
+      punchMap[r.userId][r.date] = { in: null, out: null, lateReason: '', otReason: '' };
+    const d = punchMap[r.userId][r.date];
+    if (r.type === 'in' && !d.in)  { d.in = r.time; if (r.reason) d.lateReason = r.reason; }
+    if (r.type === 'out')           { d.out = r.time; if (r.reason) d.otReason   = r.reason; }
   });
 
-  // Day-of-week header row (一二三四五六日)
-  const DOW_NAMES = ['日','一','二','三','四','五','六'];
-
-  // Build CSV rows
-  // Row 1: header   "員工,薪資類型,1,2,...,31,總工時,加班時數,基本薪資,加班費,合計薪資"
-  const dateHeaders = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const fixedTailHeaders = ['總工時(h)','加班時數(h)','基本薪資','加班費','合計薪資'];
-
+  // ── Build CSV rows ────────────────────────────────────────────────────
   const csvRows = [];
 
-  // Row 1: date numbers
-  csvRows.push(['員工','薪資類型', ...dateHeaders, ...fixedTailHeaders]);
+  // Row 1: "日期 | 星期 | 員工A | | | 員工B | | | ..."
+  const nameRow = ['日期', '星期'];
+  activeEmps.forEach(emp => {
+    const salLbl = emp.salaryType === 'monthly' ? '（月薪）'
+                 : emp.salaryType === 'hourly'  ? '（時薪）' : '';
+    nameRow.push(`${emp.name}${salLbl}`, '', '');
+  });
+  csvRows.push(nameRow);
 
-  // Row 2: day-of-week
-  const dowRow = ['', ''];
+  // Row 2: "  |   | 上班 | 下班 | 加班/狀態 | 上班 | 下班 | 加班/狀態 | ..."
+  const subRow = ['', ''];
+  activeEmps.forEach(() => subRow.push('上班', '下班', '加班/備註'));
+  csvRows.push(subRow);
+
+  // Rows 3~: one row per date
   for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(`${month}-${String(d).padStart(2,'0')}T12:00:00`).getDay();
-    dowRow.push(DOW_NAMES[dow]);
-  }
-  dowRow.push('','','','','');
-  csvRows.push(dowRow);
+    const dateStr = `${month}-${String(d).padStart(2, '0')}`;
+    const dow     = new Date(dateStr + 'T12:00:00').getDay();
+    const row     = [d, DOW_NAMES[dow]];
 
-  // One row per active employee
-  allEmployees.filter(e => e.status === 'active').forEach(emp => {
-    const empPunch  = punchMap[emp.userId] || {};
-    const salaryLbl = emp.salaryType === 'monthly' ? '月薪'
-                    : emp.salaryType === 'hourly'  ? '時薪' : '-';
-    const row = [emp.name, salaryLbl];
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${month}-${String(d).padStart(2,'0')}`;
-      const punch   = empPunch[dateStr];
+    activeEmps.forEach(emp => {
+      const punch   = punchMap[emp.userId]?.[dateStr];
       const shift   = getShiftForDate(emp, dateStr);
-      const onLeave = monthLeaves.some(l => l.userId === emp.userId && l.startDate <= dateStr && l.endDate >= dateStr);
+      const onLeave = monthLeaves.some(
+        l => l.userId === emp.userId && l.startDate <= dateStr && l.endDate >= dateStr
+      );
 
       if (onLeave) {
-        row.push('假');
-      } else if (!shift || (!shift.start && !shift.end && shift.hasSchedule === false)) {
-        // no schedule at all → show punch if any
-        row.push(punch?.in ? `${punch.in.slice(0,5)}/${(punch.out||'--').slice(0,5)}` : '');
+        // Find leave type
+        const lv = monthLeaves.find(l => l.userId === emp.userId && l.startDate <= dateStr && l.endDate >= dateStr);
+        const lvText = lv ? (lv.leaveTypeText || '假') : '假';
+        row.push('假', '假', lvText);
+
+      } else if (!shift || shift.hasSchedule === false) {
+        // No weekly schedule set at all
+        row.push(
+          punch?.in  ? punch.in.slice(0, 5)  : '',
+          punch?.out ? punch.out.slice(0, 5) : '',
+          punch?.in  ? '非排班出勤' : ''
+        );
+
       } else if (shift === null) {
-        // scheduled day off
-        row.push(punch?.in ? `${punch.in.slice(0,5)}/${(punch.out||'--').slice(0,5)}` : '休');
+        // Scheduled day-off
+        if (punch?.in) {
+          // Worked on day off → all overtime
+          const otMin = punch.out
+            ? Math.max(0, parseMinutes(punch.out) - parseMinutes(punch.in))
+            : 0;
+          row.push(punch.in.slice(0,5), punch.out ? punch.out.slice(0,5) : '--', `加班 ${otMin} 分`);
+        } else {
+          row.push('休', '', '');
+        }
+
       } else if (!punch?.in) {
-        // scheduled but no punch
-        row.push('曠');
+        // Scheduled but no punch
+        row.push('曠', '曠', '應出勤未打卡');
+
       } else {
-        // Normal: "上班/下班" HH:MM format
-        const inStr  = punch.in  ? punch.in.slice(0,5)  : '--';
-        const outStr = punch.out ? punch.out.slice(0,5) : '--';
-        // Mark overtime days with * for easy spotting
-        const hasOT = shift.start && shift.end && punch.out &&
-          (parseMinutes(punch.in) < parseMinutes(shift.start) || parseMinutes(punch.out) > parseMinutes(shift.end));
-        row.push(`${inStr}/${outStr}${hasOT ? '*' : ''}`);
+        // Normal day with punch
+        const inStr  = punch.in.slice(0, 5);
+        const outStr = punch.out ? punch.out.slice(0, 5) : '--';
+
+        let note = '';
+        if (shift.start && shift.end) {
+          const ss  = parseMinutes(shift.start);
+          const se  = parseMinutes(shift.end);
+          const aIn = parseMinutes(punch.in);
+          const aOut = punch.out ? parseMinutes(punch.out) : null;
+
+          const earlyArr = aIn < ss ? ss - aIn : 0;
+          const lateStay = aOut !== null && aOut > se ? aOut - se : 0;
+          const earlyLv  = aOut !== null && aOut < se ? se - aOut : 0;
+          const lateArr  = aIn > ss ? aIn - ss : 0;
+
+          const otParts = [];
+          if (earlyArr > 0) otParts.push(`提前${earlyArr}分`);
+          if (lateStay > 0) otParts.push(`延後${lateStay}分`);
+          const totalOT = earlyArr + lateStay;
+
+          if (totalOT > 0) note += `加班${totalOT}分(${otParts.join('+')}）`;
+          if (earlyLv  > 0) note += (note ? ' ' : '') + `早退${earlyLv}分`;
+          if (lateArr  > 0) note += (note ? ' ' : '') + `遲到${lateArr}分`;
+          if (punch.otReason)   note += (note ? ' ' : '') + `[加班:${punch.otReason}]`;
+          if (punch.lateReason) note += (note ? ' ' : '') + `[遲到:${punch.lateReason}]`;
+        }
+
+        row.push(inStr, outStr, note || '');
       }
-    }
+    });
 
-    // Salary summary columns
-    const sal = calcEmpMonthSalary(emp, month);
-    row.push(sal.totalRegularHours);
-    row.push(sal.totalOvertimeHours);
-    row.push(sal.hasSalary ? sal.basePay    : '-');
-    row.push(sal.hasSalary ? sal.overtimePay : '-');
-    row.push(sal.hasSalary ? sal.totalPay   : '-');
+    csvRows.push(row);
+  }
 
+  // ── Summary rows ──────────────────────────────────────────────────────
+  csvRows.push([]); // blank separator
+
+  const salaries = activeEmps.map(emp => calcEmpMonthSalary(emp, month));
+  const summaryDefs = [
+    ['總工時(h)',   sal => sal.totalRegularHours],
+    ['加班時數(h)', sal => sal.totalOvertimeHours],
+    ['基本薪資',    sal => sal.hasSalary ? sal.basePay    : '-'],
+    ['加班費',      sal => sal.hasSalary ? sal.overtimePay : '-'],
+    ['合計薪資',    sal => sal.hasSalary ? sal.totalPay   : '-'],
+  ];
+
+  summaryDefs.forEach(([label, fn]) => {
+    const row = [label, ''];
+    activeEmps.forEach((_, i) => row.push(fn(salaries[i]), '', ''));
     csvRows.push(row);
   });
 
-  // Serialize to CSV (wrap values with commas in quotes)
+  // ── Serialize ─────────────────────────────────────────────────────────
   const escapeCsv = v => {
     const s = String(v ?? '');
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const csv = csvRows.map(row => row.map(escapeCsv).join(',')).join('\n');
 
-  // Preview
   document.getElementById('exportPreview').style.display = 'block';
   document.getElementById('exportContent').textContent = csv;
 
-  // Download
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `出勤報表_${month}.csv`;
   link.click();
 
-  showToast('CSV 已下載（* 表示有加班）', 'success');
+  showToast('CSV 已下載', 'success');
 }
 
 // Copy to clipboard
