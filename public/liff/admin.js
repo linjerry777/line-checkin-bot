@@ -463,23 +463,33 @@ function loadAttendance() {
       if (diff > 0 && diff < 1440) workedMin = diff;
     }
 
-    // Overtime / early calculations (only when shift is known)
+    // Overtime / early-departure calculations (only when shift is known)
     let shiftNote = '';
+    let overtimeMin = 0;  // total daily overtime minutes (saved for export)
     if (rec && shift && shift.start && shift.end) {
       const schedStart = parseMinutes(shift.start);
       const schedEnd   = parseMinutes(shift.end);
       const actualIn   = parseMinutes(rec.checkin);
       const actualOut  = parseMinutes(rec.checkout);
       const notes = [];
-      if (actualIn !== null && actualIn < schedStart) {
-        notes.push(`早到 ${schedStart - actualIn} 分`);
-      } else if (actualIn !== null && actualIn > schedStart) {
-        // late — shown in lateReason already
+
+      // Early arrival = overtime
+      const earlyArrival = (actualIn  !== null && actualIn  < schedStart) ? (schedStart - actualIn)  : 0;
+      // Late departure   = overtime
+      const lateStay     = (actualOut !== null && actualOut > schedEnd)   ? (actualOut  - schedEnd)   : 0;
+      // Early departure  = early leave (NOT overtime)
+      const earlyLeave   = (actualOut !== null && actualOut < schedEnd)   ? (schedEnd   - actualOut)  : 0;
+
+      overtimeMin = earlyArrival + lateStay;
+
+      if (overtimeMin > 0) {
+        const parts = [];
+        if (earlyArrival > 0) parts.push(`提前${earlyArrival}分`);
+        if (lateStay     > 0) parts.push(`延後${lateStay}分`);
+        notes.push(`加班 ${overtimeMin} 分${parts.length ? '（' + parts.join('＋') + '）' : ''}`);
       }
-      if (actualOut !== null && actualOut > schedEnd) {
-        notes.push(`加班 ${actualOut - schedEnd} 分`);
-      } else if (actualOut !== null && actualOut < schedEnd) {
-        notes.push(`早退 ${schedEnd - actualOut} 分`);
+      if (earlyLeave > 0) {
+        notes.push(`早退 ${earlyLeave} 分`);
       }
       if (notes.length) shiftNote = notes.join('、');
     } else if (rowType === 'nonscheduled' && rec?.checkin) {
@@ -489,7 +499,7 @@ function loadAttendance() {
     // Leave info for this employee on this date
     const leave = dayLeaves.find(l => l.userId === emp.userId);
 
-    rows.push({ emp, rec, rowType, workedMin, shiftNote, shift, leave });
+    rows.push({ emp, rec, rowType, workedMin, shiftNote, shift, leave, overtimeMin });
   });
 
   if (rows.length === 0) {
@@ -583,66 +593,188 @@ function calculateTotalHours(records) {
 }
 
 // Export month data
-function exportMonthData() {
-  const month = document.getElementById('exportMonth').value;
-  if (!month) {
-    showToast('請選擇月份', 'error');
-    return;
+// ── Overtime salary calculation helpers ──────────────────────────────────────
+
+/**
+ * For a given employee, calculate per-day data for a month.
+ * Returns { daysData, totalRegularMin, totalOvertimeMin, basePay, overtimePay, totalPay }
+ */
+function calcEmpMonthSalary(emp, month) {
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();
+
+  const salaryType   = emp.salaryType   || '';
+  const salaryAmount = emp.salaryAmount || 0;
+  // Hourly rate: for monthly → salary/240; for hourly → salary
+  const hourlyRate = salaryType === 'monthly' ? salaryAmount / 240 : salaryAmount;
+
+  let totalRegularMin  = 0;
+  let totalOvertimeMin = 0;
+  let totalOvertimePay = 0;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${month}-${String(d).padStart(2, '0')}`;
+    const shift   = getShiftForDate(emp, dateStr);
+    if (!shift || !shift.start || !shift.end) continue; // day off or no schedule
+
+    // Get records for this day
+    const dayRecs = allRecords.filter(r => r.userId === emp.userId && r.date === dateStr);
+    let actualIn = null, actualOut = null;
+    dayRecs.forEach(r => {
+      if (r.type === 'in'  && !actualIn)   actualIn  = r.time;
+      if (r.type === 'out')                actualOut = r.time; // keep last out
+    });
+    if (!actualIn || !actualOut) continue;
+
+    const schedStart = parseMinutes(shift.start);
+    const schedEnd   = parseMinutes(shift.end);
+    const aIn        = parseMinutes(actualIn);
+    const aOut       = parseMinutes(actualOut);
+    if (aIn === null || aOut === null || aOut <= aIn) continue;
+
+    // Regular scheduled minutes
+    totalRegularMin += (schedEnd - schedStart);
+
+    // Daily overtime: early arrival + late departure
+    const earlyArrival = aIn  < schedStart ? schedStart - aIn  : 0;
+    const lateStay     = aOut > schedEnd   ? aOut - schedEnd   : 0;
+    const dayOT        = earlyArrival + lateStay;
+    totalOvertimeMin  += dayOT;
+
+    // Daily overtime pay (in minutes → hours)
+    if (dayOT > 0 && hourlyRate > 0) {
+      const first2h  = Math.min(dayOT, 120) / 60;
+      const beyond2h = Math.max(0, dayOT - 120) / 60;
+      totalOvertimePay += first2h * hourlyRate * 1.34 + beyond2h * hourlyRate * 1.67;
+    }
   }
 
-  const monthRecords = allRecords.filter(r => r.date.startsWith(month));
+  let basePay = 0;
+  if (salaryType === 'monthly') {
+    basePay = salaryAmount; // fixed monthly
+  } else if (salaryType === 'hourly') {
+    basePay = (totalRegularMin / 60) * salaryAmount;
+  }
 
-  // Group by employee and date
-  const exportData = {};
-  allEmployees.forEach(emp => {
-    exportData[emp.userId] = {
-      name: emp.name,
-      days: {}
-    };
+  return {
+    totalRegularHours:  (totalRegularMin  / 60).toFixed(1),
+    totalOvertimeHours: (totalOvertimeMin / 60).toFixed(1),
+    basePay:   Math.round(basePay),
+    overtimePay: Math.round(totalOvertimePay),
+    totalPay:  Math.round(basePay + totalOvertimePay),
+    hasSalary: !!salaryType && salaryAmount > 0,
+  };
+}
+
+// ── Export (horizontal calendar format) ──────────────────────────────────────
+function exportMonthData() {
+  const month = document.getElementById('exportMonth').value;
+  if (!month) { showToast('請選擇月份', 'error'); return; }
+
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();
+
+  // Approved leaves this month
+  const monthLeaves = allLeavesData.filter(l =>
+    l.status === 'approved' && l.startDate.startsWith(month)
+  );
+
+  // Build per-employee per-day punch map (first in / last out)
+  const punchMap = {}; // punchMap[userId][dateStr] = { in, out }
+  allRecords.filter(r => r.date.startsWith(month)).forEach(r => {
+    if (!punchMap[r.userId]) punchMap[r.userId] = {};
+    if (!punchMap[r.userId][r.date]) punchMap[r.userId][r.date] = { in: null, out: null };
+    if (r.type === 'in'  && !punchMap[r.userId][r.date].in)  punchMap[r.userId][r.date].in  = r.time;
+    if (r.type === 'out')                                      punchMap[r.userId][r.date].out = r.time;
   });
 
-  monthRecords.forEach(record => {
-    if (!exportData[record.userId]) return;
+  // Day-of-week header row (一二三四五六日)
+  const DOW_NAMES = ['日','一','二','三','四','五','六'];
 
-    if (!exportData[record.userId].days[record.date]) {
-      exportData[record.userId].days[record.date] = { in: null, out: null };
-    }
+  // Build CSV rows
+  // Row 1: header   "員工,薪資類型,1,2,...,31,總工時,加班時數,基本薪資,加班費,合計薪資"
+  const dateHeaders = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const fixedTailHeaders = ['總工時(h)','加班時數(h)','基本薪資','加班費','合計薪資'];
 
-    if (record.type === 'in') {
-      exportData[record.userId].days[record.date].in = record.time;
-    } else {
-      exportData[record.userId].days[record.date].out = record.time;
-    }
-  });
+  const csvRows = [];
 
-  // Generate CSV
-  let csv = '員工,日期,上班時間,下班時間,工時\n';
+  // Row 1: date numbers
+  csvRows.push(['員工','薪資類型', ...dateHeaders, ...fixedTailHeaders]);
 
-  Object.values(exportData).forEach(emp => {
-    Object.entries(emp.days).forEach(([date, times]) => {
-      let hours = '';
-      if (times.in && times.out) {
-        const toMin = t => { const p = t.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
-        const diff = toMin(times.out) - toMin(times.in); // diff in minutes
-        hours = diff > 0 ? (diff / 60).toFixed(1) : '';
+  // Row 2: day-of-week
+  const dowRow = ['', ''];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(`${month}-${String(d).padStart(2,'0')}T12:00:00`).getDay();
+    dowRow.push(DOW_NAMES[dow]);
+  }
+  dowRow.push('','','','','');
+  csvRows.push(dowRow);
+
+  // One row per active employee
+  allEmployees.filter(e => e.status === 'active').forEach(emp => {
+    const empPunch  = punchMap[emp.userId] || {};
+    const salaryLbl = emp.salaryType === 'monthly' ? '月薪'
+                    : emp.salaryType === 'hourly'  ? '時薪' : '-';
+    const row = [emp.name, salaryLbl];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${month}-${String(d).padStart(2,'0')}`;
+      const punch   = empPunch[dateStr];
+      const shift   = getShiftForDate(emp, dateStr);
+      const onLeave = monthLeaves.some(l => l.userId === emp.userId && l.startDate <= dateStr && l.endDate >= dateStr);
+
+      if (onLeave) {
+        row.push('假');
+      } else if (!shift || (!shift.start && !shift.end && shift.hasSchedule === false)) {
+        // no schedule at all → show punch if any
+        row.push(punch?.in ? `${punch.in.slice(0,5)}/${(punch.out||'--').slice(0,5)}` : '');
+      } else if (shift === null) {
+        // scheduled day off
+        row.push(punch?.in ? `${punch.in.slice(0,5)}/${(punch.out||'--').slice(0,5)}` : '休');
+      } else if (!punch?.in) {
+        // scheduled but no punch
+        row.push('曠');
+      } else {
+        // Normal: "上班/下班" HH:MM format
+        const inStr  = punch.in  ? punch.in.slice(0,5)  : '--';
+        const outStr = punch.out ? punch.out.slice(0,5) : '--';
+        // Mark overtime days with * for easy spotting
+        const hasOT = shift.start && shift.end && punch.out &&
+          (parseMinutes(punch.in) < parseMinutes(shift.start) || parseMinutes(punch.out) > parseMinutes(shift.end));
+        row.push(`${inStr}/${outStr}${hasOT ? '*' : ''}`);
       }
+    }
 
-      csv += `${emp.name},${date},${times.in || ''},${times.out || ''},${hours}\n`;
-    });
+    // Salary summary columns
+    const sal = calcEmpMonthSalary(emp, month);
+    row.push(sal.totalRegularHours);
+    row.push(sal.totalOvertimeHours);
+    row.push(sal.hasSalary ? sal.basePay    : '-');
+    row.push(sal.hasSalary ? sal.overtimePay : '-');
+    row.push(sal.hasSalary ? sal.totalPay   : '-');
+
+    csvRows.push(row);
   });
 
-  // Show preview
+  // Serialize to CSV (wrap values with commas in quotes)
+  const escapeCsv = v => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = csvRows.map(row => row.map(escapeCsv).join(',')).join('\n');
+
+  // Preview
   document.getElementById('exportPreview').style.display = 'block';
   document.getElementById('exportContent').textContent = csv;
 
-  // Download CSV
+  // Download
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `出勤記錄_${month}.csv`;
+  link.download = `出勤報表_${month}.csv`;
   link.click();
 
-  showToast('CSV 檔案已下載', 'success');
+  showToast('CSV 已下載（* 表示有加班）', 'success');
 }
 
 // Copy to clipboard
@@ -702,6 +834,22 @@ function showToast(message, type = 'info') {
 // Days displayed Mon→Sun (JS day keys: 1,2,3,4,5,6,0)
 const SCHEDULE_DAYS = ['1','2','3','4','5','6','0'];
 
+function updateSalaryLabel() {
+  const type = document.getElementById('shiftSalaryType').value;
+  const label = document.getElementById('shiftSalaryAmountLabel');
+  const hint  = document.getElementById('shiftSalaryHint');
+  if (type === 'monthly') {
+    label.textContent = '月薪金額（元）';
+    hint.textContent  = '加班時薪 = 月薪 ÷ 240，前2小時×1.34，之後×1.67';
+  } else if (type === 'hourly') {
+    label.textContent = '時薪（元/小時）';
+    hint.textContent  = '加班：前2小時×1.34，之後×1.67';
+  } else {
+    label.textContent = '金額（元）';
+    hint.textContent  = '';
+  }
+}
+
 function openShiftEdit(userId, name) {
   const modal = document.getElementById('shiftEditModal');
   const emp = allEmployees.find(e => e.userId === userId);
@@ -727,13 +875,28 @@ function openShiftEdit(userId, name) {
     e2.disabled   = !working;
   });
 
+  // Load salary
+  const st = document.getElementById('shiftSalaryType');
+  const sa = document.getElementById('shiftSalaryAmount');
+  st.value = emp?.salaryType  || '';
+  sa.value = emp?.salaryAmount || '';
+  updateSalaryLabel();
+
   modal.classList.add('show');
 }
 
 function toggleDay(key) {
-  const working = document.getElementById(`day-active-${key}`).checked;
-  document.getElementById(`day-start-${key}`).disabled = !working;
-  document.getElementById(`day-end-${key}`).disabled   = !working;
+  const cb = document.getElementById(`day-active-${key}`);
+  const s  = document.getElementById(`day-start-${key}`);
+  const e2 = document.getElementById(`day-end-${key}`);
+  const working = cb.checked;
+  s.disabled  = !working;
+  e2.disabled = !working;
+  // Auto-fill default 09:00-18:00 when checking a day with no time set
+  if (working && !s.value && !e2.value) {
+    s.value  = '09:00';
+    e2.value = '18:00';
+  }
 }
 
 function closeShiftEdit() {
@@ -741,8 +904,10 @@ function closeShiftEdit() {
 }
 
 async function saveShift() {
-  const modal  = document.getElementById('shiftEditModal');
-  const userId = modal.dataset.userId;
+  const modal      = document.getElementById('shiftEditModal');
+  const userId     = modal.dataset.userId;
+  const salaryType = document.getElementById('shiftSalaryType').value;
+  const salaryAmt  = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
 
   const schedule = {};
   SCHEDULE_DAYS.forEach(key => {
@@ -753,20 +918,34 @@ async function saveShift() {
   });
 
   try {
-    const res = await fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: userId, schedule: JSON.stringify(schedule) }),
-    });
-    const result = await res.json();
-    if (result.success) {
+    // Save schedule and salary in parallel
+    const [shiftRes, salaryRes] = await Promise.all([
+      fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId, schedule: JSON.stringify(schedule) }),
+      }),
+      fetch(`/api/admin?action=update-salary&userId=${userProfile.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId, salaryType, salaryAmount: salaryAmt }),
+      }),
+    ]);
+    const shiftResult  = await shiftRes.json();
+    const salaryResult = await salaryRes.json();
+
+    if (shiftResult.success && salaryResult.success) {
       const emp = allEmployees.find(e => e.userId === userId);
-      if (emp) emp.weeklySchedule = schedule;
+      if (emp) {
+        emp.weeklySchedule = schedule;
+        emp.salaryType     = salaryType;
+        emp.salaryAmount   = salaryAmt;
+      }
       closeShiftEdit();
-      showToast('週班表已儲存', 'success');
+      showToast('週班表與薪資設定已儲存', 'success');
       updateEmployeeList();
     } else {
-      showToast(result.error || '儲存失敗', 'error');
+      showToast((shiftResult.error || salaryResult.error) || '儲存失敗', 'error');
     }
   } catch (e) {
     showToast('儲存失敗，請稍後再試', 'error');

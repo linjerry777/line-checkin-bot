@@ -1360,7 +1360,27 @@
           <input type="time" id="day-end-0" class="sch-time">
         </div>
       </div>
-      <div class="shift-modal-hint">未勾選的日期視為休假，不會發送提醒；若全部空白則使用系統預設時間</div>
+      <div class="shift-modal-hint">未勾選的日期視為休假；勾選後自動帶入 09:00–18:00 預設時間</div>
+
+      <!-- 薪資設定 -->
+      <div style="border-top:1px solid #e2e8f0;margin:14px 0 12px;"></div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:10px;letter-spacing:.5px;">💰 薪資設定</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:12px;">薪資類型</label>
+          <select id="shiftSalaryType" class="form-input" style="padding:8px 10px;font-size:13px;" onchange="updateSalaryLabel()">
+            <option value="">未設定</option>
+            <option value="monthly">月薪</option>
+            <option value="hourly">時薪</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:12px;" id="shiftSalaryAmountLabel">金額（元）</label>
+          <input type="number" id="shiftSalaryAmount" class="form-input" style="padding:8px 10px;font-size:13px;" placeholder="0" min="0" step="1">
+        </div>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:6px;" id="shiftSalaryHint"></div>
+
       <div class="shift-modal-actions">
         <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
         <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
@@ -1370,6 +1390,6 @@
 
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.6"></script>
+  <script src="admin.js?v=3.7"></script>
 </body>
 </html>
