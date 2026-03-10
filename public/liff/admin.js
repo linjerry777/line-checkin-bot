@@ -802,11 +802,11 @@ function calcEmpMonthSalary(emp, month) {
   };
 }
 
-// ── Export: 日期為列（每日1列）、員工為欄（每人5欄橫向）────────────────────────
+// ── Export: 日期為列（每日1列）、員工為欄（每人6欄橫向）────────────────────────
 // Layout:
-//   Row 1 : 日期 | 星期 | 員工A（月薪） |      |        |    |        | 員工B…
-//   Row 2 :      |      | 上班          | 下班  | 加班明細| 扣薪 | 當日薪資 | 上班…
-//   Row 3~: 1(日)| 日   | 09:05         | 18:45 | 加班45… |    | NT$1820  | …
+//   Row 1 : 日期 | 星期 | 員工A（月薪） |      |        |    |        |    | 員工B…
+//   Row 2 :      |      | 上班          | 下班  | 加班明細| 扣薪 | 當日薪資 | 備註 | 上班…
+//   Row 3~: 1(日)| 日   | 09:05         | 18:45 | 加班45… |    | NT$1820  | [加班:冷冷] | …
 function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
@@ -822,18 +822,18 @@ function exportMonthData() {
 
   const csvRows = [];
 
-  // ── Header row 1: 日期 | 星期 | 員工A（佔5欄）| 員工B（佔5欄）| … ───────────
+  // ── Header row 1: 日期 | 星期 | 員工A（佔6欄）| 員工B（佔6欄）| … ───────────
   const nameRow = ['日期', '星期'];
   activeEmps.forEach(emp => {
     const salLbl = emp.salaryType === 'monthly' ? '（月薪）'
                  : emp.salaryType === 'hourly'  ? '（時薪）' : '';
-    nameRow.push(`${emp.name}${salLbl}`, '', '', '', '');
+    nameRow.push(`${emp.name}${salLbl}`, '', '', '', '', '');
   });
   csvRows.push(nameRow);
 
-  // ── Header row 2: | | 上班 | 下班 | 加班明細 | 扣薪 | 當日薪資 | … ──────────
+  // ── Header row 2: | | 上班 | 下班 | 加班明細 | 扣薪 | 當日薪資 | 備註 | … ──────────
   const subRow = ['', ''];
-  activeEmps.forEach(() => subRow.push('上班', '下班', '加班明細', '扣薪', '當日薪資'));
+  activeEmps.forEach(() => subRow.push('上班', '下班', '加班明細', '扣薪', '當日薪資', '備註'));
   csvRows.push(subRow);
 
   // ── Data rows: 1 row per date, 5 cells per employee ───────────────────
@@ -864,18 +864,22 @@ function exportMonthData() {
       else if (hasShift && !inStr) outCell = '曠';
       else                         outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
 
-      // 加班明細（含加班備註理由）
-      let otCell = (hasShift && !inStr) ? '應出勤未打卡' : (otDetail || '');
-      if (otReason) otCell += (otCell ? ' ' : '') + `[加班:${otReason}]`;
+      // 加班明細（純計算，不含原因文字）
+      const otCell = (hasShift && !inStr) ? '應出勤未打卡' : (otDetail || '');
 
-      // 扣薪（含遲到備註理由）
-      let dedCell = deductDetail || '';
-      if (lateReason) dedCell += (dedCell ? ' ' : '') + `[遲到:${lateReason}]`;
+      // 扣薪（純計算，不含原因文字）
+      const dedCell = deductDetail || '';
 
       // 當日薪資
       const payCell = dailyPayStr || '';
 
-      row.push(inCell, outCell, otCell, dedCell, payCell);
+      // 備註：員工填寫的加班原因 / 遲到原因
+      const noteArr = [];
+      if (otReason)   noteArr.push(`[加班:${otReason}]`);
+      if (lateReason) noteArr.push(`[遲到:${lateReason}]`);
+      const noteCell = noteArr.join(' ');
+
+      row.push(inCell, outCell, otCell, dedCell, payCell, noteCell);
     });
 
     csvRows.push(row);
@@ -895,7 +899,7 @@ function exportMonthData() {
 
   summaryDefs.forEach(([label, fn]) => {
     const row = [label, ''];
-    empSalaries.forEach(sal => row.push(fn(sal), '', '', '', ''));
+    empSalaries.forEach(sal => row.push(fn(sal), '', '', '', '', ''));
     csvRows.push(row);
   });
 
