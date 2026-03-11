@@ -647,6 +647,7 @@ function calcEmpMonthSalary(emp, month) {
   let totalOvertimeMin = 0;
   let totalOvertimePay = 0;
   let totalDeductions  = 0;
+  let totalWorkedMin   = 0; // hourly: sum of all actual worked minutes
 
   // Approved leaves this month for this employee (fix operator-precedence bug with parentheses)
   const empLeaves = allLeavesData.filter(l =>
@@ -705,8 +706,8 @@ function calcEmpMonthSalary(emp, month) {
         dayOTMin = earlyArr + lateStay;
         totalOvertimeMin += dayOTMin;
 
-        // OT pay + detail
-        if (dayOTMin > 0 && hourlyRate > 0) {
+        // OT pay + detail (monthly only; hourly uses pure worked×rate, no premium)
+        if (dayOTMin > 0 && hourlyRate > 0 && salaryType !== 'hourly') {
           const first2h  = Math.min(dayOTMin, 120) / 60;
           const beyond2h = Math.max(0, dayOTMin - 120) / 60;
           const pay1 = first2h  * hourlyRate * 1.34;
@@ -747,7 +748,7 @@ function calcEmpMonthSalary(emp, month) {
           totalOvertimeMin += dayOTMin;
           const label = isOffDay ? '休假日出勤' : '非排班出勤';
 
-          if (hourlyRate > 0) {
+          if (hourlyRate > 0 && salaryType !== 'hourly') {
             const first2h  = Math.min(dayOTMin, 120) / 60;
             const beyond2h = Math.max(0, dayOTMin - 120) / 60;
             const pay1 = first2h  * hourlyRate * 1.34;
@@ -772,9 +773,8 @@ function calcEmpMonthSalary(emp, month) {
         dailyPayStr = `NT$${net}`;
       } else if (salaryType === 'hourly' && salaryAmount > 0) {
         const workedMin = aOut !== null && aOut > aIn ? aOut - aIn : 0;
-        // 正常時薪 = 實際工作時間 - 加班時間（加班費已含完整1.34x/1.67x，不能重複計入底薪）
-        const regWorkedMin = Math.max(0, workedMin - dayOTMin);
-        dailyPayStr = `NT$${Math.round((regWorkedMin / 60) * salaryAmount) + dayOTPay}`;
+        totalWorkedMin += workedMin; // accumulate for monthly total
+        dailyPayStr = `NT$${Math.round((workedMin / 60) * salaryAmount)}`;
       }
     }
 
@@ -789,7 +789,7 @@ function calcEmpMonthSalary(emp, month) {
   if (salaryType === 'monthly') {
     basePay = salaryAmount;
   } else if (salaryType === 'hourly') {
-    basePay = (totalRegularMin / 60) * salaryAmount;
+    basePay = (totalWorkedMin / 60) * salaryAmount; // pure: total worked hours × hourly rate
   }
 
   return {
