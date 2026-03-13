@@ -170,12 +170,12 @@ async function processCommand(userId, profile, message) {
     let helpText = `🤖 LINE 打卡系統使用說明\n`;
     helpText += `━━━━━━━━━━━━━━━\n\n`;
     helpText += `📝 基本指令：\n`;
-    helpText += `• 上班 - 上班打卡\n`;
-    helpText += `• 下班 - 下班打卡\n`;
-    helpText += `• 查詢 - 查詢今日紀錄\n`;
-    helpText += `• 本月工時 - 查看本月統計\n`;
+    // helpText += `• 上班 - 上班打卡\n`;
+    // helpText += `• 下班 - 下班打卡\n`;
+    // helpText += `• 查詢 - 查詢今日紀錄\n`;
+    // helpText += `• 本月工時 - 查看本月統計\n`;
     helpText += `• 註冊 [姓名] - 首次使用請先註冊\n`;
-    helpText += `• 我的ID - 取得 LINE ID\n`;
+    // helpText += `• 我的ID - 取得 LINE ID\n`;
     return helpText;
   }
 
