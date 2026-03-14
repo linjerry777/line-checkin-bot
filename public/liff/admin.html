@@ -1260,6 +1260,19 @@
       </label>
     </div>
 
+    <div class="card">
+      <div class="card-title"><span><i class="fas fa-calendar-times"></i> 國定假日設定</span></div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">設定的日期不打卡不算曠職，出勤報表顯示國定假日名稱，月薪員工仍給全日薪。</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <input type="date" id="newHolidayDate" class="form-input" style="flex:1;min-width:130px;">
+        <input type="text" id="newHolidayName" class="form-input" placeholder="假日名稱（例：元旦）" style="flex:2;min-width:140px;">
+        <button onclick="addHoliday()" class="btn btn-primary" style="white-space:nowrap;">
+          <i class="fas fa-plus"></i> 新增
+        </button>
+      </div>
+      <div id="holidayList"></div>
+    </div>
+
     <button id="saveSettingsBtn" class="btn btn-primary btn-full" onclick="saveSettings()">
       <i class="fas fa-save"></i>
       儲存所有設定
@@ -1390,6 +1403,6 @@
 
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.95"></script>
+  <script src="admin.js?v=3.96"></script>
 </body>
 </html>

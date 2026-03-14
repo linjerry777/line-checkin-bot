@@ -4,6 +4,62 @@ let userProfile = null;
 let allEmployees = [];
 let allRecords   = [];
 let allLeavesData = [];  // all leave records (loaded in loadAllData)
+let allHolidays   = new Map(); // date string → name, e.g. "2026-01-01" → "元旦"
+
+// Parse holidays JSON from settings into allHolidays Map
+function parseHolidays(raw) {
+  try {
+    const arr = JSON.parse(raw || '[]');
+    allHolidays = new Map(arr.map(h => [h.date, h.name || '']));
+  } catch (_) {
+    allHolidays = new Map();
+  }
+}
+
+// Serialize allHolidays Map back to JSON for saving
+function serializeHolidays() {
+  return JSON.stringify(
+    [...allHolidays.entries()]
+      .map(([date, name]) => ({ date, name }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+  );
+}
+
+// Render holiday list in settings tab
+function renderHolidayList() {
+  const container = document.getElementById('holidayList');
+  if (!container) return;
+  if (allHolidays.size === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">尚未設定任何國定假日</div>';
+    return;
+  }
+  const sorted = [...allHolidays.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  container.innerHTML = sorted.map(([date, name]) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);">
+      <span style="font-size:14px;">🎌 <strong>${date}</strong>${name ? ' ' + name : ''}</span>
+      <button onclick="removeHoliday('${date}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:0 4px;" title="刪除">×</button>
+    </div>
+  `).join('');
+}
+
+function addHoliday() {
+  const dateEl = document.getElementById('newHolidayDate');
+  const nameEl = document.getElementById('newHolidayName');
+  const date = dateEl?.value?.trim();
+  const name = nameEl?.value?.trim() || '';
+  if (!date) { showToast('請選擇日期', 'error'); return; }
+  if (allHolidays.has(date)) { showToast('該日期已在假日清單中', 'error'); return; }
+  allHolidays.set(date, name);
+  if (dateEl) dateEl.value = '';
+  if (nameEl) nameEl.value = '';
+  renderHolidayList();
+  showToast(`已新增 ${date}${name ? ' ' + name : ''}`, 'success');
+}
+
+function removeHoliday(date) {
+  allHolidays.delete(date);
+  renderHolidayList();
+}
 
 // Normalize Google Sheets time values to HH:MM for <input type="time">
 // Handles: decimal (0.375), "下午4:00", "4:00 PM", "09:00", "09:00:00"
@@ -184,6 +240,17 @@ async function loadAllData() {
   } catch (e) {
     console.error('[loadAllData] leaves 失敗:', e);
     allLeavesData = [];
+  }
+
+  // Load holidays from settings
+  try {
+    const hlRes = await fetch(`/api/admin?action=get-settings&userId=${userProfile.userId}`);
+    if (hlRes.ok) {
+      const hlData = await hlRes.json();
+      if (hlData.success) parseHolidays(hlData.settings.holidays || '[]');
+    }
+  } catch (e) {
+    console.error('[loadAllData] holidays 失敗:', e);
   }
 
   // Update UI (these are sync, won't throw)
@@ -433,6 +500,10 @@ function loadAttendance() {
   );
   const leaveUserIds = new Set(dayLeaves.map(l => l.userId));
 
+  // Check if selected date is a national holiday
+  const isHolidayDate = allHolidays.has(selectedDate);
+  const holidayLabel  = isHolidayDate ? (allHolidays.get(selectedDate) || '國定假日') : '';
+
   // Build rows: all active employees
   const rows = [];
 
@@ -441,9 +512,10 @@ function loadAttendance() {
     const rec   = recordMap[emp.userId];
 
     // Determine row type
-    let rowType = 'normal'; // normal / absent / leave / offday
+    let rowType = 'normal'; // normal / absent / leave / offday / holiday
     if (!rec) {
       if (leaveUserIds.has(emp.userId)) rowType = 'leave';
+      else if (isHolidayDate) rowType = 'holiday'; // national holiday overrides absent
       else if (shift === null) rowType = 'offday';
       else if (shift && shift.start) rowType = 'absent'; // scheduled but no punch
       else rowType = 'normal'; // no schedule set, just skip
@@ -453,8 +525,8 @@ function loadAttendance() {
 
     // Skip: offday AND no punch record
     if (rowType === 'offday') return;
-    // Skip: no schedule AND no punch
-    if (!rec && !shift && !leaveUserIds.has(emp.userId)) return;
+    // Skip: no schedule AND no punch (but keep holiday rows even with no schedule)
+    if (!rec && !shift && !leaveUserIds.has(emp.userId) && rowType !== 'holiday') return;
 
     // Actual hours worked
     let workedMin = null;
@@ -534,6 +606,12 @@ function loadAttendance() {
             return `<tr style="background:#fff1f0;">
               <td>${emp.name}</td>
               <td colspan="6" style="color:#e53935;font-weight:600;">🚫 曠職（應出勤未打卡）</td>
+            </tr>`;
+          }
+          if (rowType === 'holiday') {
+            return `<tr style="background:#fef9c3;">
+              <td>${emp.name}</td>
+              <td colspan="6" style="color:#d97706;font-weight:600;">🎌 ${holidayLabel}</td>
             </tr>`;
           }
           if (rowType === 'leave') {
@@ -676,16 +754,33 @@ function calcEmpMonthSalary(emp, month) {
     let otDetail = '', deductDetail = '', dailyPayStr = '';
     let dayOTMin = 0, dayOTPay = 0, dayDeduction = 0;
 
+    const isHoliday   = allHolidays.has(dateStr);
+    const holidayName = isHoliday ? (allHolidays.get(dateStr) || '國定假日') : '';
+
     if (onLeave && !inStr) {
       // ── Approved full-day leave, no attendance ────────────────────────
       // 特休（annual）：給全薪不扣；其餘假別（病假/事假/其他）：扣全日薪
       const isPaidLeave = leave?.leaveType === 'annual';
-      if (!isPaidLeave && salaryType === 'monthly' && salaryAmount > 0) {
-        dayDeduction = Math.round(dailyRate);
-        totalDeductions += dayDeduction;
-        deductDetail = `${leave.leaveTypeText || '請假'}全天 扣-NT$${dayDeduction}`;
+      if (salaryType === 'monthly' && salaryAmount > 0) {
+        if (isPaidLeave) {
+          dailyPayStr = `NT$${Math.round(dailyRate)}`; // 特休：給全日薪
+        } else {
+          dayDeduction = Math.round(dailyRate);
+          totalDeductions += dayDeduction;
+          deductDetail = `${leave.leaveTypeText || '請假'}全天 扣-NT$${dayDeduction}`;
+          dailyPayStr = `NT$0`;
+        }
+      } else {
+        dailyPayStr = leave.leaveTypeText || '請假'; // 時薪：只顯示假別
       }
-      dailyPayStr = leave.leaveTypeText || '請假';
+
+    } else if (isHoliday && !inStr) {
+      // ── National holiday, no punch ────────────────────────────────────
+      if (salaryType === 'monthly' && salaryAmount > 0) {
+        dailyPayStr = `NT$${Math.round(dailyRate)}`; // 月薪：給全日薪
+      } else {
+        dailyPayStr = holidayName; // 時薪：只顯示名稱
+      }
 
     } else if (inStr) {
       const aIn  = parseMinutes(inStr);
@@ -781,6 +876,7 @@ function calcEmpMonthSalary(emp, month) {
     perDayData.push({
       dateStr, inStr, outStr, lateReason, otReason,
       shift, leave, onLeave,
+      isHoliday, holidayName,
       otDetail, deductDetail, dailyPayStr, dayOTMin,
     });
   }
@@ -847,27 +943,29 @@ function exportMonthData() {
     activeEmps.forEach((emp, ei) => {
       const sal = empSalaries[ei];
       const dd  = sal.perDayData[d - 1];
-      const { inStr, outStr, shift, leave, onLeave, otDetail, deductDetail, dailyPayStr,
-              lateReason, otReason } = dd;
+      const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName,
+              otDetail, deductDetail, dailyPayStr, lateReason, otReason } = dd;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
 
       // 上班
       let inCell;
-      if (onLeave && !inStr)       inCell = leave?.leaveTypeText || '請假';
-      else if (isOffDay && !inStr) inCell = '休';
-      else if (hasShift && !inStr) inCell = '曠';
-      else                         inCell = inStr ? inStr.slice(0, 5) : '';
+      if (onLeave && !inStr)              inCell = leave?.leaveTypeText || '請假';
+      else if (isHoliday && !inStr)       inCell = holidayName || '國定假日';
+      else if (isOffDay && !inStr)        inCell = '休';
+      else if (hasShift && !inStr)        inCell = '曠';
+      else                                inCell = inStr ? inStr.slice(0, 5) : '';
 
       // 下班
       let outCell;
-      if (onLeave && !inStr)       outCell = '';
-      else if (isOffDay && !inStr) outCell = '';
-      else if (hasShift && !inStr) outCell = '曠';
-      else                         outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
+      if (onLeave && !inStr)              outCell = '';
+      else if (isHoliday && !inStr)       outCell = '';
+      else if (isOffDay && !inStr)        outCell = '';
+      else if (hasShift && !inStr)        outCell = '曠';
+      else                                outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
 
-      // 加班明細（純計算，不含原因文字）
-      const otCell = (hasShift && !inStr) ? '應出勤未打卡' : (otDetail || '');
+      // 加班明細（純計算，不含原因文字；國定假日不顯示應出勤未打卡）
+      const otCell = (hasShift && !inStr && !isHoliday) ? '應出勤未打卡' : (otDetail || '');
 
       // 扣薪（純計算，不含原因文字）
       const dedCell = deductDetail || '';
@@ -991,7 +1089,7 @@ function updateSalaryLabel() {
     hint.textContent  = '加班時薪 = 月薪 ÷ 240，前2小時×1.34，之後×1.67';
   } else if (type === 'hourly') {
     label.textContent = '時薪（元/小時）';
-    hint.textContent  = '加班：前2小時×1.34，之後×1.67';
+    // hint.textContent  = '加班：前2小時×1.34，之後×1.67';
   } else {
     label.textContent = '金額（元）';
     hint.textContent  = '';
@@ -1179,6 +1277,9 @@ document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
     document.getElementById('storeLongitude2').value = settings.storeLongitude2 || '';
     document.getElementById('storeRadius2').value = settings.storeRadius2 || '100';
     document.getElementById('enableLocation2').checked = settings.enableLocation2 === 'true';
+    // Holidays
+    parseHolidays(settings.holidays || '[]');
+    renderHolidayList();
 
   } catch (error) {
     console.error('載入設定錯誤:', error);
@@ -1215,6 +1316,7 @@ lateThreshold: document.getElementById('lateThreshold').value,
       storeLongitude2: document.getElementById('storeLongitude2').value,
       storeRadius2: document.getElementById('storeRadius2').value,
       enableLocation2: document.getElementById('enableLocation2').checked ? 'true' : 'false',
+      holidays: serializeHolidays(),
     };
 
     // 發送更新請求
