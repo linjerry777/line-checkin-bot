@@ -944,7 +944,7 @@ function exportMonthData() {
       const sal = empSalaries[ei];
       const dd  = sal.perDayData[d - 1];
       const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName,
-              otDetail, deductDetail, dailyPayStr, lateReason, otReason } = dd;
+              otDetail, deductDetail, dailyPayStr, dayOTMin, lateReason, otReason } = dd;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
 
@@ -966,8 +966,9 @@ function exportMonthData() {
       else if (hasShift && !inStr && outStr)    outCell = outStr.slice(0, 5); // 有下班卡
       else                                      outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
 
-      // 加班明細（完全無打卡才顯示應出勤未打卡；國定假日不顯示）
-      const otCell = (hasShift && !inStr && !outStr && !isHoliday) ? '應出勤未打卡' : (otDetail || '');
+      // 加班明細（只顯示加班分鐘數；完全無打卡才顯示應出勤未打卡）
+      const otCell = (hasShift && !inStr && !outStr && !isHoliday) ? '應出勤未打卡'
+                   : (dayOTMin > 0 ? `加班${dayOTMin}分` : '');
 
       // 扣薪（純計算，不含原因文字）
       const dedCell = deductDetail || '';
