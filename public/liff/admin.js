@@ -950,22 +950,24 @@ function exportMonthData() {
 
       // 上班
       let inCell;
-      if (onLeave && !inStr)              inCell = leave?.leaveTypeText || '請假';
-      else if (isHoliday && !inStr)       inCell = holidayName || '國定假日';
-      else if (isOffDay && !inStr)        inCell = '休';
-      else if (hasShift && !inStr)        inCell = '曠';
-      else                                inCell = inStr ? inStr.slice(0, 5) : '';
+      if (onLeave && !inStr)                    inCell = leave?.leaveTypeText || '請假';
+      else if (isHoliday && !inStr)             inCell = holidayName || '國定假日';
+      else if (isOffDay && !inStr)              inCell = '休';
+      else if (hasShift && !inStr && !outStr)   inCell = '曠';          // 完全沒打卡
+      else if (hasShift && !inStr && outStr)    inCell = '--';           // 有下班卡但忘記上班卡
+      else                                      inCell = inStr ? inStr.slice(0, 5) : '';
 
       // 下班
       let outCell;
-      if (onLeave && !inStr)              outCell = '';
-      else if (isHoliday && !inStr)       outCell = '';
-      else if (isOffDay && !inStr)        outCell = '';
-      else if (hasShift && !inStr)        outCell = '曠';
-      else                                outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
+      if (onLeave && !inStr)                    outCell = '';
+      else if (isHoliday && !inStr)             outCell = '';
+      else if (isOffDay && !inStr)              outCell = '';
+      else if (hasShift && !inStr && !outStr)   outCell = '曠';          // 完全沒打卡
+      else if (hasShift && !inStr && outStr)    outCell = outStr.slice(0, 5); // 有下班卡
+      else                                      outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
 
-      // 加班明細（純計算，不含原因文字；國定假日不顯示應出勤未打卡）
-      const otCell = (hasShift && !inStr && !isHoliday) ? '應出勤未打卡' : (otDetail || '');
+      // 加班明細（完全無打卡才顯示應出勤未打卡；國定假日不顯示）
+      const otCell = (hasShift && !inStr && !outStr && !isHoliday) ? '應出勤未打卡' : (otDetail || '');
 
       // 扣薪（純計算，不含原因文字）
       const dedCell = deductDetail || '';
