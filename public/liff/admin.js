@@ -1026,6 +1026,102 @@ function exportMonthData() {
   showToast('CSV 已下載', 'success');
 }
 
+// Send monthly payslip to each employee via LINE
+async function sendPayslips() {
+  const month = document.getElementById('exportMonth').value;
+  if (!month) { showToast('請選擇月份', 'error'); return; }
+
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth  = new Date(year, mon, 0).getDate();
+  const DOW_NAMES    = ['日','一','二','三','四','五','六'];
+  const monthLabel   = `${year}年${mon}月`;
+
+  const activeEmps  = allEmployees.filter(e => e.status === 'active');
+  const empSalaries = activeEmps.map(emp => calcEmpMonthSalary(emp, month));
+
+  const payslips = [];
+
+  activeEmps.forEach((emp, ei) => {
+    const sal = empSalaries[ei];
+    if (!sal.hasSalary) return; // skip employees without salary settings
+
+    const lines = [];
+    lines.push(`📋 ${monthLabel} 薪資單`);
+    lines.push(`👤 ${emp.name}（${emp.salaryType === 'monthly' ? '月薪' : '時薪'}）`);
+    lines.push('─────────────────');
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dd  = sal.perDayData[d - 1];
+      const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName, dailyPayStr } = dd;
+      const dow      = new Date(dd.dateStr + 'T12:00:00').getDay();
+      const hasShift = !!(shift && shift.start && shift.end);
+      const isOffDay = shift === null;
+      const dayLabel = `${String(d).padStart(2, '0')}(${DOW_NAMES[dow]})`;
+
+      if (onLeave && !inStr) {
+        const pay = dailyPayStr ? ` ${dailyPayStr}` : '';
+        lines.push(`${dayLabel} ${leave?.leaveTypeText || '請假'}${pay}`);
+      } else if (isHoliday && !inStr) {
+        const pay = dailyPayStr ? ` ${dailyPayStr}` : '';
+        lines.push(`${dayLabel} 🎌${holidayName}${pay}`);
+      } else if (isOffDay && !inStr) {
+        // 休假日無出勤 → 略過
+      } else if (hasShift && !inStr && !outStr) {
+        lines.push(`${dayLabel} 🚫曠職`);
+      } else if (inStr || outStr) {
+        const inDisplay  = inStr  ? inStr.slice(0, 5)  : '--';
+        const outDisplay = outStr ? outStr.slice(0, 5) : '--';
+        const pay = dailyPayStr ? ` ${dailyPayStr}` : '';
+        lines.push(`${dayLabel} ${inDisplay}→${outDisplay}${pay}`);
+      }
+    }
+
+    lines.push('─────────────────');
+    lines.push(`出勤：${sal.totalRegularHours}h　加班：${sal.totalOvertimeHours}h`);
+    if (sal.deductions > 0) lines.push(`扣薪合計：-NT$${sal.deductions}`);
+    lines.push(`💰 本月薪資：NT$${sal.totalPay.toLocaleString()}`);
+
+    payslips.push({ userId: emp.userId, name: emp.name, message: lines.join('\n') });
+  });
+
+  if (payslips.length === 0) {
+    showToast('沒有設定薪資的員工', 'error');
+    return;
+  }
+
+  const btn      = document.getElementById('sendPayslipBtn');
+  const resultEl = document.getElementById('payslipSendResult');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 發送中…'; }
+  if (resultEl) resultEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/admin?action=send-payslip&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month, payslips }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`已發送 ${data.sent} 位員工薪資單`, 'success');
+      if (resultEl) {
+        resultEl.textContent = data.failed?.length > 0
+          ? `✅ 成功 ${data.sent} 位｜❌ 失敗：${data.failed.join('、')}`
+          : `✅ 已成功發送給 ${data.sent} 位員工`;
+        resultEl.style.display = 'block';
+      }
+    } else {
+      showToast(data.error || '發送失敗', 'error');
+    }
+  } catch (e) {
+    showToast('發送失敗', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> 發送薪資單給員工';
+    }
+  }
+}
+
 // Copy to clipboard
 function copyToClipboard() {
   const content = document.getElementById('exportContent').textContent;

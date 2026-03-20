@@ -4,6 +4,7 @@ const { getSheetData } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
 const { getTodayAnomalies, getAnomalyStats } = require('../services/alertService');
+const { pushMessage } = require('../utils/lineMessaging');
 const {
   getAllLeaves,
   getLeavesByUserId,
@@ -151,6 +152,31 @@ module.exports = async (req, res) => {
         }
         await updateSettings(newSettings);
         return res.status(200).json({ success: true, message: '設定已更新' });
+      }
+
+      case 'send-payslip': {
+        if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
+        const { payslips } = req.body;
+        if (!Array.isArray(payslips) || payslips.length === 0) {
+          return res.status(400).json({ error: '缺少薪資資料' });
+        }
+        let sent = 0;
+        const failed = [];
+        for (const { userId, name, message } of payslips) {
+          try {
+            await pushMessage(userId, { type: 'text', text: message });
+            sent++;
+          } catch (err) {
+            console.error(`薪資單發送失敗 ${name}:`, err.message);
+            failed.push(name);
+          }
+        }
+        return res.status(200).json({
+          success: true,
+          sent,
+          failed,
+          message: `已成功發送 ${sent} 位，失敗 ${failed.length} 位`,
+        });
       }
 
       case 'anomalies': {
