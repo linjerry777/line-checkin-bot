@@ -1288,7 +1288,7 @@
 
       <div class="form-group">
         <label class="form-label">選擇月份</label>
-        <input type="month" id="exportMonth" class="form-input">
+        <input type="month" id="exportMonth" class="form-input" onchange="loadBonuses(this.value).then(()=>renderBonusList())">
       </div>
 
       <button class="btn btn-primary btn-full" onclick="exportMonthData()">
@@ -1299,6 +1299,19 @@
       <button class="btn btn-secondary btn-full" onclick="copyToClipboard()">
         <i class="fas fa-copy"></i>
         複製到剪貼簿
+      </button>
+    </div>
+
+    <!-- 當月獎金設定 -->
+    <div class="card">
+      <div class="card-title"><span><i class="fas fa-gift"></i> 當月獎金設定</span></div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+        設定每位員工本月獎金，將包含在 CSV 報表及薪資單中。
+      </p>
+      <div id="bonusList" style="margin-bottom:12px;"></div>
+      <button class="btn btn-primary btn-full" onclick="saveBonuses(document.getElementById('exportMonth').value || new Date().toISOString().slice(0,7))">
+        <i class="fas fa-save"></i>
+        儲存獎金設定
       </button>
     </div>
 
@@ -1406,6 +1419,15 @@
       </div>
       <div style="font-size:11px;color:#94a3b8;margin-top:6px;" id="shiftSalaryHint"></div>
 
+      <!-- 勞健保設定 -->
+      <div style="margin-top:10px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:12px;">勞健保月扣（元）</label>
+          <input type="number" id="shiftInsurance" class="form-input" style="padding:8px 10px;font-size:13px;" placeholder="0" min="0" step="1">
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">每月從薪資中扣除的勞健保費用</div>
+      </div>
+
       <div class="shift-modal-actions">
         <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
         <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
@@ -1415,6 +1437,33 @@
 
   </div><!-- end #mainContent -->
 
-  <script src="admin.js?v=3.97"></script>
+  <!-- 補打卡 Modal -->
+  <div id="manualPunchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:24px;width:92%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:4px;"><i class="fas fa-edit"></i> 補打卡</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">員工：<span id="mpEmpName" style="font-weight:600;"></span></div>
+      <input type="hidden" id="mpUserId">
+      <input type="hidden" id="mpName">
+      <input type="hidden" id="mpDate">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:12px;">補上班時間</label>
+          <input type="time" id="mpInTime" class="form-input" style="padding:8px 10px;font-size:13px;">
+          <div style="font-size:11px;color:#94a3b8;margin-top:3px;">留空=不補上班卡</div>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:12px;">補下班時間</label>
+          <input type="time" id="mpOutTime" class="form-input" style="padding:8px 10px;font-size:13px;">
+          <div style="font-size:11px;color:#94a3b8;margin-top:3px;">留空=不補下班卡</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="shift-btn-cancel" style="flex:1;" onclick="closeManualPunch()">取消</button>
+        <button id="mpSubmitBtn" class="shift-btn-save" style="flex:1;" onclick="submitManualPunch()"><i class="fas fa-check"></i> 送出補卡</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js?v=3.98"></script>
 </body>
 </html>

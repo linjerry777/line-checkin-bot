@@ -4,7 +4,7 @@ const { getSheetData, appendToSheet, updateSheetData } = require('../config/goog
  * 員工管理服務 - 使用 Google Sheets 儲存
  * 工作表名稱：員工資料
  * 欄位：A=userId, B=name, C=lineDisplayName, D=registeredAt, E=status, F=role,
- *       G=weeklySchedule(JSON), H=salaryType(monthly/hourly), I=salaryAmount(數字)
+ *       G=weeklySchedule(JSON), H=salaryType(monthly/hourly), I=salaryAmount(數字), J=insurance(勞健保月扣)
  *
  * weeklySchedule JSON 格式：
  *   {"0":"","1":"09:00-18:00","2":"09:00-18:00","3":"09:00-18:00","4":"09:00-18:00","5":"09:00-18:00","6":""}
@@ -78,7 +78,7 @@ async function registerEmployee(userId, name, lineDisplayName) {
  */
 async function getEmployeeByUserId(userId) {
   try {
-    const employees = await getSheetData('員工資料!A:I');
+    const employees = await getSheetData('員工資料!A:J');
     if (!employees || employees.length <= 1) return null;
 
     for (let i = 1; i < employees.length; i++) {
@@ -94,6 +94,7 @@ async function getEmployeeByUserId(userId) {
           weeklySchedule:  parseSchedule(row[6]),
           salaryType:      row[7] || '',
           salaryAmount:    parseFloat(row[8]) || 0,
+          insurance:       parseFloat(row[9]) || 0,
         };
       }
     }
@@ -109,7 +110,7 @@ async function getEmployeeByUserId(userId) {
  */
 async function getAllEmployees() {
   try {
-    const employees = await getSheetData('員工資料!A:I');
+    const employees = await getSheetData('員工資料!A:J');
     if (!employees || employees.length <= 1) return [];
 
     return employees.slice(1).map(row => ({
@@ -134,7 +135,7 @@ async function getAllEmployees() {
  */
 async function updateEmployeeSchedule(userId, scheduleJSON) {
   try {
-    const employees = await getSheetData('員工資料!A:I');
+    const employees = await getSheetData('員工資料!A:J');
     if (!employees || employees.length <= 1) {
       return { success: false, error: '找不到員工' };
     }
@@ -152,11 +153,31 @@ async function updateEmployeeSchedule(userId, scheduleJSON) {
 }
 
 /**
+ * 更新員工勞健保月扣（J=insurance）
+ */
+async function updateEmployeeInsurance(userId, insurance) {
+  try {
+    const employees = await getSheetData('員工資料!A:J');
+    if (!employees || employees.length <= 1) return { success: false, error: '找不到員工' };
+    for (let i = 1; i < employees.length; i++) {
+      if (employees[i][0] === userId) {
+        await updateSheetData(`員工資料!J${i + 1}`, [String(insurance || 0)]);
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到員工' };
+  } catch (error) {
+    console.error('更新勞健保錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 更新員工薪資設定（H=salaryType, I=salaryAmount）
  */
 async function updateEmployeeSalary(userId, salaryType, salaryAmount) {
   try {
-    const employees = await getSheetData('員工資料!A:I');
+    const employees = await getSheetData('員工資料!A:J');
     if (!employees || employees.length <= 1) {
       return { success: false, error: '找不到員工' };
     }
@@ -254,6 +275,7 @@ module.exports = {
   getAllEmployees,
   updateEmployeeSchedule,
   updateEmployeeSalary,
+  updateEmployeeInsurance,
   getEmployeeTodayShift,
   updateEmployeeShift: updateEmployeeSchedule,
 };

@@ -1,6 +1,6 @@
 // Admin API - Unified endpoint for all admin + leave functions
-const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule, updateEmployeeSalary, getPendingEmployees, activateEmployee, adminAddEmployee } = require('../services/employeeService');
-const { getSheetData } = require('../config/googleSheets');
+const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule, updateEmployeeSalary, updateEmployeeInsurance, getPendingEmployees, activateEmployee, adminAddEmployee } = require('../services/employeeService');
+const { getSheetData, appendToSheet } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
 const { getTodayAnomalies, getAnomalyStats } = require('../services/alertService');
@@ -104,21 +104,59 @@ module.exports = async (req, res) => {
       }
 
       case 'records': {
-        const data = await getSheetData('打卡紀錄!A:H');
+        const data = await getSheetData('打卡紀錄!A:I');
         if (!data || data.length <= 1) {
           return res.status(200).json({ success: true, records: [] });
         }
         const records = data.slice(1).map(row => ({
-          userId: row[0],
-          employeeName: row[1],
-          type: row[2],
-          date: row[3],
-          time: row[4],
+          userId:        row[0],
+          employeeName:  row[1],
+          type:          row[2],
+          date:          row[3],
+          time:          row[4],
           fullTimestamp: row[5],
-          location: row[6] || null,
-          reason: row[7] || ''
+          location:      row[6] || null,
+          reason:        row[7] || '',
+          isManual:      row[8] === 'true',
         })).filter(r => r.userId && r.date);
         return res.status(200).json({ success: true, records, total: records.length });
+      }
+
+      case 'manual-punch': {
+        if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
+        const { targetUserId, employeeName, date, type, time } = req.body;
+        if (!targetUserId || !date || !type || !time) {
+          return res.status(400).json({ error: '缺少必要欄位' });
+        }
+        const row = [targetUserId, employeeName || '', type, date, time,
+                     new Date().toISOString(), '', '[補卡]', 'true'];
+        await appendToSheet(row, '打卡紀錄!A:I');
+        return res.status(200).json({ success: true });
+      }
+
+      case 'update-insurance': {
+        if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
+        const { targetUserId, insurance } = req.body;
+        if (!targetUserId) return res.status(400).json({ error: '缺少 userId' });
+        const result = await updateEmployeeInsurance(targetUserId, parseFloat(insurance) || 0);
+        return res.status(200).json(result);
+      }
+
+      case 'get-bonuses': {
+        const bonusMonth = req.query.month || new Date().toISOString().slice(0, 7);
+        const allSettings = await getAllSettings();
+        const raw = allSettings[`bonuses_${bonusMonth}`] || '[]';
+        let bonuses = [];
+        try { bonuses = JSON.parse(raw); } catch (_) {}
+        return res.status(200).json({ success: true, bonuses });
+      }
+
+      case 'set-bonuses': {
+        if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
+        const { month: bonusMonth2, bonuses: bonusList } = req.body;
+        if (!bonusMonth2) return res.status(400).json({ error: '缺少月份' });
+        await updateSettings({ [`bonuses_${bonusMonth2}`]: JSON.stringify(bonusList || []) });
+        return res.status(200).json({ success: true });
       }
 
       case 'late-early-stats': {

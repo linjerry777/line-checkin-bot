@@ -5,6 +5,7 @@ let allEmployees = [];
 let allRecords   = [];
 let allLeavesData = [];  // all leave records (loaded in loadAllData)
 let allHolidays   = new Map(); // date string → name, e.g. "2026-01-01" → "元旦"
+let allBonuses    = {};        // userId → bonus amount for current export/send month
 
 // Parse holidays JSON from settings into allHolidays Map
 function parseHolidays(raw) {
@@ -59,6 +60,47 @@ function addHoliday() {
 function removeHoliday(date) {
   allHolidays.delete(date);
   renderHolidayList();
+}
+
+// Load bonuses for a given month into allBonuses map
+async function loadBonuses(month) {
+  try {
+    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&userId=${userProfile.userId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    allBonuses = {};
+    (data.bonuses || []).forEach(b => { allBonuses[b.userId] = b.amount || 0; });
+  } catch (_) { allBonuses = {}; }
+}
+
+// Save current allBonuses to backend for a given month
+async function saveBonuses(month) {
+  const bonusList = allEmployees
+    .filter(e => e.status === 'active')
+    .map(e => ({ userId: e.userId, name: e.name, amount: allBonuses[e.userId] || 0 }))
+    .filter(b => b.amount > 0);
+  await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ month, bonuses: bonusList }),
+  });
+}
+
+// Render bonus input list in export tab
+function renderBonusList() {
+  const container = document.getElementById('bonusList');
+  if (!container) return;
+  const active = allEmployees.filter(e => e.status === 'active');
+  if (active.length === 0) { container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">尚無員工</div>'; return; }
+  container.innerHTML = active.map(emp => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-light);">
+      <span style="flex:1;font-size:14px;">${emp.name}</span>
+      <span style="font-size:13px;color:var(--text-muted);">NT$</span>
+      <input type="number" min="0" step="1" value="${allBonuses[emp.userId] || 0}"
+        style="width:100px;" class="form-input" id="bonus_${emp.userId}"
+        oninput="allBonuses['${emp.userId}']=parseInt(this.value)||0">
+    </div>
+  `).join('');
 }
 
 // Normalize Google Sheets time values to HH:MM for <input type="time">
@@ -587,6 +629,10 @@ function loadAttendance() {
     ? `<span style="color:#0891b2;font-size:12px;">${note}</span>`
     : '<span style="color:#94A3B8;font-size:12px;">-</span>';
 
+  const punchBtn = (emp) =>
+    `<button onclick="openManualPunch('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','${selectedDate}')"
+      style="font-size:11px;padding:2px 7px;border:1px solid var(--primary);background:none;color:var(--primary);border-radius:6px;cursor:pointer;white-space:nowrap;">✏️補打卡</button>`;
+
   container.innerHTML = `
     <table class="data-table">
       <thead>
@@ -604,7 +650,7 @@ function loadAttendance() {
         ${rows.map(({ emp, rec, rowType, workedMin, shiftNote, leave }) => {
           if (rowType === 'absent') {
             return `<tr style="background:#fff1f0;">
-              <td>${emp.name}</td>
+              <td>${emp.name} ${punchBtn(emp)}</td>
               <td colspan="6" style="color:#e53935;font-weight:600;">🚫 曠職（應出勤未打卡）</td>
             </tr>`;
           }
@@ -625,7 +671,7 @@ function loadAttendance() {
           const schedHint = shiftNote ? '' : (rec?.checkin && !rec?.checkout ? '<span style="color:#f59e0b;font-size:11px;">未下班打卡</span>' : '');
           return `
             <tr>
-              <td>${emp.name}</td>
+              <td>${emp.name} ${punchBtn(emp)}</td>
               <td class="time-cell">${rec?.checkin || '-'}</td>
               <td class="time-cell">${rec?.checkout || '-'}</td>
               <td>${hours}${schedHint}</td>
@@ -638,6 +684,65 @@ function loadAttendance() {
       </tbody>
     </table>
   `;
+}
+
+// ── Manual Punch (補打卡) ─────────────────────────────────────────────────────
+function openManualPunch(userId, name, date) {
+  document.getElementById('mpEmpName').textContent = `${name}　${date}`;
+  document.getElementById('mpUserId').value  = userId;
+  document.getElementById('mpName').value    = name;
+  document.getElementById('mpDate').value    = date;
+  document.getElementById('mpInTime').value  = '';
+  document.getElementById('mpOutTime').value = '';
+  document.getElementById('manualPunchModal').style.display = 'flex';
+}
+
+function closeManualPunch() {
+  document.getElementById('manualPunchModal').style.display = 'none';
+}
+
+async function submitManualPunch() {
+  const userId = document.getElementById('mpUserId').value;
+  const name   = document.getElementById('mpName').value;
+  const date   = document.getElementById('mpDate').value;
+  const inTime = document.getElementById('mpInTime').value;
+  const outTime = document.getElementById('mpOutTime').value;
+
+  if (!inTime && !outTime) { showToast('請至少填入一個時間', 'error'); return; }
+
+  const btn = document.getElementById('mpSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '儲存中…'; }
+
+  try {
+    const punches = [];
+    if (inTime)  punches.push({ type: 'in',  time: inTime });
+    if (outTime) punches.push({ type: 'out', time: outTime });
+
+    for (const p of punches) {
+      await fetch(`/api/admin?action=manual-punch&userId=${userProfile.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId, employeeName: name, date, type: p.type, time: p.time }),
+      });
+    }
+    showToast('補打卡已儲存', 'success');
+    closeManualPunch();
+    await loadAllData();
+    loadAttendance();
+  } catch (e) {
+    showToast('儲存失敗', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '儲存'; }
+  }
+}
+
+// Also update employee insurance from the salary settings UI
+async function saveEmployeeInsurance(userId, insurance) {
+  await fetch(`/api/admin?action=update-insurance&userId=${userProfile.userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetUserId: userId, insurance }),
+  });
 }
 
 // Calculate total hours
@@ -743,9 +848,10 @@ function calcEmpMonthSalary(emp, month) {
     // First punch-in of the day, last punch-out
     const dayRecs = allRecords.filter(r => r.userId === emp.userId && r.date === dateStr);
     let inStr = null, outStr = null, lateReason = '', otReason = '';
+    let inManual = false, outManual = false;
     dayRecs.forEach(r => {
-      if (r.type === 'in'  && !inStr) { inStr = r.time; lateReason = r.reason || ''; }
-      if (r.type === 'out')           { outStr = r.time; otReason   = r.reason || ''; }
+      if (r.type === 'in'  && !inStr) { inStr = r.time; lateReason = r.reason || ''; inManual  = !!r.isManual; }
+      if (r.type === 'out')           { outStr = r.time; otReason   = r.reason || ''; outManual = !!r.isManual; }
     });
 
     const leave   = empLeaves.find(l => l.startDate <= dateStr && l.endDate >= dateStr) || null;
@@ -801,39 +907,44 @@ function calcEmpMonthSalary(emp, month) {
         dayOTMin = earlyArr + lateStay;
         totalOvertimeMin += dayOTMin;
 
-        // OT pay + detail (monthly only; hourly uses pure worked×rate, no premium)
+        // OT pay + detail (monthly only, 30-min floor unit; hourly uses pure worked×rate)
         if (dayOTMin > 0 && hourlyRate > 0 && salaryType !== 'hourly') {
-          const first2h  = Math.min(dayOTMin, 120) / 60;
-          const beyond2h = Math.max(0, dayOTMin - 120) / 60;
-          const pay1 = first2h  * hourlyRate * 1.34;
-          const pay2 = beyond2h * hourlyRate * 1.67;
-          dayOTPay = Math.round(pay1 + pay2);
-          totalOvertimePay += dayOTPay;
+          const otPayMin = Math.floor(dayOTMin / 30) * 30; // 30分鐘為一單位，捨去不足30分
+          if (otPayMin > 0) {
+            const first2h  = Math.min(otPayMin, 120) / 60;
+            const beyond2h = Math.max(0, otPayMin - 120) / 60;
+            const pay1 = first2h  * hourlyRate * 1.34;
+            const pay2 = beyond2h * hourlyRate * 1.67;
+            dayOTPay = Math.round(pay1 + pay2);
+            totalOvertimePay += dayOTPay;
 
-          const otParts = [];
-          if (earlyArr > 0) otParts.push(`提前${earlyArr}分`);
-          if (lateStay > 0) otParts.push(`延後${lateStay}分`);
-          otDetail = `加班${dayOTMin}分`;
-          if (otParts.length) otDetail += `(${otParts.join('+')})`;
-          otDetail += '：';
-          if (dayOTMin <= 120) {
-            otDetail += `前${dayOTMin}分×1.34=NT$${Math.round(pay1)}`;
-          } else {
-            otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${dayOTMin - 120}分×1.67=NT$${Math.round(pay2)}`;
+            const otParts = [];
+            if (earlyArr > 0) otParts.push(`提前${earlyArr}分`);
+            if (lateStay > 0) otParts.push(`延後${lateStay}分`);
+            otDetail = `加班${otPayMin}分`;
+            if (otParts.length) otDetail += `(${otParts.join('+')}→計${otPayMin}分)`;
+            otDetail += '：';
+            if (otPayMin <= 120) {
+              otDetail += `前${otPayMin}分×1.34=NT$${Math.round(pay1)}`;
+            } else {
+              otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${otPayMin - 120}分×1.67=NT$${Math.round(pay2)}`;
+            }
+            otDetail += ` 合計NT$${dayOTPay}`;
           }
-          otDetail += ` 合計NT$${dayOTPay}`;
         }
 
-        // Deduction: lateness + early-leave (monthly only, half-hour units)
+        // Deduction: lateness + early-leave (monthly only; 15分鐘容忍, 超過後30分鐘為單位)
         if (salaryType === 'monthly' && salaryAmount > 0 && (lateArr > 0 || earlyLv > 0)) {
-          const lateUnits  = lateArr > 0  ? Math.ceil(lateArr  / 30) : 0;
-          const earlyUnits = earlyLv > 0  ? Math.ceil(earlyLv  / 30) : 0;
-          dayDeduction = Math.round(halfHourRate * (lateUnits + earlyUnits));
-          totalDeductions += dayDeduction;
-          const dParts = [];
-          if (lateArr > 0) dParts.push(`遲到${lateArr}分(${lateUnits}單位)`);
-          if (earlyLv > 0) dParts.push(`早退${earlyLv}分(${earlyUnits}單位)`);
-          deductDetail = dParts.join(' ') + ` 扣-NT$${dayDeduction}`;
+          const lateUnits  = lateArr  > 15 ? Math.ceil(lateArr  / 30) : 0;
+          const earlyUnits = earlyLv  > 15 ? Math.ceil(earlyLv  / 30) : 0;
+          if (lateUnits + earlyUnits > 0) {
+            dayDeduction = Math.round(halfHourRate * (lateUnits + earlyUnits));
+            totalDeductions += dayDeduction;
+            const dParts = [];
+            if (lateArr  > 15) dParts.push(`遲到${lateArr}分(${lateUnits}單位)`);
+            if (earlyLv  > 15) dParts.push(`早退${earlyLv}分(${earlyUnits}單位)`);
+            deductDetail = dParts.join(' ') + ` 扣-NT$${dayDeduction}`;
+          }
         }
 
       } else if (isOffDay || !shift || shift.hasSchedule === false) {
@@ -844,20 +955,23 @@ function calcEmpMonthSalary(emp, month) {
           const label = isOffDay ? '休假日出勤' : '非排班出勤';
 
           if (hourlyRate > 0 && salaryType !== 'hourly') {
-            const first2h  = Math.min(dayOTMin, 120) / 60;
-            const beyond2h = Math.max(0, dayOTMin - 120) / 60;
-            const pay1 = first2h  * hourlyRate * 1.34;
-            const pay2 = beyond2h * hourlyRate * 1.67;
-            dayOTPay = Math.round(pay1 + pay2);
-            totalOvertimePay += dayOTPay;
+            const otPayMin = Math.floor(dayOTMin / 30) * 30;
+            if (otPayMin > 0) {
+              const first2h  = Math.min(otPayMin, 120) / 60;
+              const beyond2h = Math.max(0, otPayMin - 120) / 60;
+              const pay1 = first2h  * hourlyRate * 1.34;
+              const pay2 = beyond2h * hourlyRate * 1.67;
+              dayOTPay = Math.round(pay1 + pay2);
+              totalOvertimePay += dayOTPay;
 
-            otDetail = `加班${dayOTMin}分(${label})：`;
-            if (dayOTMin <= 120) {
-              otDetail += `前${dayOTMin}分×1.34=NT$${Math.round(pay1)}`;
-            } else {
-              otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${dayOTMin - 120}分×1.67=NT$${Math.round(pay2)}`;
+              otDetail = `加班${otPayMin}分(${label})：`;
+              if (otPayMin <= 120) {
+                otDetail += `前${otPayMin}分×1.34=NT$${Math.round(pay1)}`;
+              } else {
+                otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${otPayMin - 120}分×1.67=NT$${Math.round(pay2)}`;
+              }
+              otDetail += ` 合計NT$${dayOTPay}`;
             }
-            otDetail += ` 合計NT$${dayOTPay}`;
           }
         }
       }
@@ -867,14 +981,16 @@ function calcEmpMonthSalary(emp, month) {
         const net = Math.round(dailyRate) + dayOTPay - dayDeduction;
         dailyPayStr = `NT$${net}`;
       } else if (salaryType === 'hourly' && salaryAmount > 0) {
-        const workedMin = aOut !== null && aOut > aIn ? aOut - aIn : 0;
-        totalWorkedMin += workedMin; // accumulate for monthly total
-        dailyPayStr = `NT$${Math.round((workedMin / 60) * salaryAmount)}`;
+        const workedMin   = aOut !== null && aOut > aIn ? aOut - aIn : 0;
+        const billableMin = Math.floor(workedMin / 30) * 30; // 30分鐘為一單位，捨去不足30分
+        totalWorkedMin += billableMin;
+        dailyPayStr = `NT$${Math.round((billableMin / 60) * salaryAmount)}`;
       }
     }
 
     perDayData.push({
       dateStr, inStr, outStr, lateReason, otReason,
+      inManual, outManual,
       shift, leave, onLeave,
       isHoliday, holidayName,
       otDetail, deductDetail, dailyPayStr, dayOTMin,
@@ -888,6 +1004,9 @@ function calcEmpMonthSalary(emp, month) {
     basePay = (totalWorkedMin / 60) * salaryAmount; // pure: total worked hours × hourly rate
   }
 
+  const insurance = Math.round(emp.insurance || 0);
+  const bonus     = Math.round(allBonuses[emp.userId] || 0);
+
   return {
     perDayData,
     totalRegularHours:  (totalRegularMin  / 60).toFixed(1),
@@ -895,7 +1014,9 @@ function calcEmpMonthSalary(emp, month) {
     basePay:     Math.round(basePay),
     overtimePay: Math.round(totalOvertimePay),
     deductions:  Math.round(totalDeductions),
-    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions),
+    insurance,
+    bonus,
+    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus),
     hasSalary:   !!salaryType && salaryAmount > 0,
   };
 }
@@ -905,9 +1026,10 @@ function calcEmpMonthSalary(emp, month) {
 //   Row 1 : 日期 | 星期 | 員工A（月薪） |      |        |    |        |    | 員工B…
 //   Row 2 :      |      | 上班          | 下班  | 加班明細| 扣薪 | 當日薪資 | 備註 | 上班…
 //   Row 3~: 1(日)| 日   | 09:05         | 18:45 | 加班45… |    | NT$1820  | [加班:冷冷] | …
-function exportMonthData() {
+async function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
+  await loadBonuses(month); // ensure bonuses are loaded for this month
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -944,27 +1066,28 @@ function exportMonthData() {
       const sal = empSalaries[ei];
       const dd  = sal.perDayData[d - 1];
       const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName,
+              inManual, outManual,
               otDetail, deductDetail, dailyPayStr, dayOTMin, lateReason, otReason } = dd;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
 
-      // 上班
+      // 上班（補打卡加 (補) 標記）
       let inCell;
       if (onLeave && !inStr)                    inCell = leave?.leaveTypeText || '請假';
       else if (isHoliday && !inStr)             inCell = holidayName || '國定假日';
       else if (isOffDay && !inStr)              inCell = '休';
-      else if (hasShift && !inStr && !outStr)   inCell = '曠';          // 完全沒打卡
-      else if (hasShift && !inStr && outStr)    inCell = '--';           // 有下班卡但忘記上班卡
-      else                                      inCell = inStr ? inStr.slice(0, 5) : '';
+      else if (hasShift && !inStr && !outStr)   inCell = '曠';
+      else if (hasShift && !inStr && outStr)    inCell = '--';
+      else                                      inCell = inStr ? (inStr.slice(0, 5) + (inManual ? '(補)' : '')) : '';
 
-      // 下班
+      // 下班（補打卡加 (補) 標記）
       let outCell;
       if (onLeave && !inStr)                    outCell = '';
       else if (isHoliday && !inStr)             outCell = '';
       else if (isOffDay && !inStr)              outCell = '';
-      else if (hasShift && !inStr && !outStr)   outCell = '曠';          // 完全沒打卡
-      else if (hasShift && !inStr && outStr)    outCell = outStr.slice(0, 5); // 有下班卡
-      else                                      outCell = inStr ? (outStr ? outStr.slice(0, 5) : '--') : '';
+      else if (hasShift && !inStr && !outStr)   outCell = '曠';
+      else if (hasShift && !inStr && outStr)    outCell = outStr.slice(0, 5) + (outManual ? '(補)' : '');
+      else                                      outCell = inStr ? (outStr ? outStr.slice(0, 5) + (outManual ? '(補)' : '') : '--') : '';
 
       // 加班明細（只顯示加班分鐘數；完全無打卡才顯示應出勤未打卡）
       const otCell = (hasShift && !inStr && !outStr && !isHoliday) ? '應出勤未打卡'
@@ -995,6 +1118,8 @@ function exportMonthData() {
     ['總工時(h)',   sal => sal.totalRegularHours],
     ['加班時數(h)', sal => sal.totalOvertimeHours],
     ['扣薪合計',   sal => sal.hasSalary ? `-NT$${sal.deductions}`  : '-'],
+    ['勞健保',     sal => sal.hasSalary && sal.insurance > 0 ? `-NT$${sal.insurance}` : '-'],
+    ['獎金',       sal => sal.hasSalary && sal.bonus     > 0 ? `+NT$${sal.bonus}`     : '-'],
     ['基本薪資',   sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
     ['加班費',     sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
     ['合計薪資',   sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
@@ -1030,6 +1155,7 @@ function exportMonthData() {
 async function sendPayslips() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
+  await loadBonuses(month); // ensure bonuses are loaded for this month
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth  = new Date(year, mon, 0).getDate();
@@ -1078,7 +1204,9 @@ async function sendPayslips() {
 
     lines.push('─────────────────');
     lines.push(`出勤：${sal.totalRegularHours}h　加班：${sal.totalOvertimeHours}h`);
-    if (sal.deductions > 0) lines.push(`扣薪合計：-NT$${sal.deductions}`);
+    if (sal.deductions  > 0) lines.push(`扣薪合計：-NT$${sal.deductions}`);
+    if (sal.insurance   > 0) lines.push(`勞健保：-NT$${sal.insurance}`);
+    if (sal.bonus       > 0) lines.push(`獎金：+NT$${sal.bonus}`);
     lines.push(`💰 本月薪資：NT$${sal.totalPay.toLocaleString()}`);
 
     payslips.push({ userId: emp.userId, name: emp.name, message: lines.join('\n') });
@@ -1157,6 +1285,9 @@ function switchTab(tabName, btnEl) {
     loadAlerts();
   } else if (tabName === 'leave') {
     loadAllLeaves();
+  } else if (tabName === 'export') {
+    const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
+    loadBonuses(month).then(() => renderBonusList());
   }
 }
 
@@ -1226,6 +1357,7 @@ function openShiftEdit(userId, name) {
   st.value = emp?.salaryType  || '';
   sa.value = emp?.salaryAmount || '';
   updateSalaryLabel();
+  document.getElementById('shiftInsurance').value = emp?.insurance || '';
 
   modal.classList.add('show');
 }
@@ -1251,8 +1383,9 @@ function closeShiftEdit() {
 async function saveShift() {
   const modal      = document.getElementById('shiftEditModal');
   const userId     = modal.dataset.userId;
-  const salaryType = document.getElementById('shiftSalaryType').value;
-  const salaryAmt  = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
+  const salaryType  = document.getElementById('shiftSalaryType').value;
+  const salaryAmt   = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
+  const insuranceAmt = parseFloat(document.getElementById('shiftInsurance').value) || 0;
 
   const schedule = {};
   SCHEDULE_DAYS.forEach(key => {
@@ -1263,8 +1396,8 @@ async function saveShift() {
   });
 
   try {
-    // Save schedule and salary in parallel
-    const [shiftRes, salaryRes] = await Promise.all([
+    // Save schedule, salary, and insurance in parallel
+    const [shiftRes, salaryRes, insuranceRes] = await Promise.all([
       fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1275,22 +1408,29 @@ async function saveShift() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUserId: userId, salaryType, salaryAmount: salaryAmt }),
       }),
+      fetch(`/api/admin?action=update-insurance&userId=${userProfile.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId, insurance: insuranceAmt }),
+      }),
     ]);
-    const shiftResult  = await shiftRes.json();
-    const salaryResult = await salaryRes.json();
+    const shiftResult    = await shiftRes.json();
+    const salaryResult   = await salaryRes.json();
+    const insuranceResult = await insuranceRes.json();
 
-    if (shiftResult.success && salaryResult.success) {
+    if (shiftResult.success && salaryResult.success && insuranceResult.success) {
       const emp = allEmployees.find(e => e.userId === userId);
       if (emp) {
         emp.weeklySchedule = schedule;
         emp.salaryType     = salaryType;
         emp.salaryAmount   = salaryAmt;
+        emp.insurance      = insuranceAmt;
       }
       closeShiftEdit();
       showToast('週班表與薪資設定已儲存', 'success');
       updateEmployeeList();
     } else {
-      showToast((shiftResult.error || salaryResult.error) || '儲存失敗', 'error');
+      showToast((shiftResult.error || salaryResult.error || insuranceResult.error) || '儲存失敗', 'error');
     }
   } catch (e) {
     showToast('儲存失敗，請稍後再試', 'error');
