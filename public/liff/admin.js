@@ -242,6 +242,8 @@ async function initAdminPanel() {
   if (attendanceDateEl) attendanceDateEl.value = todayLocal;
   const exportMonthEl = document.getElementById('exportMonth');
   if (exportMonthEl) exportMonthEl.value = todayLocal.slice(0, 7);
+  const gridMonthEl = document.getElementById('gridMonth');
+  if (gridMonthEl) gridMonthEl.value = todayLocal.slice(0, 7);
 
   await loadAllData();
 }
@@ -729,6 +731,7 @@ async function submitManualPunch() {
     closeManualPunch();
     await loadAllData();
     loadAttendance();
+    if (document.getElementById('gridTab')?.classList.contains('active')) loadMonthGrid();
   } catch (e) {
     showToast('儲存失敗', 'error');
   } finally {
@@ -845,14 +848,20 @@ function calcEmpMonthSalary(emp, month) {
     const dateStr = `${month}-${String(d).padStart(2, '0')}`;
     const shift   = getShiftForDate(emp, dateStr);
 
-    // First punch-in of the day, last punch-out
+    // Manual punch wins over auto; among auto: first-in / last-out
     const dayRecs = allRecords.filter(r => r.userId === emp.userId && r.date === dateStr);
     let inStr = null, outStr = null, lateReason = '', otReason = '';
     let inManual = false, outManual = false;
-    dayRecs.forEach(r => {
-      if (r.type === 'in'  && !inStr) { inStr = r.time; lateReason = r.reason || ''; inManual  = !!r.isManual; }
-      if (r.type === 'out')           { outStr = r.time; otReason   = r.reason || ''; outManual = !!r.isManual; }
-    });
+    { let autoIn = null, autoOut = null, manIn = null, manOut = null;
+      dayRecs.forEach(r => {
+        if (r.type === 'in')  { if (r.isManual) { manIn  = r; } else if (!autoIn)  { autoIn  = r; } }
+        if (r.type === 'out') { if (r.isManual) { manOut = r; } else                { autoOut = r; } }
+      });
+      const inRec = manIn || autoIn; const outRec = manOut || autoOut;
+      inStr = inRec?.time || null;  outStr = outRec?.time || null;
+      inManual = !!manIn; outManual = !!manOut;
+      lateReason = inRec?.reason || ''; otReason = outRec?.reason || '';
+    }
 
     const leave   = empLeaves.find(l => l.startDate <= dateStr && l.endDate >= dateStr) || null;
     const onLeave = !!leave;
@@ -1019,6 +1028,173 @@ function calcEmpMonthSalary(emp, month) {
     totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus),
     hasSalary:   !!salaryType && salaryAmount > 0,
   };
+}
+
+// ── Month Grid View (月覽表) ─────────────────────────────────────────────────
+
+function cellTimesHtml(inTime, outTime, inManual, outManual) {
+  const inHtml = inTime
+    ? `<span style="color:${inManual ? '#0891b2' : '#1e293b'};font-size:10px;font-weight:600;">${inTime.slice(0,5)}${inManual ? '<sup style="font-size:8px;">補</sup>' : ''}</span>`
+    : `<span style="color:#ef4444;font-size:10px;font-weight:600;">--</span>`;
+  const outHtml = outTime
+    ? `<span style="color:${outManual ? '#0891b2' : '#64748b'};font-size:10px;">${outTime.slice(0,5)}${outManual ? '<sup style="font-size:8px;">補</sup>' : ''}</span>`
+    : `<span style="color:#ef4444;font-size:10px;">--</span>`;
+  return `${inHtml}<br>${outHtml}`;
+}
+
+async function loadMonthGrid() {
+  const monthEl = document.getElementById('gridMonth');
+  const month = monthEl?.value;
+  if (!month) return;
+
+  const container = document.getElementById('gridContainer');
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
+
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();
+  const DOW = ['日','一','二','三','四','五','六'];
+
+  // Build dates array
+  const dates = Array.from({ length: daysInMonth }, (_, i) => {
+    return `${month}-${String(i + 1).padStart(2, '0')}`;
+  });
+
+  // Build records map: userId → date → { aIn, aOut, mIn, mOut }
+  const recMap = {};
+  allRecords.forEach(r => {
+    if (!r.date || !r.date.startsWith(month)) return;
+    if (!recMap[r.userId]) recMap[r.userId] = {};
+    if (!recMap[r.userId][r.date]) recMap[r.userId][r.date] = { aIn: null, aOut: null, mIn: null, mOut: null };
+    const d = recMap[r.userId][r.date];
+    if (r.type === 'in')  { if (r.isManual) { d.mIn  = r; } else if (!d.aIn)  { d.aIn  = r; } }
+    if (r.type === 'out') { if (r.isManual) { d.mOut = r; } else               { d.aOut = r; } }
+  });
+
+  // Build leaves map: userId → date → leave
+  const leaveMap = {};
+  allLeavesData.forEach(l => {
+    if (l.status !== 'approved') return;
+    const sd = l.startDate, ed = l.endDate || l.startDate;
+    dates.forEach(dt => {
+      if (dt >= sd && dt <= ed) {
+        if (!leaveMap[l.userId]) leaveMap[l.userId] = {};
+        leaveMap[l.userId][dt] = l;
+      }
+    });
+  });
+
+  const activeEmps = allEmployees.filter(e => e.status === 'active');
+  if (activeEmps.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);">尚無在職員工</div>';
+    return;
+  }
+
+  // ── Build table HTML ──
+  let html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;box-shadow:var(--shadow-sm);">';
+  html += '<table style="border-collapse:collapse;min-width:max-content;background:#fff;font-size:11px;">';
+
+  // Header
+  html += '<thead><tr>';
+  html += `<th style="position:sticky;left:0;z-index:3;background:var(--primary);color:#fff;padding:8px 10px;white-space:nowrap;min-width:76px;text-align:left;border-right:2px solid rgba(255,255,255,.3);">員工</th>`;
+  dates.forEach(dt => {
+    const dow = new Date(dt + 'T00:00:00').getDay();
+    const dayNum = parseInt(dt.slice(8));
+    const isWeekend = dow === 0 || dow === 6;
+    const isHol = allHolidays.has(dt);
+    const color = isHol ? '#fcd34d' : isWeekend ? '#fca5a5' : '#fff';
+    html += `<th style="background:var(--primary);color:${color};padding:5px 4px;text-align:center;min-width:52px;border-left:1px solid rgba(255,255,255,.15);">`
+          + `${dayNum}<br><span style="font-size:9px;opacity:.9;">${DOW[dow]}</span></th>`;
+  });
+  html += '</tr></thead>';
+
+  // Body
+  html += '<tbody>';
+  activeEmps.forEach((emp, ei) => {
+    const rowBg = ei % 2 === 0 ? '#fff' : '#f8fffe';
+    html += `<tr>`;
+    html += `<td style="position:sticky;left:0;z-index:1;background:${rowBg};border-right:2px solid var(--border);padding:4px 8px;white-space:nowrap;font-weight:600;font-size:12px;min-width:76px;">${emp.name}</td>`;
+
+    dates.forEach(dt => {
+      const schedule = emp.weeklySchedule || {};
+      const dow = new Date(dt + 'T00:00:00').getDay();
+      const shift = schedule[String(dow)];
+      const hasShift = !!(shift && shift !== '');
+      const isHol = allHolidays.has(dt);
+      const holName = allHolidays.get(dt) || '國定假日';
+      const leave = leaveMap[emp.userId]?.[dt];
+
+      const dayRec  = recMap[emp.userId]?.[dt];
+      const inRec   = dayRec ? (dayRec.mIn  || dayRec.aIn)  : null;
+      const outRec  = dayRec ? (dayRec.mOut || dayRec.aOut) : null;
+      const inTime  = inRec?.time  || null;
+      const outTime = outRec?.time || null;
+      const inManual  = !!(dayRec?.mIn);
+      const outManual = !!(dayRec?.mOut);
+
+      let bg = rowBg, cellContent = '';
+
+      if (isHol) {
+        bg = '#fef9c3';
+        const short = holName.length > 4 ? holName.slice(0, 4) + '…' : holName;
+        cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:10px;color:#d97706;text-align:center;">🎌<br>${short}</span></div>`;
+      } else if (leave && !inTime) {
+        bg = '#eff6ff';
+        cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:11px;color:#0891b2;font-weight:600;">🏖️<br><span style="font-size:9px;">${(leave.leaveTypeText||'假').slice(0,2)}</span></span></div>`;
+      } else if (!hasShift && !inTime) {
+        bg = '#f1f5f9';
+        cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:12px;color:#94a3b8;">休</span></div>`;
+      } else if (!inTime && !outTime) {
+        bg = '#fef2f2';
+        cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:13px;color:#ef4444;font-weight:700;">曠</span></div>`;
+      } else {
+        // Has punch data — check if late
+        let isLate = false;
+        if (inTime && shift) {
+          const [ss] = shift.split('-');
+          isLate = parseMinutes(inTime) > parseMinutes(ss) + 15;
+        }
+        if (!inTime || !outTime) bg = '#fff1f0';        // partial
+        else if (isLate)         bg = '#fff7ed';        // late
+        else                     bg = '#f0fdf4';        // normal
+        cellContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;min-height:40px;gap:1px;">${cellTimesHtml(inTime, outTime, inManual, outManual)}</div>`;
+      }
+
+      const safeIn   = (inTime  || '').replace(/'/g, "\\'");
+      const safeOut  = (outTime || '').replace(/'/g, "\\'");
+      const safeName = emp.name.replace(/'/g, "\\'");
+      html += `<td style="background:${bg};border:1px solid #e2e8f0;cursor:pointer;transition:filter .15s;" `
+            + `onclick="openGridEdit('${emp.userId}','${safeName}','${dt}','${safeIn}','${safeOut}')" `
+            + `onmouseenter="this.style.filter='brightness(.93)'" onmouseleave="this.style.filter=''">`
+            + cellContent + `</td>`;
+    });
+
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // ── Legend ──
+  html += `<div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 4px 0;font-size:11px;color:#64748b;">
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#f0fdf4;border:1px solid #d1fae5;border-radius:3px;display:inline-block;"></span>正常</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:3px;display:inline-block;"></span>遲到</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#fff1f0;border:1px solid #fecaca;border-radius:3px;display:inline-block;"></span>缺卡</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:3px;display:inline-block;"></span>曠職</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:3px;display:inline-block;"></span>休假</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#fef9c3;border:1px solid #fde68a;border-radius:3px;display:inline-block;"></span>國定假日</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:3px;display:inline-block;"></span>請假</span>
+    <span style="color:#0891b2;font-weight:600;">藍字=補卡</span>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+function openGridEdit(userId, name, date, inTime, outTime) {
+  document.getElementById('mpEmpName').textContent = `${name}　${date}`;
+  document.getElementById('mpUserId').value  = userId;
+  document.getElementById('mpName').value    = name;
+  document.getElementById('mpDate').value    = date;
+  document.getElementById('mpInTime').value  = inTime || '';
+  document.getElementById('mpOutTime').value = outTime || '';
+  document.getElementById('manualPunchModal').style.display = 'flex';
 }
 
 // ── Export: 日期為列（每日1列）、員工為欄（每人6欄橫向）────────────────────────
@@ -1288,6 +1464,8 @@ function switchTab(tabName, btnEl) {
   } else if (tabName === 'export') {
     const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
     loadBonuses(month).then(() => renderBonusList());
+  } else if (tabName === 'grid') {
+    loadMonthGrid();
   }
 }
 
