@@ -99,7 +99,7 @@ async function loadOTBonuses(month) {
 }
 
 // Save current allOTBonuses to backend for a given month
-async function saveOTBonuses(month) {
+async function saveOTBonuses(month, silent = false) {
   const list = allEmployees
     .filter(e => e.status === 'active')
     .map(e => ({ userId: e.userId, name: e.name, amount: allOTBonuses[e.userId] || 0 }))
@@ -109,7 +109,7 @@ async function saveOTBonuses(month) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ month, bonuses: list, type: 'otbonus' }),
   });
-  showToast('加班費已儲存', 'success');
+  if (!silent) showToast('加班費已儲存', 'success');
 }
 
 // Render bonus input list in export tab
@@ -722,6 +722,8 @@ function openManualPunch(userId, name, date) {
   document.getElementById('mpDate').value    = date;
   document.getElementById('mpInTime').value  = '';
   document.getElementById('mpOutTime').value = '';
+  // Hide OT bonus row when opened from attendance view
+  document.getElementById('mpOTBonusRow').style.display = 'none';
   document.getElementById('manualPunchModal').style.display = 'flex';
 }
 
@@ -730,13 +732,17 @@ function closeManualPunch() {
 }
 
 async function submitManualPunch() {
-  const userId = document.getElementById('mpUserId').value;
-  const name   = document.getElementById('mpName').value;
-  const date   = document.getElementById('mpDate').value;
-  const inTime = document.getElementById('mpInTime').value;
+  const userId  = document.getElementById('mpUserId').value;
+  const name    = document.getElementById('mpName').value;
+  const date    = document.getElementById('mpDate').value;
+  const inTime  = document.getElementById('mpInTime').value;
   const outTime = document.getElementById('mpOutTime').value;
+  const otBonusRow = document.getElementById('mpOTBonusRow');
+  const showingOT  = otBonusRow?.style.display !== 'none';
+  const otBonusVal = showingOT ? (parseInt(document.getElementById('mpOTBonus').value) || 0) : null;
 
-  if (!inTime && !outTime) { showToast('請至少填入一個時間', 'error'); return; }
+  if (!inTime && !outTime && !showingOT) { showToast('請至少填入一個時間', 'error'); return; }
+  if (!inTime && !outTime && showingOT && otBonusVal === 0) { showToast('請至少填入一個時間或加班費金額', 'error'); return; }
 
   const btn = document.getElementById('mpSubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = '儲存中…'; }
@@ -753,15 +759,26 @@ async function submitManualPunch() {
         body: JSON.stringify({ targetUserId: userId, employeeName: name, date, type: p.type, time: p.time }),
       });
     }
-    showToast('補打卡已儲存', 'success');
+
+    // Save OT bonus if shown (grid context)
+    if (showingOT && otBonusVal !== null) {
+      const month = date.slice(0, 7);
+      allOTBonuses[userId] = otBonusVal;
+      await saveOTBonuses(month, true);
+    }
+
+    showToast(punches.length > 0 ? '已儲存' : '加班費已儲存', 'success');
     closeManualPunch();
     await loadAllData();
-    loadAttendance();
-    if (document.getElementById('gridTab')?.classList.contains('active')) loadMonthGrid();
+    if (document.getElementById('gridTab')?.classList.contains('active')) {
+      loadMonthGrid();
+    } else {
+      loadAttendance();
+    }
   } catch (e) {
     showToast('儲存失敗', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '儲存'; }
+    if (btn) { btn.disabled = false; btn.textContent = '送出'; }
   }
 }
 
@@ -1214,29 +1231,6 @@ async function loadMonthGrid() {
     <span style="color:#0891b2;font-weight:600;">藍字=補卡</span>
   </div>`;
 
-  // ── OT Bonus section ──
-  html += `<div style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:var(--shadow-sm);">
-    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">💴 當月加班費（手動）</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">老闆額外給的加班費，獨立於自動計算的加班薪資之外，計入月薪總額。</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">`;
-  activeEmps.forEach(emp => {
-    const val = allOTBonuses[emp.userId] || 0;
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-light);">
-      <span style="flex:1;font-size:14px;font-weight:500;">${emp.name}</span>
-      <span style="font-size:13px;color:var(--text-muted);">NT$</span>
-      <input type="number" min="0" step="1" value="${val}"
-        style="width:110px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);"
-        id="otbonus_${emp.userId}"
-        oninput="allOTBonuses['${emp.userId}']=parseInt(this.value)||0">
-    </div>`;
-  });
-  html += `</div>
-    <button onclick="saveOTBonuses(document.getElementById('gridMonth').value)"
-      style="margin-top:14px;width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">
-      <i class="fas fa-save"></i> 儲存加班費
-    </button>
-  </div>`;
-
   container.innerHTML = html;
 }
 
@@ -1247,6 +1241,12 @@ function openGridEdit(userId, name, date, inTime, outTime) {
   document.getElementById('mpDate').value    = date;
   document.getElementById('mpInTime').value  = inTime || '';
   document.getElementById('mpOutTime').value = outTime || '';
+  // Show OT bonus field and pre-fill with this employee's monthly value
+  const otRow = document.getElementById('mpOTBonusRow');
+  if (otRow) {
+    otRow.style.display = 'block';
+    document.getElementById('mpOTBonus').value = allOTBonuses[userId] || 0;
+  }
   document.getElementById('manualPunchModal').style.display = 'flex';
 }
 

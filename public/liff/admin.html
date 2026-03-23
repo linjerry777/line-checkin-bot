@@ -1479,13 +1479,23 @@
           <div style="font-size:11px;color:#94a3b8;margin-top:3px;">留空=不補下班卡</div>
         </div>
       </div>
-      <div style="display:flex;gap:10px;">
+      <!-- 加班費（手動）— 僅在月覽表點擊時顯示 -->
+      <div id="mpOTBonusRow" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">💴 加班費（手動）</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:13px;color:var(--text-muted);">NT$</span>
+          <input type="number" id="mpOTBonus" min="0" step="1" placeholder="0"
+            class="form-input" style="flex:1;padding:8px 10px;font-size:13px;">
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">本月老闆額外給的加班費，留 0 表示不調整</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="shift-btn-cancel" style="flex:1;" onclick="closeManualPunch()">取消</button>
-        <button id="mpSubmitBtn" class="shift-btn-save" style="flex:1;" onclick="submitManualPunch()"><i class="fas fa-check"></i> 送出補卡</button>
+        <button id="mpSubmitBtn" class="shift-btn-save" style="flex:1;" onclick="submitManualPunch()"><i class="fas fa-check"></i> 送出</button>
       </div>
     </div>
   </div>
 
-  <script src="admin.js?v=3.991"></script>
+  <script src="admin.js?v=3.992"></script>
 </body>
 </html>
