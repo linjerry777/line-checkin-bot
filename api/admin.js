@@ -144,8 +144,9 @@ module.exports = async (req, res) => {
 
       case 'get-bonuses': {
         const bonusMonth = req.query.month || new Date().toISOString().slice(0, 7);
+        const bonusType  = req.query.type  || 'bonuses'; // 'bonuses' | 'otbonus'
         const allSettings = await getAllSettings();
-        const raw = allSettings[`bonuses_${bonusMonth}`] || '[]';
+        const raw = allSettings[`${bonusType}_${bonusMonth}`] || '[]';
         let bonuses = [];
         try { bonuses = JSON.parse(raw); } catch (_) {}
         return res.status(200).json({ success: true, bonuses });
@@ -153,9 +154,10 @@ module.exports = async (req, res) => {
 
       case 'set-bonuses': {
         if (req.method !== 'POST') return res.status(405).json({ error: '只接受 POST 請求' });
-        const { month: bonusMonth2, bonuses: bonusList } = req.body;
+        const { month: bonusMonth2, bonuses: bonusList, type: bonusType2 } = req.body;
         if (!bonusMonth2) return res.status(400).json({ error: '缺少月份' });
-        await updateSettings({ [`bonuses_${bonusMonth2}`]: JSON.stringify(bonusList || []) });
+        const key = `${bonusType2 || 'bonuses'}_${bonusMonth2}`;
+        await updateSettings({ [key]: JSON.stringify(bonusList || []) });
         return res.status(200).json({ success: true });
       }
 

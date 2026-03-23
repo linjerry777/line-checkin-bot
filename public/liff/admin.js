@@ -6,6 +6,7 @@ let allRecords   = [];
 let allLeavesData = [];  // all leave records (loaded in loadAllData)
 let allHolidays   = new Map(); // date string → name, e.g. "2026-01-01" → "元旦"
 let allBonuses    = {};        // userId → bonus amount for current export/send month
+let allOTBonuses  = {};        // userId → manual OT pay for current grid/export month
 
 // Parse holidays JSON from settings into allHolidays Map
 function parseHolidays(raw) {
@@ -84,6 +85,31 @@ async function saveBonuses(month) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ month, bonuses: bonusList }),
   });
+}
+
+// Load manual OT bonuses for a given month into allOTBonuses map
+async function loadOTBonuses(month) {
+  try {
+    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&type=otbonus&userId=${userProfile.userId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    allOTBonuses = {};
+    (data.bonuses || []).forEach(b => { allOTBonuses[b.userId] = b.amount || 0; });
+  } catch (_) { allOTBonuses = {}; }
+}
+
+// Save current allOTBonuses to backend for a given month
+async function saveOTBonuses(month) {
+  const list = allEmployees
+    .filter(e => e.status === 'active')
+    .map(e => ({ userId: e.userId, name: e.name, amount: allOTBonuses[e.userId] || 0 }))
+    .filter(b => b.amount > 0);
+  await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ month, bonuses: list, type: 'otbonus' }),
+  });
+  showToast('加班費已儲存', 'success');
 }
 
 // Render bonus input list in export tab
@@ -1015,6 +1041,7 @@ function calcEmpMonthSalary(emp, month) {
 
   const insurance = Math.round(emp.insurance || 0);
   const bonus     = Math.round(allBonuses[emp.userId] || 0);
+  const otBonus   = Math.round(allOTBonuses[emp.userId] || 0);
 
   return {
     perDayData,
@@ -1025,7 +1052,8 @@ function calcEmpMonthSalary(emp, month) {
     deductions:  Math.round(totalDeductions),
     insurance,
     bonus,
-    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus),
+    otBonus,
+    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus + otBonus),
     hasSalary:   !!salaryType && salaryAmount > 0,
   };
 }
@@ -1049,6 +1077,8 @@ async function loadMonthGrid() {
 
   const container = document.getElementById('gridContainer');
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
+
+  await loadOTBonuses(month);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1184,6 +1214,29 @@ async function loadMonthGrid() {
     <span style="color:#0891b2;font-weight:600;">藍字=補卡</span>
   </div>`;
 
+  // ── OT Bonus section ──
+  html += `<div style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:var(--shadow-sm);">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">💴 當月加班費（手動）</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">老闆額外給的加班費，獨立於自動計算的加班薪資之外，計入月薪總額。</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">`;
+  activeEmps.forEach(emp => {
+    const val = allOTBonuses[emp.userId] || 0;
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-light);">
+      <span style="flex:1;font-size:14px;font-weight:500;">${emp.name}</span>
+      <span style="font-size:13px;color:var(--text-muted);">NT$</span>
+      <input type="number" min="0" step="1" value="${val}"
+        style="width:110px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);"
+        id="otbonus_${emp.userId}"
+        oninput="allOTBonuses['${emp.userId}']=parseInt(this.value)||0">
+    </div>`;
+  });
+  html += `</div>
+    <button onclick="saveOTBonuses(document.getElementById('gridMonth').value)"
+      style="margin-top:14px;width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">
+      <i class="fas fa-save"></i> 儲存加班費
+    </button>
+  </div>`;
+
   container.innerHTML = html;
 }
 
@@ -1205,7 +1258,7 @@ function openGridEdit(userId, name, date, inTime, outTime) {
 async function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
-  await loadBonuses(month); // ensure bonuses are loaded for this month
+  await Promise.all([loadBonuses(month), loadOTBonuses(month)]);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1294,11 +1347,12 @@ async function exportMonthData() {
     ['總工時(h)',   sal => sal.totalRegularHours],
     ['加班時數(h)', sal => sal.totalOvertimeHours],
     ['扣薪合計',   sal => sal.hasSalary ? `-NT$${sal.deductions}`  : '-'],
-    ['勞健保',     sal => sal.hasSalary && sal.insurance > 0 ? `-NT$${sal.insurance}` : '-'],
-    ['獎金',       sal => sal.hasSalary && sal.bonus     > 0 ? `+NT$${sal.bonus}`     : '-'],
-    ['基本薪資',   sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
-    ['加班費',     sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
-    ['合計薪資',   sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
+    ['勞健保',       sal => sal.hasSalary && sal.insurance > 0 ? `-NT$${sal.insurance}` : '-'],
+    ['獎金',         sal => sal.hasSalary && sal.bonus     > 0 ? `+NT$${sal.bonus}`     : '-'],
+    ['加班費(手動)', sal => sal.hasSalary && sal.otBonus   > 0 ? `+NT$${sal.otBonus}`   : '-'],
+    ['基本薪資',     sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
+    ['加班費(自動)', sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
+    ['合計薪資',     sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
   ];
 
   summaryDefs.forEach(([label, fn]) => {
@@ -1331,7 +1385,7 @@ async function exportMonthData() {
 async function sendPayslips() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
-  await loadBonuses(month); // ensure bonuses are loaded for this month
+  await Promise.all([loadBonuses(month), loadOTBonuses(month)]);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth  = new Date(year, mon, 0).getDate();
@@ -1383,6 +1437,7 @@ async function sendPayslips() {
     if (sal.deductions  > 0) lines.push(`扣薪合計：-NT$${sal.deductions}`);
     if (sal.insurance   > 0) lines.push(`勞健保：-NT$${sal.insurance}`);
     if (sal.bonus       > 0) lines.push(`獎金：+NT$${sal.bonus}`);
+    if (sal.otBonus     > 0) lines.push(`加班費：+NT$${sal.otBonus}`);
     lines.push(`💰 本月薪資：NT$${sal.totalPay.toLocaleString()}`);
 
     payslips.push({ userId: emp.userId, name: emp.name, message: lines.join('\n') });
@@ -1463,7 +1518,7 @@ function switchTab(tabName, btnEl) {
     loadAllLeaves();
   } else if (tabName === 'export') {
     const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
-    loadBonuses(month).then(() => renderBonusList());
+    Promise.all([loadBonuses(month), loadOTBonuses(month)]).then(() => renderBonusList());
   } else if (tabName === 'grid') {
     loadMonthGrid();
   }
