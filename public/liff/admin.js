@@ -1056,9 +1056,12 @@ function calcEmpMonthSalary(emp, month) {
     basePay = (totalWorkedMin / 60) * salaryAmount; // pure: total worked hours × hourly rate
   }
 
-  const insurance = Math.round(emp.insurance || 0);
-  const bonus     = Math.round(allBonuses[emp.userId] || 0);
-  const otBonus   = Math.round(allOTBonuses[emp.userId] || 0);
+  // 勞健保每季末扣款（3/6/9/12月），其餘月份不扣
+  const monthNum   = parseInt(month.slice(5));
+  const isQEnd     = [3, 6, 9, 12].includes(monthNum);
+  const insurance  = isQEnd ? Math.round(emp.insurance || 0) : 0;
+  const bonus      = Math.round(allBonuses[emp.userId] || 0);
+  const otBonus    = Math.round(allOTBonuses[emp.userId] || 0);
 
   return {
     perDayData,
@@ -1095,7 +1098,7 @@ async function loadMonthGrid() {
   const container = document.getElementById('gridContainer');
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
 
-  await loadOTBonuses(month);
+  await Promise.all([loadOTBonuses(month), loadBonuses(month)]);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1231,6 +1234,56 @@ async function loadMonthGrid() {
     <span style="color:#0891b2;font-weight:600;">藍字=補卡</span>
   </div>`;
 
+  const cardStyle = 'background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:var(--shadow-sm);';
+  const rowStyle  = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-light);';
+  const inputStyle = 'width:110px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);';
+  const btnStyle  = 'margin-top:12px;width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;';
+
+  // ── 當月獎金設定 ──
+  html += `<div style="${cardStyle}">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">💰 當月獎金設定</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">設定每位員工本月獎金，計入月薪總額。</div>
+    <div>`;
+  activeEmps.forEach(emp => {
+    html += `<div style="${rowStyle}">
+      <span style="flex:1;font-size:14px;">${emp.name}</span>
+      <span style="font-size:13px;color:var(--text-muted);">NT$</span>
+      <input type="number" min="0" step="1" value="${allBonuses[emp.userId] || 0}"
+        style="${inputStyle}" id="bonus_${emp.userId}"
+        oninput="allBonuses['${emp.userId}']=parseInt(this.value)||0">
+    </div>`;
+  });
+  html += `</div>
+    <button style="${btnStyle}" onclick="saveBonuses(document.getElementById('gridMonth').value)">
+      <i class="fas fa-save"></i> 儲存獎金
+    </button>
+  </div>`;
+
+  // ── 勞健保設定（每季末扣款）──
+  const monthNum2 = parseInt(month.slice(5));
+  const isQEnd2   = [3, 6, 9, 12].includes(monthNum2);
+  const qNote     = isQEnd2
+    ? `<span style="color:#059669;font-weight:600;">✔ 本月（${monthNum2}月）為季末，將扣款</span>`
+    : `<span style="color:#94a3b8;">本月（${monthNum2}月）非季末，不扣款（扣款月：3/6/9/12月）</span>`;
+  html += `<div style="${cardStyle}">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">🏥 勞健保設定（每季扣款）</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">設定每位員工的季扣勞健保費，僅 3/6/9/12 月從薪資中扣除。</div>
+    <div style="font-size:12px;margin-bottom:10px;">${qNote}</div>
+    <div>`;
+  activeEmps.forEach(emp => {
+    html += `<div style="${rowStyle}">
+      <span style="flex:1;font-size:14px;">${emp.name}</span>
+      <span style="font-size:13px;color:var(--text-muted);">NT$</span>
+      <input type="number" min="0" step="1" value="${emp.insurance || 0}"
+        style="${inputStyle}" id="ins_${emp.userId}">
+    </div>`;
+  });
+  html += `</div>
+    <button style="${btnStyle}" onclick="saveGridInsurance()">
+      <i class="fas fa-save"></i> 儲存勞健保
+    </button>
+  </div>`;
+
   container.innerHTML = html;
 }
 
@@ -1248,6 +1301,26 @@ function openGridEdit(userId, name, date, inTime, outTime) {
     document.getElementById('mpOTBonus').value = allOTBonuses[userId] || 0;
   }
   document.getElementById('manualPunchModal').style.display = 'flex';
+}
+
+// Save insurance values from the grid insurance section
+async function saveGridInsurance() {
+  const active = allEmployees.filter(e => e.status === 'active');
+  const saves = [];
+  active.forEach(emp => {
+    const input = document.getElementById(`ins_${emp.userId}`);
+    if (!input) return;
+    const val = parseFloat(input.value) || 0;
+    saves.push(
+      fetch(`/api/admin?action=update-insurance&userId=${userProfile.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: emp.userId, insurance: val }),
+      }).then(() => { emp.insurance = val; })
+    );
+  });
+  await Promise.all(saves);
+  showToast('勞健保設定已儲存', 'success');
 }
 
 // ── Export: 日期為列（每日1列）、員工為欄（每人6欄橫向）────────────────────────
@@ -1518,7 +1591,7 @@ function switchTab(tabName, btnEl) {
     loadAllLeaves();
   } else if (tabName === 'export') {
     const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
-    Promise.all([loadBonuses(month), loadOTBonuses(month)]).then(() => renderBonusList());
+    Promise.all([loadBonuses(month), loadOTBonuses(month)]);
   } else if (tabName === 'grid') {
     loadMonthGrid();
   }
@@ -1590,8 +1663,6 @@ function openShiftEdit(userId, name) {
   st.value = emp?.salaryType  || '';
   sa.value = emp?.salaryAmount || '';
   updateSalaryLabel();
-  document.getElementById('shiftInsurance').value = emp?.insurance || '';
-
   modal.classList.add('show');
 }
 
@@ -1616,9 +1687,8 @@ function closeShiftEdit() {
 async function saveShift() {
   const modal      = document.getElementById('shiftEditModal');
   const userId     = modal.dataset.userId;
-  const salaryType  = document.getElementById('shiftSalaryType').value;
-  const salaryAmt   = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
-  const insuranceAmt = parseFloat(document.getElementById('shiftInsurance').value) || 0;
+  const salaryType = document.getElementById('shiftSalaryType').value;
+  const salaryAmt  = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
 
   const schedule = {};
   SCHEDULE_DAYS.forEach(key => {
@@ -1629,8 +1699,7 @@ async function saveShift() {
   });
 
   try {
-    // Save schedule, salary, and insurance in parallel
-    const [shiftRes, salaryRes, insuranceRes] = await Promise.all([
+    const [shiftRes, salaryRes] = await Promise.all([
       fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1641,29 +1710,22 @@ async function saveShift() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUserId: userId, salaryType, salaryAmount: salaryAmt }),
       }),
-      fetch(`/api/admin?action=update-insurance&userId=${userProfile.userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: userId, insurance: insuranceAmt }),
-      }),
     ]);
-    const shiftResult    = await shiftRes.json();
-    const salaryResult   = await salaryRes.json();
-    const insuranceResult = await insuranceRes.json();
+    const shiftResult  = await shiftRes.json();
+    const salaryResult = await salaryRes.json();
 
-    if (shiftResult.success && salaryResult.success && insuranceResult.success) {
+    if (shiftResult.success && salaryResult.success) {
       const emp = allEmployees.find(e => e.userId === userId);
       if (emp) {
         emp.weeklySchedule = schedule;
         emp.salaryType     = salaryType;
         emp.salaryAmount   = salaryAmt;
-        emp.insurance      = insuranceAmt;
       }
       closeShiftEdit();
       showToast('週班表與薪資設定已儲存', 'success');
       updateEmployeeList();
     } else {
-      showToast((shiftResult.error || salaryResult.error || insuranceResult.error) || '儲存失敗', 'error');
+      showToast((shiftResult.error || salaryResult.error) || '儲存失敗', 'error');
     }
   } catch (e) {
     showToast('儲存失敗，請稍後再試', 'error');

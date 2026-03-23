@@ -1297,7 +1297,7 @@
 
       <div class="form-group">
         <label class="form-label">選擇月份</label>
-        <input type="month" id="exportMonth" class="form-input" onchange="Promise.all([loadBonuses(this.value),loadOTBonuses(this.value)]).then(()=>renderBonusList())">
+        <input type="month" id="exportMonth" class="form-input" onchange="Promise.all([loadBonuses(this.value),loadOTBonuses(this.value)])">
       </div>
 
       <button class="btn btn-primary btn-full" onclick="exportMonthData()">
@@ -1308,19 +1308,6 @@
       <button class="btn btn-secondary btn-full" onclick="copyToClipboard()">
         <i class="fas fa-copy"></i>
         複製到剪貼簿
-      </button>
-    </div>
-
-    <!-- 當月獎金設定 -->
-    <div class="card">
-      <div class="card-title"><span><i class="fas fa-gift"></i> 當月獎金設定</span></div>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
-        設定每位員工本月獎金，將包含在 CSV 報表及薪資單中。
-      </p>
-      <div id="bonusList" style="margin-bottom:12px;"></div>
-      <button class="btn btn-primary btn-full" onclick="saveBonuses(document.getElementById('exportMonth').value || new Date().toISOString().slice(0,7))">
-        <i class="fas fa-save"></i>
-        儲存獎金設定
       </button>
     </div>
 
@@ -1441,15 +1428,6 @@
       </div>
       <div style="font-size:11px;color:#94a3b8;margin-top:6px;" id="shiftSalaryHint"></div>
 
-      <!-- 勞健保設定 -->
-      <div style="margin-top:10px;">
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:12px;">勞健保月扣（元）</label>
-          <input type="number" id="shiftInsurance" class="form-input" style="padding:8px 10px;font-size:13px;" placeholder="0" min="0" step="1">
-        </div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">每月從薪資中扣除的勞健保費用</div>
-      </div>
-
       <div class="shift-modal-actions">
         <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
         <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
@@ -1496,6 +1474,6 @@
     </div>
   </div>
 
-  <script src="admin.js?v=3.992"></script>
+  <script src="admin.js?v=3.993"></script>
 </body>
 </html>
