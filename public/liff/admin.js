@@ -1056,9 +1056,9 @@ function calcEmpMonthSalary(emp, month) {
     basePay = (totalWorkedMin / 60) * salaryAmount; // pure: total worked hours × hourly rate
   }
 
-  // 勞健保每季末扣款（3/6/9/12月），其餘月份不扣
+  // 勞健保每季末扣款（1/4/7/10月），其餘月份不扣
   const monthNum   = parseInt(month.slice(5));
-  const isQEnd     = [3, 6, 9, 12].includes(monthNum);
+  const isQEnd     = [1, 4, 7, 10].includes(monthNum);
   const insurance  = isQEnd ? Math.round(emp.insurance || 0) : 0;
   const bonus      = Math.round(allBonuses[emp.userId] || 0);
   const otBonus    = Math.round(allOTBonuses[emp.userId] || 0);
@@ -1261,13 +1261,13 @@ async function loadMonthGrid() {
 
   // ── 勞健保設定（每季末扣款）──
   const monthNum2 = parseInt(month.slice(5));
-  const isQEnd2   = [3, 6, 9, 12].includes(monthNum2);
+  const isQEnd2   = [1, 4, 7, 10].includes(monthNum2);
   const qNote     = isQEnd2
     ? `<span style="color:#059669;font-weight:600;">✔ 本月（${monthNum2}月）為季末，將扣款</span>`
-    : `<span style="color:#94a3b8;">本月（${monthNum2}月）非季末，不扣款（扣款月：3/6/9/12月）</span>`;
+    : `<span style="color:#94a3b8;">本月（${monthNum2}月）非季末，不扣款（扣款月：1/4/7/10月）</span>`;
   html += `<div style="${cardStyle}">
     <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">🏥 勞健保設定（每季扣款）</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">設定每位員工的季扣勞健保費，僅 3/6/9/12 月從薪資中扣除。</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">設定每位員工的季扣勞健保費，僅 1/4/7/10 月從薪資中扣除。</div>
     <div style="font-size:12px;margin-bottom:10px;">${qNote}</div>
     <div>`;
   activeEmps.forEach(emp => {
