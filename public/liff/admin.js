@@ -7,6 +7,7 @@ let allLeavesData = [];  // all leave records (loaded in loadAllData)
 let allHolidays   = new Map(); // date string → name, e.g. "2026-01-01" → "元旦"
 let allBonuses    = {};        // userId → bonus amount for current export/send month
 let allOTBonuses  = {};        // userId → manual OT pay for current grid/export month
+let allInsurances = {};        // userId → insurance deduction for current export/send month
 
 // Parse holidays JSON from settings into allHolidays Map
 function parseHolidays(raw) {
@@ -120,6 +121,31 @@ async function saveOTBonuses(month, silent = false) {
     body: JSON.stringify({ month, bonuses: list, type: 'otbonus' }),
   });
   if (!silent) showToast('加班費已儲存', 'success');
+}
+
+// Load insurance deductions for a given month into allInsurances map
+async function loadInsurances(month) {
+  try {
+    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&type=insurance&userId=${userProfile.userId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    allInsurances = {};
+    (data.bonuses || []).forEach(b => { allInsurances[b.userId] = b.amount || 0; });
+  } catch (_) { allInsurances = {}; }
+}
+
+// Save current allInsurances to backend for a given month
+async function saveInsurances(month, silent = false) {
+  const list = allEmployees
+    .filter(e => e.status === 'active')
+    .map(e => ({ userId: e.userId, name: e.name, amount: allInsurances[e.userId] || 0 }))
+    .filter(b => b.amount > 0);
+  await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ month, bonuses: list, type: 'insurance' }),
+  });
+  if (!silent) showToast('勞健保設定已儲存', 'success');
 }
 
 // Render bonus input list in export tab
@@ -798,14 +824,6 @@ async function submitManualPunch() {
   }
 }
 
-// Also update employee insurance from the salary settings UI
-async function saveEmployeeInsurance(userId, insurance) {
-  await fetch(`/api/admin?action=update-insurance&userId=${userProfile.userId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetUserId: userId, insurance }),
-  });
-}
 
 // Calculate total hours
 function calculateTotalHours(records) {
@@ -1072,10 +1090,7 @@ function calcEmpMonthSalary(emp, month) {
     basePay = (totalWorkedMin / 60) * salaryAmount; // pure: total worked hours × hourly rate
   }
 
-  // 勞健保每季末扣款（1/4/7/10月），其餘月份不扣
-  const monthNum   = parseInt(month.slice(5));
-  const isQEnd     = [1, 4, 7, 10].includes(monthNum);
-  const insurance  = isQEnd ? Math.round(emp.insurance || 0) : 0;
+  const insurance  = Math.round(allInsurances[emp.userId] || 0);
   const bonus      = Math.round(allBonuses[emp.userId] || 0);
   // Sum per-day OT bonuses for this employee this month
   const otBonus    = Math.round(
@@ -1119,7 +1134,7 @@ async function loadMonthGrid() {
   const container = document.getElementById('gridContainer');
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
 
-  await Promise.all([loadOTBonuses(month), loadBonuses(month)]);
+  await Promise.all([loadOTBonuses(month), loadBonuses(month), loadInsurances(month)]);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1280,27 +1295,22 @@ async function loadMonthGrid() {
     </button>
   </div>`;
 
-  // ── 勞健保設定（每季末扣款）──
-  const monthNum2 = parseInt(month.slice(5));
-  const isQEnd2   = [1, 4, 7, 10].includes(monthNum2);
-  const qNote     = isQEnd2
-    ? `<span style="color:#059669;font-weight:600;">✔ 本月（${monthNum2}月）為季末，將扣款</span>`
-    : `<span style="color:#94a3b8;">本月（${monthNum2}月）非季末，不扣款（扣款月：1/4/7/10月）</span>`;
+  // ── 勞健保設定（每月自訂）──
   html += `<div style="${cardStyle}">
-    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">🏥 勞健保設定（每季扣款）</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">設定每位員工的季扣勞健保費，僅 1/4/7/10 月從薪資中扣除。</div>
-    <div style="font-size:12px;margin-bottom:10px;">${qNote}</div>
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">🏥 本月勞健保扣款</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">設定每位員工本月勞健保扣款金額，計入薪資扣項。</div>
     <div>`;
   activeEmps.forEach(emp => {
     html += `<div style="${rowStyle}">
       <span style="flex:1;font-size:14px;">${emp.name}</span>
       <span style="font-size:13px;color:var(--text-muted);">NT$</span>
-      <input type="number" min="0" step="1" value="${emp.insurance || 0}"
-        style="${inputStyle}" id="ins_${emp.userId}">
+      <input type="number" min="0" step="1" value="${allInsurances[emp.userId] || 0}"
+        style="${inputStyle}" id="ins_${emp.userId}"
+        oninput="allInsurances['${emp.userId}']=parseInt(this.value)||0">
     </div>`;
   });
   html += `</div>
-    <button style="${btnStyle}" onclick="saveGridInsurance()">
+    <button style="${btnStyle}" onclick="saveInsurances(document.getElementById('gridMonth').value)">
       <i class="fas fa-save"></i> 儲存勞健保
     </button>
   </div>`;
@@ -1328,25 +1338,6 @@ function openGridEdit(userId, name, date, inTime, outTime) {
   modal.style.display = 'flex';
 }
 
-// Save insurance values from the grid insurance section
-async function saveGridInsurance() {
-  const active = allEmployees.filter(e => e.status === 'active');
-  const saves = [];
-  active.forEach(emp => {
-    const input = document.getElementById(`ins_${emp.userId}`);
-    if (!input) return;
-    const val = parseFloat(input.value) || 0;
-    saves.push(
-      fetch(`/api/admin?action=update-insurance&userId=${userProfile.userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: emp.userId, insurance: val }),
-      }).then(() => { emp.insurance = val; })
-    );
-  });
-  await Promise.all(saves);
-  showToast('勞健保設定已儲存', 'success');
-}
 
 // ── Export: 日期為列（每日1列）、員工為欄（每人6欄橫向）────────────────────────
 // Layout:
@@ -1356,7 +1347,7 @@ async function saveGridInsurance() {
 async function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
-  await Promise.all([loadBonuses(month), loadOTBonuses(month)]);
+  await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1483,7 +1474,7 @@ async function exportMonthData() {
 async function sendPayslips() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
-  await Promise.all([loadBonuses(month), loadOTBonuses(month)]);
+  await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth  = new Date(year, mon, 0).getDate();
@@ -1616,7 +1607,7 @@ function switchTab(tabName, btnEl) {
     loadAllLeaves();
   } else if (tabName === 'export') {
     const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
-    Promise.all([loadBonuses(month), loadOTBonuses(month)]);
+    Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]).then(() => renderBonusList());
   } else if (tabName === 'grid') {
     loadMonthGrid();
   }
