@@ -88,22 +88,32 @@ async function saveBonuses(month) {
 }
 
 // Load manual OT bonuses for a given month into allOTBonuses map
+// Key format: "userId|date"  e.g. "U123|2026-03-15"
 async function loadOTBonuses(month) {
   try {
     const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&type=otbonus&userId=${userProfile.userId}`);
     if (!res.ok) return;
     const data = await res.json();
     allOTBonuses = {};
-    (data.bonuses || []).forEach(b => { allOTBonuses[b.userId] = b.amount || 0; });
+    (data.bonuses || []).forEach(b => {
+      const key = b.date ? `${b.userId}|${b.date}` : b.userId; // backward compat
+      allOTBonuses[key] = b.amount || 0;
+    });
   } catch (_) { allOTBonuses = {}; }
 }
 
 // Save current allOTBonuses to backend for a given month
 async function saveOTBonuses(month, silent = false) {
-  const list = allEmployees
-    .filter(e => e.status === 'active')
-    .map(e => ({ userId: e.userId, name: e.name, amount: allOTBonuses[e.userId] || 0 }))
-    .filter(b => b.amount > 0);
+  const list = Object.entries(allOTBonuses)
+    .map(([key, amount]) => {
+      const parts = key.split('|');
+      if (parts.length !== 2) return null;
+      const [uid, date] = parts;
+      if (!date.startsWith(month)) return null;
+      const emp = allEmployees.find(e => e.userId === uid);
+      return { userId: uid, name: emp?.name || '', date, amount };
+    })
+    .filter(b => b && b.amount > 0);
   await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -724,7 +734,9 @@ function openManualPunch(userId, name, date) {
   document.getElementById('mpOutTime').value = '';
   // Hide OT bonus row when opened from attendance view
   document.getElementById('mpOTBonusRow').style.display = 'none';
-  document.getElementById('manualPunchModal').style.display = 'flex';
+  const _m = document.getElementById('manualPunchModal');
+  _m.dataset.originalIn = ''; _m.dataset.originalOut = '';
+  _m.style.display = 'flex';
 }
 
 function closeManualPunch() {
@@ -748,9 +760,13 @@ async function submitManualPunch() {
   if (btn) { btn.disabled = true; btn.textContent = '儲存中…'; }
 
   try {
+    const modal = document.getElementById('manualPunchModal');
+    const origIn  = modal?.dataset.originalIn  || '';
+    const origOut = modal?.dataset.originalOut || '';
     const punches = [];
-    if (inTime)  punches.push({ type: 'in',  time: inTime });
-    if (outTime) punches.push({ type: 'out', time: outTime });
+    // Only submit a punch if the time actually changed (or was newly added)
+    if (inTime  && inTime  !== origIn)  punches.push({ type: 'in',  time: inTime });
+    if (outTime && outTime !== origOut) punches.push({ type: 'out', time: outTime });
 
     for (const p of punches) {
       await fetch(`/api/admin?action=manual-punch&userId=${userProfile.userId}`, {
@@ -760,10 +776,10 @@ async function submitManualPunch() {
       });
     }
 
-    // Save OT bonus if shown (grid context)
+    // Save OT bonus if shown (grid context) — stored per day
     if (showingOT && otBonusVal !== null) {
       const month = date.slice(0, 7);
-      allOTBonuses[userId] = otBonusVal;
+      allOTBonuses[`${userId}|${date}`] = otBonusVal;
       await saveOTBonuses(month, true);
     }
 
@@ -1061,7 +1077,12 @@ function calcEmpMonthSalary(emp, month) {
   const isQEnd     = [1, 4, 7, 10].includes(monthNum);
   const insurance  = isQEnd ? Math.round(emp.insurance || 0) : 0;
   const bonus      = Math.round(allBonuses[emp.userId] || 0);
-  const otBonus    = Math.round(allOTBonuses[emp.userId] || 0);
+  // Sum per-day OT bonuses for this employee this month
+  const otBonus    = Math.round(
+    Object.entries(allOTBonuses)
+      .filter(([k]) => k.startsWith(`${emp.userId}|`) && k.slice(emp.userId.length + 1).startsWith(month))
+      .reduce((s, [, v]) => s + v, 0)
+  );
 
   return {
     perDayData,
@@ -1294,13 +1315,17 @@ function openGridEdit(userId, name, date, inTime, outTime) {
   document.getElementById('mpDate').value    = date;
   document.getElementById('mpInTime').value  = inTime || '';
   document.getElementById('mpOutTime').value = outTime || '';
-  // Show OT bonus field and pre-fill with this employee's monthly value
+  // Show OT bonus field — per-day value
   const otRow = document.getElementById('mpOTBonusRow');
   if (otRow) {
     otRow.style.display = 'block';
-    document.getElementById('mpOTBonus').value = allOTBonuses[userId] || 0;
+    document.getElementById('mpOTBonus').value = allOTBonuses[`${userId}|${date}`] || 0;
   }
-  document.getElementById('manualPunchModal').style.display = 'flex';
+  // Store originals so we don't re-submit unchanged times
+  const modal = document.getElementById('manualPunchModal');
+  modal.dataset.originalIn  = inTime  || '';
+  modal.dataset.originalOut = outTime || '';
+  modal.style.display = 'flex';
 }
 
 // Save insurance values from the grid insurance section

@@ -330,7 +330,7 @@ function updateCalendar() {
     if (isToday) classes.push('today');
     if (hasRecord) classes.push('has-checkin');
 
-    html += `<div class="${classes.join(' ')}" onclick="selectDate('${dateStr}')">${day}</div>`;
+    html += `<div class="${classes.join(' ')}" onclick="selectDate('${dateStr}', this)">${day}</div>`;
   }
 
   // Next month days
@@ -349,7 +349,11 @@ function changeMonth(delta) {
 }
 
 // Select date
-function selectDate(dateStr) {
+function selectDate(dateStr, el) {
+  // Update calendar selected highlight
+  document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+
   const dayRecords = allRecords.filter(r => r.date === dateStr);
 
   const container = document.getElementById('selectedDayRecords');
@@ -370,7 +374,7 @@ function selectDate(dateStr) {
         </div>
         <div class="record-details">
           <div class="record-type">${record.type === 'in' ? '上班打卡' : '下班打卡'}</div>
-          <div class="record-time">${record.time}</div>
+          <div class="record-time">${record.time}${record.reason ? `<span style="font-size:11px;color:#d97706;margin-left:6px;">⚠️ ${record.reason}</span>` : ''}</div>
         </div>
         <div class="record-badge ${record.type}">
           ${record.type === 'in' ? '上班' : '下班'}

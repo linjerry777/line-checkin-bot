@@ -135,14 +135,14 @@ async function getAllRecords() {
  */
 async function getAllRecordsByUserId(userId) {
   try {
-    const records = await getSheetData('打卡紀錄!A:H');
+    const records = await getSheetData('打卡紀錄!A:I');
 
     if (!records || records.length <= 1) {
       return [];
     }
 
     return records.slice(1)
-      .filter(row => row[0] === userId)
+      .filter(row => row[0] === userId && row[8] !== 'true') // exclude admin manual corrections
       .map(row => ({
         userId: row[0],
         employeeName: row[1],
