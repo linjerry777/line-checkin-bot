@@ -117,7 +117,7 @@ module.exports = async (req, res) => {
           fullTimestamp: row[5],
           location:      row[6] || null,
           reason:        row[7] || '',
-          isManual:      row[8] === 'true',
+          isManual:      row[8]?.toString().toLowerCase() === 'true',
         })).filter(r => r.userId && r.date);
         return res.status(200).json({ success: true, records, total: records.length });
       }
