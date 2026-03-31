@@ -1099,17 +1099,23 @@ function calcEmpMonthSalary(emp, month) {
       .reduce((s, [, v]) => s + v, 0)
   );
 
+  // 伙食費：月薪員工，每出勤天計 NT$75
+  const attendanceDays = perDayData.filter(dd => dd.inStr || dd.outStr).length;
+  const mealAllowance  = salaryType === 'monthly' ? attendanceDays * 75 : 0;
+
   return {
     perDayData,
     totalRegularHours:  (totalRegularMin  / 60).toFixed(1),
     totalOvertimeHours: (totalOvertimeMin / 60).toFixed(1),
-    basePay:     Math.round(basePay),
-    overtimePay: Math.round(totalOvertimePay),
-    deductions:  Math.round(totalDeductions),
+    basePay:       Math.round(basePay),
+    overtimePay:   Math.round(totalOvertimePay),
+    deductions:    Math.round(totalDeductions),
     insurance,
     bonus,
     otBonus,
-    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus + otBonus),
+    mealAllowance,
+    attendanceDays,
+    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus + otBonus + mealAllowance),
     hasSalary:   !!salaryType && salaryAmount > 0,
   };
 }
@@ -1435,13 +1441,14 @@ async function exportMonthData() {
   const summaryDefs = [
     ['總工時(h)',   sal => sal.totalRegularHours],
     ['加班時數(h)', sal => sal.totalOvertimeHours],
-    ['扣薪合計',   sal => sal.hasSalary ? `-NT$${sal.deductions}`  : '-'],
-    ['勞健保',       sal => sal.hasSalary && sal.insurance > 0 ? `-NT$${sal.insurance}` : '-'],
-    ['獎金',         sal => sal.hasSalary && sal.bonus     > 0 ? `+NT$${sal.bonus}`     : '-'],
-    ['加班費(手動)', sal => sal.hasSalary && sal.otBonus   > 0 ? `+NT$${sal.otBonus}`   : '-'],
-    ['基本薪資',     sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
-    ['加班費(自動)', sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
-    ['合計薪資',     sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
+    ['扣薪合計',    sal => sal.hasSalary ? `-NT$${sal.deductions}`  : '-'],
+    ['勞健保',      sal => sal.hasSalary && sal.insurance     > 0 ? `-NT$${sal.insurance}`     : '-'],
+    ['獎金',        sal => sal.hasSalary && sal.bonus         > 0 ? `+NT$${sal.bonus}`         : '-'],
+    ['加班費(手動)',sal => sal.hasSalary && sal.otBonus        > 0 ? `+NT$${sal.otBonus}`       : '-'],
+    ['伙食費',      sal => sal.hasSalary && sal.mealAllowance > 0 ? `+NT$${sal.mealAllowance}` : '-'],
+    ['基本薪資',    sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
+    ['加班費(自動)',sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
+    ['合計薪資',    sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
   ];
 
   summaryDefs.forEach(([label, fn]) => {
@@ -1490,43 +1497,68 @@ async function sendPayslips() {
     const sal = empSalaries[ei];
     if (!sal.hasSalary) return; // skip employees without salary settings
 
+    const isMonthly = emp.salaryType === 'monthly';
     const lines = [];
-    lines.push(`📋 ${monthLabel} 薪資單`);
-    lines.push(`👤 ${emp.name}（${emp.salaryType === 'monthly' ? '月薪' : '時薪'}）`);
-    lines.push('─────────────────');
+    lines.push(`=== ${monthLabel} 薪資單 ===`);
+    lines.push(`👤 ${emp.name}（${isMonthly ? '月薪' : '時薪'}）`);
+    lines.push('');
 
+    // ── 每日出勤 ──
     for (let d = 1; d <= daysInMonth; d++) {
-      const dd  = sal.perDayData[d - 1];
-      const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName, dailyPayStr } = dd;
+      const dd = sal.perDayData[d - 1];
+      const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName, dayOTMin } = dd;
       const dow      = new Date(dd.dateStr + 'T12:00:00').getDay();
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
-      const dayLabel = `${String(d).padStart(2, '0')}(${DOW_NAMES[dow]})`;
+      const dayLabel = `${String(d).padStart(2, '0')}（${DOW_NAMES[dow]}）`;
 
       if (onLeave && !inStr) {
-        const pay = dailyPayStr ? ` ${dailyPayStr}` : '';
-        lines.push(`${dayLabel} ${leave?.leaveTypeText || '請假'}${pay}`);
+        lines.push(`${dayLabel} ${leave?.leaveTypeText || '請假'}`);
       } else if (isHoliday && !inStr) {
-        const pay = dailyPayStr ? ` ${dailyPayStr}` : '';
-        lines.push(`${dayLabel} 🎌${holidayName}${pay}`);
+        lines.push(`${dayLabel} 🎌${holidayName}`);
       } else if (isOffDay && !inStr) {
         // 休假日無出勤 → 略過
       } else if (hasShift && !inStr && !outStr) {
         lines.push(`${dayLabel} 🚫曠職`);
       } else if (inStr || outStr) {
-        const inDisplay  = inStr  ? inStr.slice(0, 5)  : '--';
-        const outDisplay = outStr ? outStr.slice(0, 5) : '--';
-        const pay = dailyPayStr ? ` ${dailyPayStr}` : '';
-        lines.push(`${dayLabel} ${inDisplay}→${outDisplay}${pay}`);
+        const inD  = inStr  ? inStr.slice(0, 5)  : '--';
+        const outD = outStr ? outStr.slice(0, 5) : '--';
+        let otNote = '';
+        if (dayOTMin > 0) {
+          const otH = (dayOTMin / 60).toFixed(1).replace(/\.0$/, '');
+          otNote = `（加班 ${otH}h）`;
+        }
+        lines.push(`${dayLabel} ${inD} → ${outD}${otNote}`);
       }
     }
 
-    lines.push('─────────────────');
-    lines.push(`出勤：${sal.totalRegularHours}h　加班：${sal.totalOvertimeHours}h`);
-    if (sal.deductions  > 0) lines.push(`扣薪合計：-NT$${sal.deductions}`);
-    if (sal.insurance   > 0) lines.push(`勞健保：-NT$${sal.insurance}`);
-    if (sal.bonus       > 0) lines.push(`獎金：+NT$${sal.bonus}`);
-    if (sal.otBonus     > 0) lines.push(`加班費：+NT$${sal.otBonus}`);
+    lines.push('');
+    lines.push('──────────────────');
+
+    if (isMonthly) {
+      // 月薪：完整收入/扣款區塊
+      lines.push('【收入】');
+      lines.push(`本薪：NT$${sal.basePay.toLocaleString()}`);
+      if (sal.mealAllowance > 0) lines.push(`伙食費：NT$${sal.mealAllowance.toLocaleString()}（${sal.attendanceDays}天×75）`);
+      if (sal.overtimePay  > 0) lines.push(`加班費：NT$${sal.overtimePay.toLocaleString()}`);
+      if (sal.otBonus      > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
+      if (sal.bonus        > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
+      lines.push('');
+      const hasDeduct = sal.deductions > 0 || sal.insurance > 0;
+      if (hasDeduct) {
+        lines.push('【扣款】');
+        if (sal.insurance  > 0) lines.push(`勞健保：NT$${sal.insurance.toLocaleString()}`);
+        if (sal.deductions > 0) lines.push(`請假/遲到：NT$${sal.deductions.toLocaleString()}`);
+        lines.push('');
+      }
+    } else {
+      // 時薪：簡化
+      if (sal.bonus   > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
+      if (sal.otBonus > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
+      lines.push('');
+    }
+
+    lines.push('──────────────────');
     lines.push(`💰 本月薪資：NT$${sal.totalPay.toLocaleString()}`);
 
     payslips.push({ userId: emp.userId, name: emp.name, message: lines.join('\n') });
