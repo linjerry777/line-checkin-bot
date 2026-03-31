@@ -142,7 +142,7 @@ async function getAllRecordsByUserId(userId) {
     }
 
     return records.slice(1)
-      .filter(row => row[0] === userId && row[8] !== 'true') // exclude admin manual corrections
+      .filter(row => row[0] === userId && row[8]?.toString().toLowerCase() !== 'true') // exclude admin manual corrections
       .map(row => ({
         userId: row[0],
         employeeName: row[1],

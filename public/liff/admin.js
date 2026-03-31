@@ -1321,10 +1321,10 @@ function openGridEdit(userId, name, date, inTime, outTime) {
     otRow.style.display = 'block';
     document.getElementById('mpOTBonus').value = allOTBonuses[`${userId}|${date}`] || 0;
   }
-  // Store originals so we don't re-submit unchanged times
+  // Store originals (normalized to HH:MM — same format as <input type="time"> returns)
   const modal = document.getElementById('manualPunchModal');
-  modal.dataset.originalIn  = inTime  || '';
-  modal.dataset.originalOut = outTime || '';
+  modal.dataset.originalIn  = (inTime  || '').slice(0, 5);
+  modal.dataset.originalOut = (outTime || '').slice(0, 5);
   modal.style.display = 'flex';
 }
 
