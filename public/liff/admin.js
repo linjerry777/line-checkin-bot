@@ -1509,12 +1509,26 @@ function buildPayslipMessage(emp, sal, month) {
     } else if (inStr || outStr) {
       const inD  = inStr  ? inStr.slice(0, 5)  : '--';
       const outD = outStr ? outStr.slice(0, 5) : '--';
-      let otNote = '';
-      if (dayOTMin > 0) {
-        const otH = (dayOTMin / 60).toFixed(1).replace(/\.0$/, '');
-        otNote = `（加班 ${otH}h）`;
+      let timeNote = '';
+      if (isMonthly) {
+        // 月薪：顯示加班時數（以30分鐘為單位，不足30分不顯示）
+        const roundedOTMin = Math.floor(dayOTMin / 30) * 30;
+        if (roundedOTMin > 0) {
+          const h = roundedOTMin / 60;
+          timeNote = `（加班 ${Number.isInteger(h) ? h : h.toFixed(1)}h）`;
+        }
+      } else {
+        // 時薪：顯示總工作時長（以30分鐘為單位）
+        if (inStr && outStr) {
+          const raw = parseMinutes(outStr) - parseMinutes(inStr);
+          const workedMin = Math.floor(Math.max(0, raw) / 30) * 30;
+          if (workedMin > 0) {
+            const h = workedMin / 60;
+            timeNote = `（${Number.isInteger(h) ? h : h.toFixed(1)}h）`;
+          }
+        }
       }
-      lines.push(`${dayLabel} ${inD} → ${outD}${otNote}`);
+      lines.push(`${dayLabel} ${inD} → ${outD}${timeNote}`);
     }
   }
 
