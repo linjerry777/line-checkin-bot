@@ -65,38 +65,45 @@ function removeHoliday(date) {
   renderHolidayList();
 }
 
-// Load bonuses for a given month into allBonuses map
-async function loadBonuses(month) {
+// ── Generic helpers for per-month per-employee amount maps ───────────────────
+async function loadMonthItem(month, type) {
   try {
-    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&userId=${userProfile.userId}`);
-    if (!res.ok) return;
+    const typeQ = type ? `&type=${type}` : '';
+    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}${typeQ}&userId=${userProfile.userId}`);
+    if (!res.ok) return {};
     const data = await res.json();
-    allBonuses = {};
-    (data.bonuses || []).forEach(b => { allBonuses[b.userId] = b.amount || 0; });
-  } catch (_) { allBonuses = {}; }
+    const map = {};
+    (data.bonuses || []).forEach(b => { map[b.userId] = b.amount || 0; });
+    return map;
+  } catch (_) { return {}; }
 }
 
-// Save current allBonuses to backend for a given month
-async function saveBonuses(month) {
-  const bonusList = allEmployees
+async function saveMonthItem(month, type, dataMap, successMsg) {
+  const list = allEmployees
     .filter(e => e.status === 'active')
-    .map(e => ({ userId: e.userId, name: e.name, amount: allBonuses[e.userId] || 0 }))
+    .map(e => ({ userId: e.userId, name: e.name, amount: dataMap[e.userId] || 0 }))
     .filter(b => b.amount > 0);
+  const body = { month, bonuses: list };
+  if (type) body.type = type;
   try {
     const res = await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month, bonuses: bonusList }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
-    if (res.ok) {
-      showToast('獎金已儲存', 'success');
-    } else {
-      showToast('儲存失敗，請重試', 'error');
-    }
-  } catch (e) {
-    showToast('儲存失敗，請重試', 'error');
-  }
+    showToast(res.ok ? successMsg : '儲存失敗，請重試', res.ok ? 'success' : 'error');
+  } catch (_) { showToast('儲存失敗，請重試', 'error'); }
 }
+
+function loadAllMonthData(month) {
+  return Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month)]);
+}
+
+async function loadBonuses(month)       { allBonuses       = await loadMonthItem(month, null); }
+async function saveBonuses(month)       { await saveMonthItem(month, null,        allBonuses,       '獎金已儲存'); }
+async function loadInsurances(month)    { allInsurances    = await loadMonthItem(month, 'insurance'); }
+async function saveInsurances(month)    { await saveMonthItem(month, 'insurance', allInsurances,    '勞健保設定已儲存'); }
+async function loadJobAllowances(month) { allJobAllowances = await loadMonthItem(month, 'joballow'); }
+async function saveJobAllowances(month) { await saveMonthItem(month, 'joballow',  allJobAllowances, '職務加給已儲存'); }
 
 // Load manual OT bonuses for a given month into allOTBonuses map
 // Key format: "userId|date"  e.g. "U123|2026-03-15"
@@ -131,59 +138,6 @@ async function saveOTBonuses(month, silent = false) {
     body: JSON.stringify({ month, bonuses: list, type: 'otbonus' }),
   });
   if (!silent) showToast('加班費已儲存', 'success');
-}
-
-// Load insurance deductions for a given month into allInsurances map
-async function loadInsurances(month) {
-  try {
-    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&type=insurance&userId=${userProfile.userId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    allInsurances = {};
-    (data.bonuses || []).forEach(b => { allInsurances[b.userId] = b.amount || 0; });
-  } catch (_) { allInsurances = {}; }
-}
-
-// Save current allInsurances to backend for a given month
-async function saveInsurances(month, silent = false) {
-  const list = allEmployees
-    .filter(e => e.status === 'active')
-    .map(e => ({ userId: e.userId, name: e.name, amount: allInsurances[e.userId] || 0 }))
-    .filter(b => b.amount > 0);
-  await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ month, bonuses: list, type: 'insurance' }),
-  });
-  if (!silent) showToast('勞健保設定已儲存', 'success');
-}
-
-// Load job allowances for a given month into allJobAllowances map
-async function loadJobAllowances(month) {
-  try {
-    const res = await fetch(`/api/admin?action=get-bonuses&month=${month}&type=joballow&userId=${userProfile.userId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    allJobAllowances = {};
-    (data.bonuses || []).forEach(b => { allJobAllowances[b.userId] = b.amount || 0; });
-  } catch (_) { allJobAllowances = {}; }
-}
-
-// Save current allJobAllowances to backend for a given month
-async function saveJobAllowances(month) {
-  const list = allEmployees
-    .filter(e => e.status === 'active')
-    .map(e => ({ userId: e.userId, name: e.name, amount: allJobAllowances[e.userId] || 0 }))
-    .filter(b => b.amount > 0);
-  try {
-    const res = await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month, bonuses: list, type: 'joballow' }),
-    });
-    if (res.ok) { showToast('職務加給已儲存', 'success'); }
-    else        { showToast('儲存失敗，請重試', 'error'); }
-  } catch (_) { showToast('儲存失敗，請重試', 'error'); }
 }
 
 // Render bonus input list in export tab
@@ -598,6 +552,12 @@ function parseMinutes(t) {
   if (!t) return null;
   const p = String(t).split(':');
   return parseInt(p[0], 10) * 60 + (parseInt(p[1], 10) || 0);
+}
+
+// Format a minute count (multiple of 30) as "2h" or "1.5h"
+function formatHours(min) {
+  const h = min / 60;
+  return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h';
 }
 
 // Helper: get employee's shift for a specific date (not today)
@@ -1015,6 +975,7 @@ function calcEmpMonthSalary(emp, month) {
     } else if (inStr) {
       const aIn  = parseMinutes(inStr);
       const aOut = outStr ? parseMinutes(outStr) : null;
+      const workedBillableMin = aOut !== null && aOut > aIn ? Math.floor((aOut - aIn) / 30) * 30 : 0;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
 
@@ -1117,7 +1078,7 @@ function calcEmpMonthSalary(emp, month) {
       inManual, outManual,
       shift, leave, onLeave,
       isHoliday, holidayName,
-      otDetail, deductDetail, dailyPayStr, dayOTMin,
+      otDetail, deductDetail, dailyPayStr, dayOTMin, workedBillableMin,
     });
   }
 
@@ -1181,7 +1142,7 @@ async function loadMonthGrid() {
   const container = document.getElementById('gridContainer');
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
 
-  await Promise.all([loadOTBonuses(month), loadBonuses(month), loadInsurances(month), loadJobAllowances(month)]);
+  await loadAllMonthData(month);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1414,7 +1375,7 @@ function openGridEdit(userId, name, date, inTime, outTime) {
 async function exportMonthData() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
-  await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month)]);
+  await loadAllMonthData(month);
 
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
@@ -1532,9 +1493,11 @@ async function exportMonthData() {
 
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
+  const objUrl = URL.createObjectURL(blob);
+  link.href = objUrl;
   link.download = `出勤報表_${month}.csv`;
   link.click();
+  URL.revokeObjectURL(objUrl);
 
   showToast('CSV 已下載', 'success');
 }
@@ -1573,22 +1536,11 @@ function buildPayslipMessage(emp, sal, month) {
       const outD = outStr ? outStr.slice(0, 5) : '--';
       let timeNote = '';
       if (isMonthly) {
-        // 月薪：顯示加班時數（以30分鐘為單位，不足30分不顯示）
         const roundedOTMin = Math.floor(dayOTMin / 30) * 30;
-        if (roundedOTMin > 0) {
-          const h = roundedOTMin / 60;
-          timeNote = `（加班 ${Number.isInteger(h) ? h : h.toFixed(1)}h）`;
-        }
+        if (roundedOTMin > 0) timeNote = `（加班 ${formatHours(roundedOTMin)}）`;
       } else {
-        // 時薪：顯示總工作時長（以30分鐘為單位）
-        if (inStr && outStr) {
-          const raw = parseMinutes(outStr) - parseMinutes(inStr);
-          const workedMin = Math.floor(Math.max(0, raw) / 30) * 30;
-          if (workedMin > 0) {
-            const h = workedMin / 60;
-            timeNote = `（${Number.isInteger(h) ? h : h.toFixed(1)}h）`;
-          }
-        }
+        const wMin = dd.workedBillableMin || 0;
+        if (wMin > 0) timeNote = `（${formatHours(wMin)}）`;
       }
       lines.push(`${dayLabel} ${inD} → ${outD}${timeNote}`);
     }
@@ -1655,7 +1607,7 @@ async function sendPayslipToOne(userId, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
 
   try {
-    await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month)]);
+    await loadAllMonthData(month);
     const emp = allEmployees.find(e => e.userId === userId);
     if (!emp) { showToast('找不到員工', 'error'); return; }
     const sal = calcEmpMonthSalary(emp, month);
@@ -1688,7 +1640,7 @@ async function sendPayslipToOne(userId, btnEl) {
 async function sendPayslips() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
-  await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month)]);
+  await loadAllMonthData(month);
 
   const activeEmps  = allEmployees.filter(e => e.status === 'active');
   const payslips = [];
@@ -1767,7 +1719,7 @@ function switchTab(tabName, btnEl) {
     loadAllLeaves();
   } else if (tabName === 'export') {
     const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
-    Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month)]).then(() => { renderBonusList(); renderPayslipEmpList(); });
+    loadAllMonthData(month).then(() => { renderBonusList(); renderPayslipEmpList(); });
   } else if (tabName === 'grid') {
     loadMonthGrid();
   }
