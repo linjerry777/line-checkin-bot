@@ -1477,97 +1477,149 @@ async function exportMonthData() {
   showToast('CSV 已下載', 'success');
 }
 
-// Send monthly payslip to each employee via LINE
+// ── Build payslip message for one employee ───────────────────────────────────
+function buildPayslipMessage(emp, sal, month) {
+  const [year, mon]  = month.split('-').map(Number);
+  const daysInMonth  = new Date(year, mon, 0).getDate();
+  const DOW_NAMES    = ['日','一','二','三','四','五','六'];
+  const monthLabel   = `${year}年${mon}月`;
+  const isMonthly    = emp.salaryType === 'monthly';
+
+  const lines = [];
+  lines.push(`=== ${monthLabel} 薪資單 ===`);
+  lines.push(`👤 ${emp.name}（${isMonthly ? '月薪' : '時薪'}）`);
+  lines.push('');
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dd = sal.perDayData[d - 1];
+    const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName, dayOTMin } = dd;
+    const dow      = new Date(dd.dateStr + 'T12:00:00').getDay();
+    const hasShift = !!(shift && shift.start && shift.end);
+    const isOffDay = shift === null;
+    const dayLabel = `${String(d).padStart(2, '0')}（${DOW_NAMES[dow]}）`;
+
+    if (onLeave && !inStr) {
+      lines.push(`${dayLabel} ${leave?.leaveTypeText || '請假'}`);
+    } else if (isHoliday && !inStr) {
+      lines.push(`${dayLabel} 🎌${holidayName}`);
+    } else if (isOffDay && !inStr) {
+      // 休假日無出勤 → 略過
+    } else if (hasShift && !inStr && !outStr) {
+      lines.push(`${dayLabel} 🚫曠職`);
+    } else if (inStr || outStr) {
+      const inD  = inStr  ? inStr.slice(0, 5)  : '--';
+      const outD = outStr ? outStr.slice(0, 5) : '--';
+      let otNote = '';
+      if (dayOTMin > 0) {
+        const otH = (dayOTMin / 60).toFixed(1).replace(/\.0$/, '');
+        otNote = `（加班 ${otH}h）`;
+      }
+      lines.push(`${dayLabel} ${inD} → ${outD}${otNote}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('──────────────────');
+
+  if (isMonthly) {
+    lines.push('【收入】');
+    lines.push(`本薪：NT$${sal.basePay.toLocaleString()}`);
+    if (sal.mealAllowance > 0) lines.push(`伙食費：NT$${sal.mealAllowance.toLocaleString()}（${sal.attendanceDays}天×75）`);
+    if (sal.overtimePay  > 0) lines.push(`加班費：NT$${sal.overtimePay.toLocaleString()}`);
+    if (sal.otBonus      > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
+    if (sal.bonus        > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
+    lines.push('');
+    if (sal.deductions > 0 || sal.insurance > 0) {
+      lines.push('【扣款】');
+      if (sal.insurance  > 0) lines.push(`勞健保：NT$${sal.insurance.toLocaleString()}`);
+      if (sal.deductions > 0) lines.push(`請假/遲到：NT$${sal.deductions.toLocaleString()}`);
+      lines.push('');
+    }
+  } else {
+    if (sal.bonus   > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
+    if (sal.otBonus > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
+    lines.push('');
+  }
+
+  lines.push('──────────────────');
+  lines.push(`💰 本月薪資：NT$${sal.totalPay.toLocaleString()}`);
+  return lines.join('\n');
+}
+
+// ── Render per-employee payslip send list ─────────────────────────────────────
+function renderPayslipEmpList() {
+  const container = document.getElementById('payslipEmpList');
+  if (!container) return;
+  const active = allEmployees.filter(e => e.status === 'active' && e.salaryType);
+  if (active.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">尚無設定薪資的員工</div>';
+    return;
+  }
+  container.innerHTML = active.map(emp => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);">
+      <span style="flex:1;font-size:14px;">${emp.name}</span>
+      <span style="font-size:11px;color:var(--text-muted);background:var(--bg2);padding:2px 7px;border-radius:10px;">${emp.salaryType === 'monthly' ? '月薪' : '時薪'}</span>
+      <button id="singleSendBtn_${emp.userId}"
+        onclick="sendPayslipToOne('${emp.userId}', this)"
+        style="font-size:12px;padding:5px 12px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;">
+        <i class="fas fa-paper-plane"></i> 發送
+      </button>
+    </div>
+  `).join('');
+}
+
+// ── Send to one employee ──────────────────────────────────────────────────────
+async function sendPayslipToOne(userId, btnEl) {
+  const month = document.getElementById('exportMonth').value;
+  if (!month) { showToast('請選擇月份', 'error'); return; }
+
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+  try {
+    await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]);
+    const emp = allEmployees.find(e => e.userId === userId);
+    if (!emp) { showToast('找不到員工', 'error'); return; }
+    const sal = calcEmpMonthSalary(emp, month);
+    if (!sal.hasSalary) { showToast(`${emp.name} 尚未設定薪資`, 'error'); return; }
+
+    const message = buildPayslipMessage(emp, sal, month);
+    const res = await fetch(`/api/admin?action=send-payslip&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month, payslips: [{ userId: emp.userId, name: emp.name, message }] }),
+    });
+    const data = await res.json();
+    if (data.success && data.sent > 0) {
+      showToast(`✅ 已發送給 ${emp.name}`, 'success');
+      if (btnEl) { btnEl.innerHTML = '<i class="fas fa-check"></i> 已送'; btnEl.style.background = '#059669'; }
+      setTimeout(() => {
+        if (btnEl) { btnEl.innerHTML = '<i class="fas fa-paper-plane"></i> 發送'; btnEl.style.background = ''; btnEl.disabled = false; }
+      }, 3000);
+      return;
+    }
+    showToast(data.error || '發送失敗', 'error');
+  } catch (e) {
+    showToast('發送失敗', 'error');
+  } finally {
+    if (btnEl && btnEl.disabled) { btnEl.disabled = false; btnEl.innerHTML = '<i class="fas fa-paper-plane"></i> 發送'; }
+  }
+}
+
+// ── Send to all employees ─────────────────────────────────────────────────────
 async function sendPayslips() {
   const month = document.getElementById('exportMonth').value;
   if (!month) { showToast('請選擇月份', 'error'); return; }
   await Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]);
 
-  const [year, mon] = month.split('-').map(Number);
-  const daysInMonth  = new Date(year, mon, 0).getDate();
-  const DOW_NAMES    = ['日','一','二','三','四','五','六'];
-  const monthLabel   = `${year}年${mon}月`;
-
   const activeEmps  = allEmployees.filter(e => e.status === 'active');
-  const empSalaries = activeEmps.map(emp => calcEmpMonthSalary(emp, month));
-
   const payslips = [];
-
-  activeEmps.forEach((emp, ei) => {
-    const sal = empSalaries[ei];
-    if (!sal.hasSalary) return; // skip employees without salary settings
-
-    const isMonthly = emp.salaryType === 'monthly';
-    const lines = [];
-    lines.push(`=== ${monthLabel} 薪資單 ===`);
-    lines.push(`👤 ${emp.name}（${isMonthly ? '月薪' : '時薪'}）`);
-    lines.push('');
-
-    // ── 每日出勤 ──
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dd = sal.perDayData[d - 1];
-      const { inStr, outStr, shift, leave, onLeave, isHoliday, holidayName, dayOTMin } = dd;
-      const dow      = new Date(dd.dateStr + 'T12:00:00').getDay();
-      const hasShift = !!(shift && shift.start && shift.end);
-      const isOffDay = shift === null;
-      const dayLabel = `${String(d).padStart(2, '0')}（${DOW_NAMES[dow]}）`;
-
-      if (onLeave && !inStr) {
-        lines.push(`${dayLabel} ${leave?.leaveTypeText || '請假'}`);
-      } else if (isHoliday && !inStr) {
-        lines.push(`${dayLabel} 🎌${holidayName}`);
-      } else if (isOffDay && !inStr) {
-        // 休假日無出勤 → 略過
-      } else if (hasShift && !inStr && !outStr) {
-        lines.push(`${dayLabel} 🚫曠職`);
-      } else if (inStr || outStr) {
-        const inD  = inStr  ? inStr.slice(0, 5)  : '--';
-        const outD = outStr ? outStr.slice(0, 5) : '--';
-        let otNote = '';
-        if (dayOTMin > 0) {
-          const otH = (dayOTMin / 60).toFixed(1).replace(/\.0$/, '');
-          otNote = `（加班 ${otH}h）`;
-        }
-        lines.push(`${dayLabel} ${inD} → ${outD}${otNote}`);
-      }
-    }
-
-    lines.push('');
-    lines.push('──────────────────');
-
-    if (isMonthly) {
-      // 月薪：完整收入/扣款區塊
-      lines.push('【收入】');
-      lines.push(`本薪：NT$${sal.basePay.toLocaleString()}`);
-      if (sal.mealAllowance > 0) lines.push(`伙食費：NT$${sal.mealAllowance.toLocaleString()}（${sal.attendanceDays}天×75）`);
-      if (sal.overtimePay  > 0) lines.push(`加班費：NT$${sal.overtimePay.toLocaleString()}`);
-      if (sal.otBonus      > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
-      if (sal.bonus        > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
-      lines.push('');
-      const hasDeduct = sal.deductions > 0 || sal.insurance > 0;
-      if (hasDeduct) {
-        lines.push('【扣款】');
-        if (sal.insurance  > 0) lines.push(`勞健保：NT$${sal.insurance.toLocaleString()}`);
-        if (sal.deductions > 0) lines.push(`請假/遲到：NT$${sal.deductions.toLocaleString()}`);
-        lines.push('');
-      }
-    } else {
-      // 時薪：簡化
-      if (sal.bonus   > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
-      if (sal.otBonus > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
-      lines.push('');
-    }
-
-    lines.push('──────────────────');
-    lines.push(`💰 本月薪資：NT$${sal.totalPay.toLocaleString()}`);
-
-    payslips.push({ userId: emp.userId, name: emp.name, message: lines.join('\n') });
+  activeEmps.forEach(emp => {
+    const sal = calcEmpMonthSalary(emp, month);
+    if (!sal.hasSalary) return;
+    payslips.push({ userId: emp.userId, name: emp.name, message: buildPayslipMessage(emp, sal, month) });
   });
 
-  if (payslips.length === 0) {
-    showToast('沒有設定薪資的員工', 'error');
-    return;
-  }
+  if (payslips.length === 0) { showToast('沒有設定薪資的員工', 'error'); return; }
 
   const btn      = document.getElementById('sendPayslipBtn');
   const resultEl = document.getElementById('payslipSendResult');
@@ -1595,10 +1647,7 @@ async function sendPayslips() {
   } catch (e) {
     showToast('發送失敗', 'error');
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-paper-plane"></i> 發送薪資單給員工';
-    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> 一鍵全部發送'; }
   }
 }
 
@@ -1639,7 +1688,7 @@ function switchTab(tabName, btnEl) {
     loadAllLeaves();
   } else if (tabName === 'export') {
     const month = document.getElementById('exportMonth').value || new Date().toISOString().slice(0, 7);
-    Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]).then(() => renderBonusList());
+    Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month)]).then(() => { renderBonusList(); renderPayslipEmpList(); });
   } else if (tabName === 'grid') {
     loadMonthGrid();
   }

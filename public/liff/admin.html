@@ -1297,7 +1297,7 @@
 
       <div class="form-group">
         <label class="form-label">選擇月份</label>
-        <input type="month" id="exportMonth" class="form-input" onchange="Promise.all([loadBonuses(this.value),loadOTBonuses(this.value)])">
+        <input type="month" id="exportMonth" class="form-input" onchange="Promise.all([loadBonuses(this.value),loadOTBonuses(this.value),loadInsurances(this.value)]).then(()=>{renderBonusList();renderPayslipEmpList();})">
       </div>
 
       <button class="btn btn-primary btn-full" onclick="exportMonthData()">
@@ -1314,13 +1314,14 @@
     <div class="card">
       <div class="card-title"><span><i class="fas fa-paper-plane"></i> 發送薪資單給員工</span></div>
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
-        點擊後，系統會透過 LINE 傳送當月薪資明細（每日上下班時間＋當日薪資＋總薪資）給所有有設定薪資的員工。
+        透過 LINE 傳送當月薪資明細給員工。可一鍵全部發送，或單獨發送給指定員工。
       </p>
       <button id="sendPayslipBtn" class="btn btn-primary btn-full" onclick="sendPayslips()">
         <i class="fas fa-paper-plane"></i>
-        發送薪資單給員工
+        一鍵全部發送
       </button>
       <div id="payslipSendResult" style="display:none;margin-top:12px;padding:10px 14px;background:#f0fdf4;border-radius:10px;font-size:14px;color:#166534;"></div>
+      <div id="payslipEmpList" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;"></div>
     </div>
 
     <div id="exportPreview" style="display: none;" class="card">
