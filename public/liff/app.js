@@ -677,6 +677,12 @@ function formatDate(dateStr) {
 
 // Get today's date string in LOCAL timezone (YYYY-MM-DD)
 // Using toISOString() gives UTC date which is wrong in Taiwan (UTC+8) after midnight
+function timeStrToMin(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
 function getTodayLocal() {
   const now = new Date();
   const year = now.getFullYear();
@@ -790,7 +796,7 @@ async function submitLeave() {
     return;
   }
   // Validate partial-day times
-  if (startDate === endDate && startTime && endTime && startTime >= endTime) {
+  if (startDate === endDate && startTime && endTime && timeStrToMin(startTime) >= timeStrToMin(endTime)) {
     showToast('結束時間必須晚於開始時間', 'error');
     return;
   }
