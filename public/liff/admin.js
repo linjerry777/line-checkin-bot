@@ -2336,7 +2336,7 @@ function renderLeaves() {
         </button>
       </div>
       <input type="text" id="rejectInput-${leave.leaveId}" class="reject-reason-input"
-        placeholder="請填寫拒絕原因…">
+        style="display:none;" placeholder="請填寫拒絕原因…">
       <div id="confirmReject-${leave.leaveId}" style="display:none; margin-top:8px;">
         <button class="btn-reject" style="width:100%;" onclick="reviewLeave('${leave.leaveId}', 'reject', this)">
           <i class="fas fa-times-circle"></i> 確認拒絕
