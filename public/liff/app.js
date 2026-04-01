@@ -796,10 +796,11 @@ async function submitLeave() {
     return;
   }
   // Validate partial-day times
-  if (startDate === endDate && startTime && endTime && timeStrToMin(startTime) >= timeStrToMin(endTime)) {
-    showToast('結束時間必須晚於開始時間', 'error');
-    return;
-  }
+  // 時間順序驗證：LINE WebView 對 PM 12:xx 有已知 bug（回傳 00:xx），略過 client 端驗證
+  // if (startDate === endDate && startTime && endTime && timeStrToMin(startTime) >= timeStrToMin(endTime)) {
+  //   showToast('結束時間必須晚於開始時間', 'error');
+  //   return;
+  // }
 
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 送出中…'; }
 
