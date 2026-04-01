@@ -942,7 +942,7 @@ function calcEmpMonthSalary(emp, month) {
     const onLeave = !!leave;
 
     let otDetail = '', deductDetail = '', dailyPayStr = '';
-    let dayOTMin = 0, dayOTPay = 0, dayDeduction = 0;
+    let dayOTMin = 0, dayOTPay = 0, dayDeduction = 0, workedBillableMin = 0;
 
     const isHoliday   = allHolidays.has(dateStr);
     const holidayName = isHoliday ? (allHolidays.get(dateStr) || '國定假日') : '';
@@ -975,7 +975,7 @@ function calcEmpMonthSalary(emp, month) {
     } else if (inStr) {
       const aIn  = parseMinutes(inStr);
       const aOut = outStr ? parseMinutes(outStr) : null;
-      const workedBillableMin = aOut !== null && aOut > aIn ? Math.floor((aOut - aIn) / 30) * 30 : 0;
+      workedBillableMin = aOut !== null && aOut > aIn ? Math.floor((aOut - aIn) / 30) * 30 : 0;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
 
