@@ -1297,7 +1297,7 @@
 
       <div class="form-group">
         <label class="form-label">選擇月份</label>
-        <input type="month" id="exportMonth" class="form-input" onchange="Promise.all([loadBonuses(this.value),loadOTBonuses(this.value),loadInsurances(this.value)]).then(()=>{renderBonusList();renderPayslipEmpList();})">
+        <input type="month" id="exportMonth" class="form-input" onchange="Promise.all([loadBonuses(this.value),loadOTBonuses(this.value),loadInsurances(this.value),loadJobAllowances(this.value)]).then(()=>{renderBonusList();renderPayslipEmpList();})">
       </div>
 
       <button class="btn btn-primary btn-full" onclick="exportMonthData()">
