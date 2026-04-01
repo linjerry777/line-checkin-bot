@@ -1444,7 +1444,7 @@ async function exportMonthData() {
     ['扣薪合計',    sal => sal.hasSalary ? `-NT$${sal.deductions}`  : '-'],
     ['勞健保',      sal => sal.hasSalary && sal.insurance     > 0 ? `-NT$${sal.insurance}`     : '-'],
     ['獎金',        sal => sal.hasSalary && sal.bonus         > 0 ? `+NT$${sal.bonus}`         : '-'],
-    ['加班費(手動)',sal => sal.hasSalary && sal.otBonus        > 0 ? `+NT$${sal.otBonus}`       : '-'],
+    ['時數補貼',sal => sal.hasSalary && sal.otBonus        > 0 ? `+NT$${sal.otBonus}`       : '-'],
     ['伙食費',      sal => sal.hasSalary && sal.mealAllowance > 0 ? `+NT$${sal.mealAllowance}` : '-'],
     ['基本薪資',    sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
     ['加班費(自動)',sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
@@ -1526,7 +1526,7 @@ function buildPayslipMessage(emp, sal, month) {
     lines.push(`本薪：NT$${sal.basePay.toLocaleString()}`);
     if (sal.mealAllowance > 0) lines.push(`伙食費：NT$${sal.mealAllowance.toLocaleString()}（${sal.attendanceDays}天×75）`);
     if (sal.overtimePay  > 0) lines.push(`加班費：NT$${sal.overtimePay.toLocaleString()}`);
-    if (sal.otBonus      > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
+    if (sal.otBonus      > 0) lines.push(`時數補貼：NT$${sal.otBonus.toLocaleString()}`);
     if (sal.bonus        > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
     lines.push('');
     if (sal.deductions > 0 || sal.insurance > 0) {
@@ -1537,7 +1537,7 @@ function buildPayslipMessage(emp, sal, month) {
     }
   } else {
     if (sal.bonus   > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
-    if (sal.otBonus > 0) lines.push(`加班費(手動)：NT$${sal.otBonus.toLocaleString()}`);
+    if (sal.otBonus > 0) lines.push(`時數補貼：NT$${sal.otBonus.toLocaleString()}`);
     lines.push('');
   }
 
