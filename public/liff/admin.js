@@ -81,11 +81,20 @@ async function saveBonuses(month) {
     .filter(e => e.status === 'active')
     .map(e => ({ userId: e.userId, name: e.name, amount: allBonuses[e.userId] || 0 }))
     .filter(b => b.amount > 0);
-  await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ month, bonuses: bonusList }),
-  });
+  try {
+    const res = await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month, bonuses: bonusList }),
+    });
+    if (res.ok) {
+      showToast('獎金已儲存', 'success');
+    } else {
+      showToast('儲存失敗，請重試', 'error');
+    }
+  } catch (e) {
+    showToast('儲存失敗，請重試', 'error');
+  }
 }
 
 // Load manual OT bonuses for a given month into allOTBonuses map
