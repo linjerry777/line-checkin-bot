@@ -73,7 +73,7 @@ async function loadEmployeeData() {
   try {
     const res = await fetch(`/api/employee/${userProfile.userId}`);
     if (res.ok) {
-      employeeData = await res.json();
+      employeeData = (await res.json()).employee || null;
     }
   } catch (error) {
     console.error('載入員工資料失敗:', error);
