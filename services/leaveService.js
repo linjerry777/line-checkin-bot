@@ -65,7 +65,9 @@ async function applyLeave({ userId, employeeName, leaveType, startDate, endDate,
       const [sh, sm] = startTime.split(':').map(Number);
       const [eh, em] = endTime.split(':').map(Number);
       const mins = (eh * 60 + em) - (sh * 60 + sm);
-      days = mins > 0 ? Math.max(0.5, Math.round((mins / 480) * 2) / 2) : 0; // 以 8h 為一天，最小 0.5
+      // 以 30 分鐘為單位取整，最小 0.5h，存為 8h 工作日的分數
+      const roundedMins = mins > 0 ? Math.max(30, Math.round(mins / 30) * 30) : 0;
+      days = roundedMins / 480;
     } else {
       days = calcDays(startDate, endDate);
     }

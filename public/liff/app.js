@@ -752,7 +752,7 @@ async function loadMyLeaves() {
       const datesText  = leave.startDate === leave.endDate
         ? leave.startDate + timeLabel
         : `${leave.startDate} ~ ${leave.endDate}`;
-      const daysDisplay = leave.days < 1 ? `${leave.days} 天（部分時段）` : `${leave.days} 天`;
+      const daysDisplay = leave.days < 1 ? `${leave.days * 8}h（部分時段）` : `${leave.days} 天`;
 
       return `
         <div class="leave-item">
@@ -823,7 +823,7 @@ async function submitLeave() {
     const result = await res.json();
 
     if (result.success) {
-      const daysLabel = result.days < 1 ? `${result.days} 天（部分時段）` : `${result.days} 天`;
+      const daysLabel = result.days < 1 ? `${result.days * 8}h（部分時段）` : `${result.days} 天`;
       showToast(`請假申請成功（${daysLabel}），等待審核`, 'success');
       document.getElementById('leaveReason').value = '';
       document.getElementById('leaveStartTime').value = '';

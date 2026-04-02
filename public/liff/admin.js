@@ -2358,7 +2358,7 @@ function renderLeaves() {
         </div>
         <div class="leave-card-meta">
           <span class="leave-type-tag">${typeText}</span>
-          ${datesText}（${leave.days} 天）
+          ${datesText}（${leave.days < 1 ? leave.days * 8 + 'h' : leave.days + ' 天'}）
         </div>
         ${leave.reason ? `<div class="leave-card-reason"><i class="fas fa-comment-dots" style="color:var(--text-muted);margin-right:4px;"></i>${leave.reason}</div>` : ''}
         ${actionHtml}
