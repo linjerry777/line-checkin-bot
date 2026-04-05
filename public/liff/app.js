@@ -411,11 +411,13 @@ async function checkLocation() {
     const position = await getCurrentPosition();
     const userLat = position.coords.latitude;
     const userLng = position.coords.longitude;
+    const gpsAccuracy = position.coords.accuracy || 0; // GPS 誤差（公尺）
 
-    // 計算第一位置距離
+    // 計算第一位置距離（有效距離扣除 GPS 誤差）
     const dist1 = calculateDistance(userLat, userLng,
       liffConfig.storeLocation.lat, liffConfig.storeLocation.lng);
-    const near1 = dist1 <= liffConfig.storeLocation.radius;
+    const effectiveDist1 = Math.max(0, dist1 - gpsAccuracy);
+    const near1 = effectiveDist1 <= liffConfig.storeLocation.radius;
 
     // 計算第二位置距離（如有設定）
     let near2 = false;
@@ -423,7 +425,8 @@ async function checkLocation() {
     if (liffConfig.storeLocation2) {
       dist2 = calculateDistance(userLat, userLng,
         liffConfig.storeLocation2.lat, liffConfig.storeLocation2.lng);
-      near2 = dist2 <= liffConfig.storeLocation2.radius;
+      const effectiveDist2 = Math.max(0, dist2 - gpsAccuracy);
+      near2 = effectiveDist2 <= liffConfig.storeLocation2.radius;
     }
 
     const isNearby = near1 || near2;
@@ -431,13 +434,13 @@ async function checkLocation() {
 
     if (isNearby) {
       statusEl.className = 'location-status success';
-      statusEl.innerHTML = '<i class="fas fa-check-circle"></i> 位置驗證成功，可以打卡';
+      statusEl.innerHTML = `<i class="fas fa-check-circle"></i> 位置驗證成功，可以打卡（距離 ${Math.round(minDist)}m，GPS±${Math.round(gpsAccuracy)}m）`;
       checkinBtn.disabled = false;
       checkoutBtn.disabled = false;
     } else {
       statusEl.className = 'location-status error';
-      const locHint = dist2 !== null ? '（最近打卡點距離' : '（距離';
-      statusEl.innerHTML = `<i class="fas fa-times-circle"></i> 您不在打卡位置附近 ${locHint} ${Math.round(minDist)}m）`;
+      const locHint = dist2 !== null ? '最近打卡點距離' : '距離';
+      statusEl.innerHTML = `<i class="fas fa-times-circle"></i> 您不在打卡位置附近（${locHint} ${Math.round(minDist)}m，GPS±${Math.round(gpsAccuracy)}m）`;
       checkinBtn.disabled = true;
       checkoutBtn.disabled = true;
     }
