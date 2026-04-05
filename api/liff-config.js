@@ -83,8 +83,9 @@ module.exports = async (req, res) => {
     response.workStartTime = normalizeTime(settings.workStartTime, '09:00');
     // 下班時間（正規化為 "HH:MM"，Sheet 沒設定時預設 18:00）
     response.workEndTime = normalizeTime(settings.workEndTime, '18:00');
-    // 遲到容忍時間（分鐘，預設 0）
-    response.lateThreshold = parseInt(settings.lateThreshold || '0', 10) || 0;
+    // 遲到/早退/加班 容忍時間（分鐘，預設 10）
+    response.lateThreshold  = parseInt(settings.lateThreshold  || '10', 10) || 10;
+    response.earlyThreshold = parseInt(settings.earlyThreshold || '10', 10) || 10;
 
     return res.status(200).json(response);
 

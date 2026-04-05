@@ -6,6 +6,11 @@ const { getSheetData } = require('../config/googleSheets');
  * @param {string} month - 格式：YYYY-MM
  * @param {object} settings - 設定 { workStartTime, workEndTime }
  */
+function _hhmm(t) {
+  const p = t.split(':').map(Number);
+  return p[0] * 60 + (p[1] || 0);
+}
+
 async function getLateEarlyStats(month, settings = { workStartTime: '09:00', workEndTime: '18:00' }) {
   try {
     const records = await getSheetData('打卡紀錄!A:G');
@@ -43,19 +48,23 @@ async function getLateEarlyStats(month, settings = { workStartTime: '09:00', wor
 
       employeeStats[userId].totalDays.add(date);
 
-      // 檢查遲到（上班打卡）
+      const T = parseInt(settings.lateThreshold || '10', 10) || 10;
+      const startMin = _hhmm(settings.workStartTime || '09:00');
+      const endMin   = _hhmm(settings.workEndTime   || '18:00');
+
+      // 檢查遲到（上班打卡，超過容忍時間才算）
       if (type === 'in') {
-        const checkInTime = time.split(':').slice(0, 2).join(':'); // 取 HH:MM
-        if (checkInTime > settings.workStartTime) {
+        const checkInMin = _hhmm(time.split(':').slice(0, 2).join(':'));
+        if (checkInMin > startMin + T) {
           employeeStats[userId].lateCount++;
           employeeStats[userId].lateDays.push({ date, time });
         }
       }
 
-      // 檢查早退（下班打卡）
+      // 檢查早退（下班打卡，超過容忍時間才算）
       if (type === 'out') {
-        const checkOutTime = time.split(':').slice(0, 2).join(':');
-        if (checkOutTime < settings.workEndTime) {
+        const checkOutMin = _hhmm(time.split(':').slice(0, 2).join(':'));
+        if (checkOutMin < endMin - T) {
           employeeStats[userId].earlyCount++;
           employeeStats[userId].earlyDays.push({ date, time });
         }

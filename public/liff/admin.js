@@ -5,6 +5,7 @@ let allEmployees = [];
 let allRecords   = [];
 let allLeavesData = [];  // all leave records (loaded in loadAllData)
 let allHolidays   = new Map(); // date string → name, e.g. "2026-01-01" → "元旦"
+let adminSettings = { lateThreshold: 10, earlyThreshold: 10 }; // tolerance in minutes
 let allBonuses    = {};        // userId → bonus amount for current export/send month
 let allOTBonuses  = {};        // userId → manual OT pay for current grid/export month
 let allInsurances    = {};     // userId → insurance deduction for current export/send month
@@ -345,7 +346,13 @@ async function loadAllData() {
     const hlRes = await fetch(`/api/admin?action=get-settings&userId=${userProfile.userId}`);
     if (hlRes.ok) {
       const hlData = await hlRes.json();
-      if (hlData.success) parseHolidays(hlData.settings.holidays || '[]');
+      if (hlData.success) {
+        parseHolidays(hlData.settings.holidays || '[]');
+        adminSettings = {
+          lateThreshold:  parseInt(hlData.settings.lateThreshold  || '10', 10) || 10,
+          earlyThreshold: parseInt(hlData.settings.earlyThreshold || '10', 10) || 10,
+        };
+      }
     }
   } catch (e) {
     console.error('[loadAllData] holidays 失敗:', e);
@@ -649,12 +656,13 @@ function loadAttendance() {
       const actualOut  = parseMinutes(rec.checkout);
       const notes = [];
 
-      // Early arrival = overtime
-      const earlyArrival = (actualIn  !== null && actualIn  < schedStart) ? (schedStart - actualIn)  : 0;
-      // Late departure   = overtime
-      const lateStay     = (actualOut !== null && actualOut > schedEnd)   ? (actualOut  - schedEnd)   : 0;
-      // Early departure  = early leave (NOT overtime)
-      const earlyLeave   = (actualOut !== null && actualOut < schedEnd)   ? (schedEnd   - actualOut)  : 0;
+      const T = adminSettings.lateThreshold; // tolerance window (minutes)
+      // Early arrival = overtime (only if > T minutes before start)
+      const earlyArrival = (actualIn  !== null && actualIn  < schedStart - T) ? (schedStart - actualIn)  : 0;
+      // Late departure = overtime (only if > T minutes after end)
+      const lateStay     = (actualOut !== null && actualOut > schedEnd   + T) ? (actualOut  - schedEnd)   : 0;
+      // Early departure = early leave (only if > T minutes before end)
+      const earlyLeave   = (actualOut !== null && actualOut < schedEnd   - T) ? (schedEnd   - actualOut)  : 0;
 
       overtimeMin = earlyArrival + lateStay;
 
@@ -995,10 +1003,11 @@ function calcEmpMonthSalary(emp, month) {
         const se = parseMinutes(shift.end);
         totalRegularMin += (se - ss);
 
-        const earlyArr = aIn  < ss ? ss - aIn  : 0;
-        const lateArr  = aIn  > ss ? aIn - ss  : 0;
-        const lateStay = aOut !== null && aOut > se ? aOut - se : 0;
-        const earlyLv  = aOut !== null && aOut < se ? se - aOut : 0;
+        const T = adminSettings.lateThreshold; // tolerance (minutes)
+        const earlyArr = aIn  < ss - T ? ss - aIn  : 0;
+        const lateArr  = aIn  > ss + T ? aIn - ss  : 0;
+        const lateStay = aOut !== null && aOut > se + T ? aOut - se : 0;
+        const earlyLv  = aOut !== null && aOut < se - T ? se - aOut : 0;
         dayOTMin = earlyArr + lateStay;
         totalOvertimeMin += dayOTMin;
 
@@ -1028,16 +1037,16 @@ function calcEmpMonthSalary(emp, month) {
           }
         }
 
-        // Deduction: lateness + early-leave (monthly only; 15分鐘容忍, 超過後30分鐘為單位)
+        // Deduction: lateness + early-leave (monthly only; tolerance already applied above, 30-min floor unit)
         if (salaryType === 'monthly' && salaryAmount > 0 && (lateArr > 0 || earlyLv > 0)) {
-          const lateUnits  = lateArr  > 15 ? Math.ceil(lateArr  / 30) : 0;
-          const earlyUnits = earlyLv  > 15 ? Math.ceil(earlyLv  / 30) : 0;
+          const lateUnits  = lateArr  > 0 ? Math.ceil(lateArr  / 30) : 0;
+          const earlyUnits = earlyLv  > 0 ? Math.ceil(earlyLv  / 30) : 0;
           if (lateUnits + earlyUnits > 0) {
             dayDeduction = Math.round(halfHourRate * (lateUnits + earlyUnits));
             totalDeductions += dayDeduction;
             const dParts = [];
-            if (lateArr  > 15) dParts.push(`遲到${lateArr}分(${lateUnits}單位)`);
-            if (earlyLv  > 15) dParts.push(`早退${earlyLv}分(${earlyUnits}單位)`);
+            if (lateArr  > 0) dParts.push(`遲到${lateArr}分(${lateUnits}單位)`);
+            if (earlyLv  > 0) dParts.push(`早退${earlyLv}分(${earlyUnits}單位)`);
             deductDetail = dParts.join(' ') + ` 扣-NT$${dayDeduction}`;
           }
         }
@@ -1255,7 +1264,7 @@ async function loadMonthGrid() {
         let isLate = false;
         if (inTime && shift) {
           const [ss] = shift.split('-');
-          isLate = parseMinutes(inTime) > parseMinutes(ss) + 15;
+          isLate = parseMinutes(inTime) > parseMinutes(ss) + adminSettings.lateThreshold;
         }
         if (!inTime || !outTime) bg = '#fff1f0';        // partial
         else if (isLate)         bg = '#fff7ed';        // late

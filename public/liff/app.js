@@ -551,7 +551,8 @@ async function handleCheckout() {
     const currentMin = now.getHours() * 60 + now.getMinutes();
     const parts = workEnd.split(':').map(Number);
     const endMin = parts[0] * 60 + (parts[1] || 0);
-    if (!isNaN(endMin) && currentMin > endMin) {
+    const earlyThreshold = Number(liffConfig?.earlyThreshold) || 10;
+    if (!isNaN(endMin) && currentMin > endMin + earlyThreshold) {
       showLateModal(async (reason) => {
         await performCheckin('out', reason);
       }, {
