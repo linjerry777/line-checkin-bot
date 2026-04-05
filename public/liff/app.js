@@ -429,8 +429,19 @@ async function checkLocation() {
       near2 = effectiveDist2 <= liffConfig.storeLocation2.radius;
     }
 
-    const isNearby = near1 || near2;
-    const minDist = dist2 !== null ? Math.min(dist1, dist2) : dist1;
+    // 計算第三位置距離（如有設定）
+    let near3 = false;
+    let dist3 = null;
+    if (liffConfig.storeLocation3) {
+      dist3 = calculateDistance(userLat, userLng,
+        liffConfig.storeLocation3.lat, liffConfig.storeLocation3.lng);
+      const effectiveDist3 = Math.max(0, dist3 - gpsAccuracy);
+      near3 = effectiveDist3 <= liffConfig.storeLocation3.radius;
+    }
+
+    const isNearby = near1 || near2 || near3;
+    const allDists = [dist1, dist2, dist3].filter(d => d !== null);
+    const minDist = Math.min(...allDists);
 
     if (isNearby) {
       statusEl.className = 'location-status success';

@@ -1549,7 +1549,7 @@ function buildPayslipMessage(emp, sal, month) {
     } else if (isOffDay && !inStr) {
       // 休假日無出勤 → 略過
     } else if (hasShift && !inStr && !outStr) {
-      lines.push(`${dayLabel} 🚫曠職`);
+      lines.push(`${dayLabel} 🚫未到`);
     } else if (inStr || outStr) {
       const inD  = inStr  ? inStr.slice(0, 5)  : '--';
       const outD = outStr ? outStr.slice(0, 5) : '--';
@@ -1958,6 +1958,12 @@ document.getElementById('lateThreshold').value = settings.lateThreshold || '15';
     document.getElementById('storeLongitude2').value = settings.storeLongitude2 || '';
     document.getElementById('storeRadius2').value = settings.storeRadius2 || '100';
     document.getElementById('enableLocation2').checked = settings.enableLocation2 === 'true';
+    // 第三打卡位置
+    document.getElementById('storeAddress3').value = settings.storeAddress3 || '';
+    document.getElementById('storeLatitude3').value = settings.storeLatitude3 || '';
+    document.getElementById('storeLongitude3').value = settings.storeLongitude3 || '';
+    document.getElementById('storeRadius3').value = settings.storeRadius3 || '100';
+    document.getElementById('enableLocation3').checked = settings.enableLocation3 === 'true';
     // Holidays
     parseHolidays(settings.holidays || '[]');
     renderHolidayList();
@@ -1997,6 +2003,12 @@ lateThreshold: document.getElementById('lateThreshold').value,
       storeLongitude2: document.getElementById('storeLongitude2').value,
       storeRadius2: document.getElementById('storeRadius2').value,
       enableLocation2: document.getElementById('enableLocation2').checked ? 'true' : 'false',
+      // 第三打卡位置
+      storeAddress3: document.getElementById('storeAddress3').value,
+      storeLatitude3: document.getElementById('storeLatitude3').value,
+      storeLongitude3: document.getElementById('storeLongitude3').value,
+      storeRadius3: document.getElementById('storeRadius3').value,
+      enableLocation3: document.getElementById('enableLocation3').checked ? 'true' : 'false',
       holidays: serializeHolidays(),
     };
 

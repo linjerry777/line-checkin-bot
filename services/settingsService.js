@@ -139,6 +139,12 @@ function getDefaultSettings() {
     storeLongitude2: '',
     storeRadius2: '100',
     enableLocation2: 'false',
+    // 第三打卡位置（預設停用）
+    storeAddress3: '',
+    storeLatitude3: '',
+    storeLongitude3: '',
+    storeRadius3: '100',
+    enableLocation3: 'false',
   };
 }
 
@@ -227,6 +233,22 @@ function validateSettings(settings) {
     if (isNaN(r2) || r2 < 0) {
       errors.push('第二位置打卡範圍必須是正整數');
     }
+  }
+
+  if (settings.enableLocation3 && !['true', 'false'].includes(settings.enableLocation3)) {
+    errors.push('啟用第三位置必須是 true 或 false');
+  }
+  if (settings.storeLatitude3 && settings.storeLatitude3 !== '') {
+    const lat3 = parseFloat(settings.storeLatitude3);
+    if (isNaN(lat3) || lat3 < -90 || lat3 > 90) errors.push('第三位置緯度必須在 -90 到 90 之間');
+  }
+  if (settings.storeLongitude3 && settings.storeLongitude3 !== '') {
+    const lng3 = parseFloat(settings.storeLongitude3);
+    if (isNaN(lng3) || lng3 < -180 || lng3 > 180) errors.push('第三位置經度必須在 -180 到 180 之間');
+  }
+  if (settings.storeRadius3 && settings.storeRadius3 !== '') {
+    const r3 = parseInt(settings.storeRadius3);
+    if (isNaN(r3) || r3 < 0) errors.push('第三位置打卡範圍必須是正整數');
   }
 
   // 驗證閾值

@@ -78,6 +78,15 @@ module.exports = async (req, res) => {
         address: settings.storeAddress2 || '',
       };
     }
+    // 第三打卡位置（啟用且有座標時才回傳）
+    if (settings.enableLocation3 === 'true' && settings.storeLatitude3 && settings.storeLongitude3) {
+      response.storeLocation3 = {
+        lat: parseFloat(settings.storeLatitude3),
+        lng: parseFloat(settings.storeLongitude3),
+        radius: parseInt(settings.storeRadius3 || '100'),
+        address: settings.storeAddress3 || '',
+      };
+    }
 
     // 上班時間（正規化為 "HH:MM"，Sheet 沒設定時預設 09:00）
     response.workStartTime = normalizeTime(settings.workStartTime, '09:00');
