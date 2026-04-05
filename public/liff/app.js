@@ -498,23 +498,21 @@ function getTodayShift() {
 
 // Handle checkin (with late check)
 async function handleCheckin() {
-  const schedule = employeeData?.weeklySchedule;
-  const hasSchedule = schedule && Object.keys(schedule).length > 0;
+  const todayShift = getTodayShift();
 
-  // 未設定個人班表 → 視為加班，直接要求填加班原因
-  if (!hasSchedule) {
+  // 今天未排班（無班表 或 今天排休）→ 視為加班
+  if (todayShift === null) {
     showLateModal(async (reason) => {
       await performCheckin('in', reason);
     }, {
-      title: '未設定班表，請說明加班原因',
+      title: '非排班時間，請說明加班原因',
       sub: '填寫說明後才能完成上班打卡',
       placeholder: '請輸入加班原因…'
     });
     return;
   }
 
-  const todayShift = getTodayShift();
-  const workStart = todayShift?.start || liffConfig?.workStartTime;
+  const workStart = todayShift.start || liffConfig?.workStartTime;
   if (workStart) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
@@ -533,23 +531,21 @@ async function handleCheckin() {
 
 // Handle checkout (with overtime check)
 async function handleCheckout() {
-  const schedule = employeeData?.weeklySchedule;
-  const hasSchedule = schedule && Object.keys(schedule).length > 0;
+  const todayShift = getTodayShift();
 
-  // 未設定個人班表 → 視為加班，直接要求填加班原因
-  if (!hasSchedule) {
+  // 今天未排班（無班表 或 今天排休）→ 視為加班
+  if (todayShift === null) {
     showLateModal(async (reason) => {
       await performCheckin('out', reason);
     }, {
-      title: '未設定班表，請說明加班原因',
+      title: '非排班時間，請說明加班原因',
       sub: '填寫說明後才能完成下班打卡',
       placeholder: '請輸入加班原因…'
     });
     return;
   }
 
-  const todayShift = getTodayShift();
-  const workEnd = todayShift?.end || liffConfig?.workEndTime;
+  const workEnd = todayShift.end || liffConfig?.workEndTime;
   if (workEnd) {
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
