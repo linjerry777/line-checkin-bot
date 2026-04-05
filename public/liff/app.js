@@ -498,6 +498,21 @@ function getTodayShift() {
 
 // Handle checkin (with late check)
 async function handleCheckin() {
+  const schedule = employeeData?.weeklySchedule;
+  const hasSchedule = schedule && Object.keys(schedule).length > 0;
+
+  // 未設定個人班表 → 視為加班，直接要求填加班原因
+  if (!hasSchedule) {
+    showLateModal(async (reason) => {
+      await performCheckin('in', reason);
+    }, {
+      title: '未設定班表，請說明加班原因',
+      sub: '填寫說明後才能完成上班打卡',
+      placeholder: '請輸入加班原因…'
+    });
+    return;
+  }
+
   const todayShift = getTodayShift();
   const workStart = todayShift?.start || liffConfig?.workStartTime;
   if (workStart) {
@@ -518,6 +533,21 @@ async function handleCheckin() {
 
 // Handle checkout (with overtime check)
 async function handleCheckout() {
+  const schedule = employeeData?.weeklySchedule;
+  const hasSchedule = schedule && Object.keys(schedule).length > 0;
+
+  // 未設定個人班表 → 視為加班，直接要求填加班原因
+  if (!hasSchedule) {
+    showLateModal(async (reason) => {
+      await performCheckin('out', reason);
+    }, {
+      title: '未設定班表，請說明加班原因',
+      sub: '填寫說明後才能完成下班打卡',
+      placeholder: '請輸入加班原因…'
+    });
+    return;
+  }
+
   const todayShift = getTodayShift();
   const workEnd = todayShift?.end || liffConfig?.workEndTime;
   if (workEnd) {
