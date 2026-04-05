@@ -683,68 +683,78 @@ function loadAttendance() {
     return;
   }
 
-  const mkReason = (reason) => reason
-    ? `<span style="color:#D97706;font-size:12px;" title="${reason}">⚠️ ${reason.length > 22 ? reason.slice(0, 22) + '…' : reason}</span>`
-    : '<span style="color:#94A3B8;font-size:12px;">-</span>';
-
-  const mkNote = (note) => note
-    ? `<span style="color:#0891b2;font-size:12px;">${note}</span>`
-    : '<span style="color:#94A3B8;font-size:12px;">-</span>';
-
   const punchBtn = (emp) =>
-    `<button onclick="openManualPunch('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','${selectedDate}')"
-      style="font-size:11px;padding:2px 7px;border:1px solid var(--primary);background:none;color:var(--primary);border-radius:6px;cursor:pointer;white-space:nowrap;">✏️補打卡</button>`;
+    `<button class="att-punch-btn" onclick="openManualPunch('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','${selectedDate}')">✏️補打卡</button>`;
 
   container.innerHTML = `
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>員工</th>
-          <th>上班</th>
-          <th>下班</th>
-          <th>工時</th>
-          <th>加班/早退</th>
-          <th>遲到原因</th>
-          <th>加班原因</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows.map(({ emp, rec, rowType, workedMin, shiftNote, leave }) => {
-          if (rowType === 'absent') {
-            return `<tr style="background:#fff1f0;">
-              <td>${emp.name} ${punchBtn(emp)}</td>
-              <td colspan="6" style="color:#e53935;font-weight:600;">🚫 曠職（應出勤未打卡）</td>
-            </tr>`;
-          }
-          if (rowType === 'holiday') {
-            return `<tr style="background:#fef9c3;">
-              <td>${emp.name}</td>
-              <td colspan="6" style="color:#d97706;font-weight:600;">🎌 ${holidayLabel}</td>
-            </tr>`;
-          }
-          if (rowType === 'leave') {
-            const lt = leave ? ` - ${leave.leaveTypeText}${leave.startTime ? ' ' + leave.startTime + '–' + leave.endTime : ''}` : '';
-            return `<tr style="background:#f0f9ff;">
-              <td>${emp.name}</td>
-              <td colspan="6" style="color:#0891b2;font-weight:600;">🏖️ 請假${lt}</td>
-            </tr>`;
-          }
-          const hours = workedMin !== null ? (workedMin / 60).toFixed(1) + 'h' : '-';
-          const schedHint = shiftNote ? '' : (rec?.checkin && !rec?.checkout ? '<span style="color:#f59e0b;font-size:11px;">未下班打卡</span>' : '');
-          return `
-            <tr>
-              <td>${emp.name} ${punchBtn(emp)}</td>
-              <td class="time-cell">${rec?.checkin || '-'}</td>
-              <td class="time-cell">${rec?.checkout || '-'}</td>
-              <td>${hours}${schedHint}</td>
-              <td>${mkNote(shiftNote)}</td>
-              <td>${mkReason(rec?.lateReason)}</td>
-              <td>${mkReason(rec?.overtimeReason)}</td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
+    <div class="att-list">
+      ${rows.map(({ emp, rec, rowType, workedMin, shiftNote, leave }) => {
+        if (rowType === 'absent') {
+          return `<div class="att-card att-absent">
+            <div class="att-card-header">
+              <span class="att-emp-name">${emp.name}</span>
+              ${punchBtn(emp)}
+            </div>
+            <div style="color:#e53935;font-weight:600;">🚫 曠職（應出勤未打卡）</div>
+          </div>`;
+        }
+        if (rowType === 'holiday') {
+          return `<div class="att-card att-holiday">
+            <div class="att-card-header">
+              <span class="att-emp-name">${emp.name}</span>
+            </div>
+            <div style="color:#d97706;font-weight:600;">🎌 ${holidayLabel}</div>
+          </div>`;
+        }
+        if (rowType === 'leave') {
+          const lt = leave ? ` - ${leave.leaveTypeText}${leave.startTime ? ' ' + leave.startTime + '–' + leave.endTime : ''}` : '';
+          return `<div class="att-card att-leave">
+            <div class="att-card-header">
+              <span class="att-emp-name">${emp.name}</span>
+            </div>
+            <div style="color:#0891b2;font-weight:600;">🏖️ 請假${lt}</div>
+          </div>`;
+        }
+
+        const hours = workedMin !== null ? (workedMin / 60).toFixed(1) + 'h' : '-';
+        const noOutHint = !shiftNote && rec?.checkin && !rec?.checkout
+          ? '<span class="att-no-out">⚠️ 未下班打卡</span>' : '';
+
+        const hasOT    = shiftNote.includes('加班');
+        const hasEarly = shiftNote.includes('早退');
+        const noteClass = hasOT && hasEarly ? 'att-note-mixed' : hasOT ? 'att-note-ot' : 'att-note-early';
+
+        const lateR = rec?.lateReason;
+        const otR   = rec?.overtimeReason;
+
+        return `<div class="att-card">
+          <div class="att-card-header">
+            <span class="att-emp-name">${emp.name}</span>
+            ${punchBtn(emp)}
+          </div>
+          <div class="att-times">
+            <div class="att-time-block">
+              <div class="att-time-label">上班</div>
+              <div class="att-time-val">${rec?.checkin || '-'}</div>
+            </div>
+            <div class="att-time-sep">→</div>
+            <div class="att-time-block">
+              <div class="att-time-label">下班</div>
+              <div class="att-time-val">${rec?.checkout || '-'}</div>
+            </div>
+            <div class="att-time-block" style="margin-left:auto;">
+              <div class="att-time-label">工時</div>
+              <div class="att-time-val att-hours-val">${hours}${noOutHint}</div>
+            </div>
+          </div>
+          ${shiftNote ? `<div class="att-shiftnote ${noteClass}">${shiftNote}</div>` : ''}
+          ${(lateR || otR) ? `<div class="att-reasons">
+            ${lateR ? `<div class="att-reason att-reason-late">⚠️ 遲到原因：${lateR}</div>` : ''}
+            ${otR   ? `<div class="att-reason att-reason-ot">💬 加班原因：${otR}</div>` : ''}
+          </div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
   `;
 }
 

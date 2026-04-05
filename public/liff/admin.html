@@ -925,6 +925,111 @@
       gap: 4px;
     }
 
+    /* ── Attendance Cards ── */
+    .att-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .att-card {
+      background: var(--surface2);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .att-card.att-absent   { background: #fff1f0; border-color: #fecaca; }
+    .att-card.att-leave    { background: #f0f9ff; border-color: #bae6fd; }
+    .att-card.att-holiday  { background: #fef9c3; border-color: #fde68a; }
+
+    .att-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .att-emp-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .att-punch-btn {
+      font-size: 11px;
+      padding: 3px 9px;
+      border: 1px solid var(--primary);
+      background: none;
+      color: var(--primary);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .att-times {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .att-time-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+    }
+    .att-time-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .att-time-val {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .att-time-sep {
+      color: var(--border);
+      font-size: 16px;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+    .att-hours-val { color: var(--primary); }
+
+    .att-shiftnote {
+      margin-top: 8px;
+      font-size: 12px;
+      padding: 5px 9px;
+      border-radius: 6px;
+      line-height: 1.5;
+    }
+    .att-note-ot    { background: #EFF6FF; color: #1D4ED8; }
+    .att-note-mixed { background: #F5F3FF; color: #5B21B6; }
+    .att-note-early { background: #FFF7ED; color: #C2410C; }
+
+    .att-no-out {
+      display: block;
+      font-size: 11px;
+      color: #f59e0b;
+      margin-top: 2px;
+    }
+
+    .att-reasons {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .att-reason {
+      font-size: 12px;
+      border-radius: 6px;
+      padding: 5px 9px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+    .att-reason-late { color: #D97706; background: #FFF7ED; }
+    .att-reason-ot   { color: #0891b2; background: #f0f9ff; }
+
     /* ── Responsive ── */
     @media (max-width: 400px) {
       .stats-overview { grid-template-columns: repeat(2, 1fr); }
@@ -1475,6 +1580,6 @@
     </div>
   </div>
 
-  <script src="admin.js?v=3.993"></script>
+  <script src="admin.js?v=3.994"></script>
 </body>
 </html>
