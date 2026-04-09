@@ -1008,33 +1008,34 @@ function calcEmpMonthSalary(emp, month) {
         const lateArr  = aIn  > ss + T ? aIn - ss  : 0;
         const lateStay = aOut !== null && aOut > se + T ? aOut - se : 0;
         const earlyLv  = aOut !== null && aOut < se - T ? se - aOut : 0;
-        dayOTMin = earlyArr + lateStay;
+        // 早到與延後各自獨立計算30分鐘單位，不滿30分不計入
+        const earlyArrBillable = Math.floor(earlyArr / 30) * 30;
+        const lateStayBillable = Math.floor(lateStay / 30) * 30;
+        dayOTMin = earlyArrBillable + lateStayBillable;
         totalOvertimeMin += dayOTMin;
 
         // OT pay + detail (monthly only, 30-min floor unit; hourly uses pure worked×rate)
         if (dayOTMin > 0 && hourlyRate > 0 && salaryType !== 'hourly') {
-          const otPayMin = Math.floor(dayOTMin / 30) * 30; // 30分鐘為一單位，捨去不足30分
-          if (otPayMin > 0) {
-            const first2h  = Math.min(otPayMin, 120) / 60;
-            const beyond2h = Math.max(0, otPayMin - 120) / 60;
-            const pay1 = first2h  * hourlyRate * 1.34;
-            const pay2 = beyond2h * hourlyRate * 1.67;
-            dayOTPay = Math.round(pay1 + pay2);
-            totalOvertimePay += dayOTPay;
+          const otPayMin = dayOTMin; // 已是30分鐘的倍數
+          const first2h  = Math.min(otPayMin, 120) / 60;
+          const beyond2h = Math.max(0, otPayMin - 120) / 60;
+          const pay1 = first2h  * hourlyRate * 1.34;
+          const pay2 = beyond2h * hourlyRate * 1.67;
+          dayOTPay = Math.round(pay1 + pay2);
+          totalOvertimePay += dayOTPay;
 
-            const otParts = [];
-            if (earlyArr > 0) otParts.push(`提前${earlyArr}分`);
-            if (lateStay > 0) otParts.push(`延後${lateStay}分`);
-            otDetail = `加班${otPayMin}分`;
-            if (otParts.length) otDetail += `(${otParts.join('+')}→計${otPayMin}分)`;
-            otDetail += '：';
-            if (otPayMin <= 120) {
-              otDetail += `前${otPayMin}分×1.34=NT$${Math.round(pay1)}`;
-            } else {
-              otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${otPayMin - 120}分×1.67=NT$${Math.round(pay2)}`;
-            }
-            otDetail += ` 合計NT$${dayOTPay}`;
+          const otParts = [];
+          if (earlyArrBillable > 0) otParts.push(`提前${earlyArrBillable}分`);
+          if (lateStayBillable > 0) otParts.push(`延後${lateStayBillable}分`);
+          otDetail = `加班${otPayMin}分`;
+          if (otParts.length) otDetail += `(${otParts.join('+')}→計${otPayMin}分)`;
+          otDetail += '：';
+          if (otPayMin <= 120) {
+            otDetail += `前${otPayMin}分×1.34=NT$${Math.round(pay1)}`;
+          } else {
+            otDetail += `前120分×1.34=NT$${Math.round(pay1)} 後${otPayMin - 120}分×1.67=NT$${Math.round(pay2)}`;
           }
+          otDetail += ` 合計NT$${dayOTPay}`;
         }
 
         // Deduction: lateness + early-leave (monthly only; tolerance already applied above, 30-min floor unit)
