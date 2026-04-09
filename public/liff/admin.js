@@ -664,12 +664,15 @@ function loadAttendance() {
       // Early departure = early leave (only if > T minutes before end)
       const earlyLeave   = (actualOut !== null && actualOut < schedEnd   - T) ? (schedEnd   - actualOut)  : 0;
 
-      overtimeMin = earlyArrival + lateStay;
+      // 早到與延後各自獨立計算30分鐘單位，不滿30分不計入
+      const earlyArrivalBillable = Math.floor(earlyArrival / 30) * 30;
+      const lateStayBillable     = Math.floor(lateStay     / 30) * 30;
+      overtimeMin = earlyArrivalBillable + lateStayBillable;
 
       if (overtimeMin > 0) {
         const parts = [];
-        if (earlyArrival > 0) parts.push(`提前${earlyArrival}分`);
-        if (lateStay     > 0) parts.push(`延後${lateStay}分`);
+        if (earlyArrivalBillable > 0) parts.push(`提前${earlyArrivalBillable}分`);
+        if (lateStayBillable     > 0) parts.push(`延後${lateStayBillable}分`);
         notes.push(`加班 ${overtimeMin} 分${parts.length ? '（' + parts.join('＋') + '）' : ''}`);
       }
       if (earlyLeave > 0) {
