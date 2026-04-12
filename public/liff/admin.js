@@ -1471,7 +1471,7 @@ async function exportMonthData() {
       // 備註：員工填寫的加班原因 / 遲到原因
       const noteArr = [];
       if (otReason)   noteArr.push(`[加班:${otReason}]`);
-      if (lateReason) noteArr.push(`[遲到:${lateReason}]`);
+      if (lateReason) noteArr.push(`[${isOffDay && inStr ? '非出勤' : '遲到'}:${lateReason}]`);
       const noteCell = noteArr.join(' ');
 
       row.push(inCell, outCell, otCell, dedCell, payCell, noteCell);
