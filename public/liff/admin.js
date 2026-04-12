@@ -760,7 +760,7 @@ function loadAttendance() {
           </div>
           ${shiftNote ? `<div class="att-shiftnote ${noteClass}">${shiftNote}</div>` : ''}
           ${(lateR || otR) ? `<div class="att-reasons">
-            ${lateR ? `<div class="att-reason att-reason-late">⚠️ 遲到原因：${lateR}</div>` : ''}
+            ${lateR ? `<div class="att-reason att-reason-late">${rowType === 'nonscheduled' ? '💬 非出勤日出勤原因：' : '⚠️ 遲到原因：'}${lateR}</div>` : ''}
             ${otR   ? `<div class="att-reason att-reason-ot">💬 加班原因：${otR}</div>` : ''}
           </div>` : ''}
         </div>`;
