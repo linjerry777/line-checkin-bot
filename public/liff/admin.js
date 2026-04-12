@@ -699,7 +699,7 @@ function loadAttendance() {
 
   container.innerHTML = `
     <div class="att-list">
-      ${rows.map(({ emp, rec, rowType, workedMin, shiftNote, leave }) => {
+      ${rows.map(({ emp, rec, rowType, workedMin, shiftNote, leave, overtimeMin }) => {
         if (rowType === 'absent') {
           return `<div class="att-card att-absent">
             <div class="att-card-header">
@@ -736,7 +736,7 @@ function loadAttendance() {
         const noteClass = hasOT && hasEarly ? 'att-note-mixed' : hasOT ? 'att-note-ot' : 'att-note-early';
 
         const lateR = rec?.lateReason;
-        const otR   = rec?.overtimeReason;
+        const otR   = overtimeMin > 0 ? rec?.overtimeReason : '';
 
         return `<div class="att-card">
           <div class="att-card-header">
