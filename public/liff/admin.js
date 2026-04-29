@@ -10,6 +10,7 @@ let allBonuses    = {};        // userId → bonus amount for current export/sen
 let allOTBonuses  = {};        // userId → manual OT pay for current grid/export month
 let allInsurances    = {};     // userId → insurance deduction for current export/send month
 let allJobAllowances = {};     // userId → job allowance for current month
+let allOtherAdj   = {};        // userId → other adjustment (can be negative) for current month
 
 // Parse holidays JSON from settings into allHolidays Map
 function parseHolidays(raw) {
@@ -96,7 +97,7 @@ async function saveMonthItem(month, type, dataMap, successMsg) {
 }
 
 function loadAllMonthData(month) {
-  return Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month)]);
+  return Promise.all([loadBonuses(month), loadOTBonuses(month), loadInsurances(month), loadJobAllowances(month), loadOtherAdj(month)]);
 }
 
 async function loadBonuses(month)       { allBonuses       = await loadMonthItem(month, null); }
@@ -105,6 +106,25 @@ async function loadInsurances(month)    { allInsurances    = await loadMonthItem
 async function saveInsurances(month)    { await saveMonthItem(month, 'insurance', allInsurances,    '勞健保設定已儲存'); }
 async function loadJobAllowances(month) { allJobAllowances = await loadMonthItem(month, 'joballow'); }
 async function saveJobAllowances(month) { await saveMonthItem(month, 'joballow',  allJobAllowances, '職務加給已儲存'); }
+
+async function loadOtherAdj(month) {
+  // loadMonthItem 的 map 用 `b.amount || 0`，負數仍正確（負數為 truthy）
+  allOtherAdj = await loadMonthItem(month, 'otheradj');
+}
+async function saveOtherAdj(month) {
+  // 允許負數：filter 改為 !== 0
+  const list = allEmployees.filter(e => e.status === 'active')
+    .map(e => ({ userId: e.userId, name: e.name, amount: parseInt(allOtherAdj[e.userId]) || 0 }))
+    .filter(b => b.amount !== 0);
+  const body = { month, bonuses: list, type: 'otheradj' };
+  try {
+    const res = await fetch(`/api/admin?action=set-bonuses&userId=${userProfile.userId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    showToast(res.ok ? '其他調整已儲存' : '儲存失敗，請重試', res.ok ? 'success' : 'error');
+  } catch (_) { showToast('儲存失敗，請重試', 'error'); }
+}
 
 // Load manual OT bonuses for a given month into allOTBonuses map
 // Key format: "userId|date"  e.g. "U123|2026-03-15"
@@ -1150,6 +1170,7 @@ function calcEmpMonthSalary(emp, month) {
   const mealAllowance  = salaryType === 'monthly' ? attendanceDays * 75 : 0;
 
   const jobAllowance = Math.round(allJobAllowances[emp.userId] || 0);
+  const otherAdj     = Math.round(parseInt(allOtherAdj[emp.userId]) || 0); // 可為負數
 
   return {
     perDayData,
@@ -1163,8 +1184,9 @@ function calcEmpMonthSalary(emp, month) {
     otBonus,
     mealAllowance,
     jobAllowance,
+    otherAdj,
     attendanceDays,
-    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus + otBonus + mealAllowance + jobAllowance),
+    totalPay:    Math.round(basePay + totalOvertimePay - totalDeductions - insurance + bonus + otBonus + mealAllowance + jobAllowance + otherAdj),
     hasSalary:   !!salaryType && salaryAmount > 0,
   };
 }
@@ -1390,6 +1412,26 @@ async function loadMonthGrid() {
     </button>
   </div>`;
 
+  // ── 其他調整（可負數）──
+  html += `<div style="${cardStyle}">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">🔧 本月其他調整</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">正數為加項，負數為扣項（例如 -500）。計入薪資合計。</div>
+    <div>`;
+  activeEmps.forEach(emp => {
+    html += `<div style="${rowStyle}">
+      <span style="flex:1;font-size:14px;">${emp.name}</span>
+      <span style="font-size:13px;color:var(--text-muted);">NT$</span>
+      <input type="number" step="1" value="${allOtherAdj[emp.userId] || 0}"
+        style="${inputStyle}" id="otheradj_${emp.userId}"
+        oninput="allOtherAdj['${emp.userId}']=parseInt(this.value)||0">
+    </div>`;
+  });
+  html += `</div>
+    <button style="${btnStyle}" onclick="saveOtherAdj(document.getElementById('gridMonth').value)">
+      <i class="fas fa-save"></i> 儲存其他調整
+    </button>
+  </div>`;
+
   container.innerHTML = html;
 }
 
@@ -1516,6 +1558,7 @@ async function exportMonthData() {
     ['時數補貼',sal => sal.hasSalary && sal.otBonus        > 0 ? `+NT$${sal.otBonus}`       : '-'],
     ['伙食費',      sal => sal.hasSalary && sal.mealAllowance  > 0 ? `+NT$${sal.mealAllowance}`  : '-'],
     ['職務加給',    sal => sal.hasSalary && sal.jobAllowance  > 0 ? `+NT$${sal.jobAllowance}`  : '-'],
+    ['其他調整',    sal => sal.hasSalary && sal.otherAdj !== 0 ? `${sal.otherAdj > 0 ? '+' : ''}NT$${sal.otherAdj}` : '-'],
     ['基本薪資',    sal => sal.hasSalary ? `NT$${sal.basePay}`      : '-'],
     ['加班費(自動)',sal => sal.hasSalary ? `NT$${sal.overtimePay}`  : '-'],
     ['合計薪資',    sal => sal.hasSalary ? `NT$${sal.totalPay}`     : '-'],
@@ -1604,11 +1647,13 @@ function buildPayslipMessage(emp, sal, month) {
     if (sal.otBonus        > 0) lines.push(`時數補貼：NT$${sal.otBonus.toLocaleString()}`);
     if (sal.bonus          > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
     if (sal.jobAllowance   > 0) lines.push(`職務加給：NT$${sal.jobAllowance.toLocaleString()}`);
+    if (sal.otherAdj       > 0) lines.push(`其他（加）：NT$${sal.otherAdj.toLocaleString()}`);
     lines.push('');
-    if (sal.deductions > 0 || sal.insurance > 0) {
+    if (sal.deductions > 0 || sal.insurance > 0 || sal.otherAdj < 0) {
       lines.push('【扣款】');
       if (sal.insurance  > 0) lines.push(`勞健保：NT$${sal.insurance.toLocaleString()}`);
       if (sal.deductions > 0) lines.push(`請假/遲到：NT$${sal.deductions.toLocaleString()}`);
+      if (sal.otherAdj   < 0) lines.push(`其他（扣）：NT$${Math.abs(sal.otherAdj).toLocaleString()}`);
       lines.push('');
     }
   } else {
@@ -1616,6 +1661,8 @@ function buildPayslipMessage(emp, sal, month) {
     if (sal.bonus        > 0) lines.push(`獎金：NT$${sal.bonus.toLocaleString()}`);
     if (sal.otBonus      > 0) lines.push(`時數補貼：NT$${sal.otBonus.toLocaleString()}`);
     if (sal.jobAllowance > 0) lines.push(`職務加給：NT$${sal.jobAllowance.toLocaleString()}`);
+    if (sal.otherAdj     > 0) lines.push(`其他（加）：NT$${sal.otherAdj.toLocaleString()}`);
+    if (sal.otherAdj     < 0) lines.push(`其他（扣）：-NT$${Math.abs(sal.otherAdj).toLocaleString()}`);
     lines.push('');
   }
 
