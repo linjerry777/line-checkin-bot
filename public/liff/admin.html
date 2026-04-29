@@ -591,9 +591,23 @@
     .shift-modal-sheet {
       background: var(--surface);
       border-radius: 20px 20px 0 0;
-      padding: 12px 20px 36px;
+      padding: 0;
       width: 100%; max-width: 480px;
+      max-height: 92dvh;
+      display: flex; flex-direction: column;
       animation: slideUp .25s ease;
+    }
+    .shift-modal-body {
+      padding: 0 20px 8px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+    }
+    .shift-modal-footer {
+      padding: 12px 20px 36px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
     }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     .shift-modal-handle {
@@ -1483,19 +1497,24 @@
   <!-- Weekly Schedule Modal -->
   <div id="shiftEditModal" class="shift-modal-overlay" onclick="if(event.target===this)closeShiftEdit()">
     <div class="shift-modal-sheet">
-      <div class="shift-modal-handle"></div>
-      <div class="shift-modal-title"><i class="fas fa-calendar-week"></i> 設定週班表</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <div id="shiftEditEmpName" class="shift-modal-sub" style="margin:0;"></div>
-        <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-          <input type="text" id="shiftEmpNameInput" class="form-input"
-            style="padding:6px 10px;font-size:13px;width:110px;border-radius:8px;"
-            placeholder="改名">
-          <button onclick="saveEmpName()" style="background:var(--primary);color:#fff;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap;">
-            <i class="fas fa-pen"></i> 改名
-          </button>
+      <!-- 固定頂部 handle + 標題 -->
+      <div style="padding:12px 20px 0;flex-shrink:0;">
+        <div class="shift-modal-handle"></div>
+        <div class="shift-modal-title"><i class="fas fa-calendar-week"></i> 設定週班表</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div id="shiftEditEmpName" class="shift-modal-sub" style="margin:0;"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+            <input type="text" id="shiftEmpNameInput" class="form-input"
+              style="padding:6px 10px;font-size:13px;width:110px;border-radius:8px;"
+              placeholder="改名">
+            <button onclick="saveEmpName()" style="background:var(--primary);color:#fff;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap;">
+              <i class="fas fa-pen"></i> 改名
+            </button>
+          </div>
         </div>
       </div>
+      <!-- 可捲動內容區 -->
+      <div class="shift-modal-body">
       <div class="schedule-grid">
         <div class="sch-header">
           <span class="sch-day-col"></span>
@@ -1572,10 +1591,13 @@
         </div>
       </div>
       <div style="font-size:11px;color:#94a3b8;margin-top:6px;" id="shiftSalaryHint"></div>
-
-      <div class="shift-modal-actions">
-        <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
-        <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
+      </div><!-- end shift-modal-body -->
+      <!-- 固定底部按鈕 -->
+      <div class="shift-modal-footer">
+        <div class="shift-modal-actions">
+          <button class="shift-btn-cancel" onclick="closeShiftEdit()">取消</button>
+          <button class="shift-btn-save" onclick="saveShift()"><i class="fas fa-check"></i> 儲存</button>
+        </div>
       </div>
     </div>
   </div>
