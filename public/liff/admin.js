@@ -1302,7 +1302,9 @@ async function loadMonthGrid() {
         cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:10px;color:#d97706;text-align:center;">🎌<br>${short}</span></div>`;
       } else if (leave && !inTime) {
         bg = '#eff6ff';
-        cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:11px;color:#0891b2;font-weight:600;">🏖️<br><span style="font-size:9px;">${(leave.leaveTypeText||'假').slice(0,2)}</span></span></div>`;
+        const leaveShort = (leave.leaveTypeText||'假').slice(0,2);
+        const leaveTimeNote = leave.startTime && leave.endTime ? `<br><span style="font-size:8px;color:#0891b2;">${leave.startTime}–${leave.endTime}</span>` : '';
+        cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:11px;color:#0891b2;font-weight:600;text-align:center;">🏖️${leaveShort}${leaveTimeNote}</span></div>`;
       } else if (!hasShift && !inTime) {
         bg = '#f1f5f9';
         cellContent = `<div style="display:flex;align-items:center;justify-content:center;min-height:40px;"><span style="font-size:12px;color:#94a3b8;">休</span></div>`;
@@ -1319,7 +1321,13 @@ async function loadMonthGrid() {
         if (!inTime || !outTime) bg = '#fff1f0';        // partial
         else if (isLate)         bg = '#fff7ed';        // late
         else                     bg = '#f0fdf4';        // normal
-        cellContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;min-height:40px;gap:1px;">${cellTimesHtml(inTime, outTime, inManual, outManual)}</div>`;
+        let partialLeaveHtml = '';
+        if (leave) {
+          const lShort = (leave.leaveTypeText||'假').slice(0,2);
+          const lTime  = leave.startTime && leave.endTime ? ` ${leave.startTime}–${leave.endTime}` : '';
+          partialLeaveHtml = `<span style="font-size:8px;color:#0891b2;font-weight:600;white-space:nowrap;">🏖️${lShort}${lTime}</span>`;
+        }
+        cellContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;min-height:40px;gap:1px;">${cellTimesHtml(inTime, outTime, inManual, outManual)}${partialLeaveHtml}</div>`;
       }
 
       const safeIn   = (inTime  || '').replace(/'/g, "\\'");
@@ -1632,7 +1640,12 @@ function buildPayslipMessage(emp, sal, month) {
         const wMin = dd.workedBillableMin || 0;
         if (wMin > 0) timeNote = `（${formatHours(wMin)}）`;
       }
-      lines.push(`${dayLabel} ${inD} → ${outD}${timeNote}`);
+      let leaveNote = '';
+      if (onLeave && leave) {
+        const lTime = leave.startTime && leave.endTime ? ` ${leave.startTime}–${leave.endTime}` : '';
+        leaveNote = ` ＋${leave.leaveTypeText || '請假'}${lTime}`;
+      }
+      lines.push(`${dayLabel} ${inD} → ${outD}${timeNote}${leaveNote}`);
     }
   }
 
