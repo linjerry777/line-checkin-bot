@@ -387,8 +387,8 @@ function updateOverview() {
   const today = getTodayLocalAdmin();
   const thisMonth = getThisMonthLocalAdmin();
 
-  // Total employees
-  document.getElementById('totalEmployees').textContent = allEmployees.length;
+  // Total employees (active only)
+  document.getElementById('totalEmployees').textContent = allEmployees.filter(e => e.status === 'active').length;
 
   // Today present (employees who checked in today)
   const todayCheckins = allRecords.filter(r => r.date === today && r.type === 'in');
@@ -496,14 +496,15 @@ function updateEmployeeList() {
   const today = getTodayLocalAdmin();
   const thisMonth = getThisMonthLocalAdmin();
 
-  count.textContent = `${allEmployees.length} 位員工`;
+  const activeEmpsForList = allEmployees.filter(e => e.status === 'active');
+  count.textContent = `${activeEmpsForList.length} 位員工`;
 
-  if (allEmployees.length === 0) {
+  if (activeEmpsForList.length === 0) {
     container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>尚無員工資料</p></div>';
     return;
   }
 
-  container.innerHTML = allEmployees.map(emp => {
+  container.innerHTML = activeEmpsForList.map(emp => {
     const empRecords = allRecords.filter(r => r.userId === emp.userId);
     const todayRecords = empRecords.filter(r => r.date === today);
     const hasCheckedIn = todayRecords.some(r => r.type === 'in');
@@ -545,6 +546,10 @@ function updateEmployeeList() {
             style="background:var(--bg2);color:var(--primary);border:none;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;">
             <i class="fas fa-calendar-week"></i>
           </button>
+          <button onclick="setEmpStatus('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','inactive')"
+            style="background:#FEF3C7;color:#92400E;border:none;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:11px;">停用</button>
+          <button onclick="setEmpStatus('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','resigned')"
+            style="background:#FEE2E2;color:#991B1B;border:none;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:11px;">離職</button>
           <div class="status-badge ${status}">
             ${status === 'present' ? '在班' : status === 'off' ? '已下班' : '未到'}
           </div>
@@ -552,6 +557,27 @@ function updateEmployeeList() {
       </div>
     `;
   }).join('');
+}
+
+// 設定員工狀態（停用 / 離職）
+async function setEmpStatus(userId, name, newStatus) {
+  const label = newStatus === 'inactive' ? '停用' : '離職';
+  if (!confirm(`確定要將「${name}」設為${label}？設定後將從管理介面隱藏。`)) return;
+  try {
+    const res = await fetch(`/api/admin?action=set-employee-status&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: userId, status: newStatus }),
+    });
+    if (res.ok) {
+      showToast(`已將 ${name} 設為${label}`, 'success');
+      await loadAllData();
+    } else {
+      showToast('操作失敗，請重試', 'error');
+    }
+  } catch (_) {
+    showToast('操作失敗，請重試', 'error');
+  }
 }
 
 // Helper: parse "HH:MM" or "HH:MM:SS" → total minutes

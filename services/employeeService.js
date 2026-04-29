@@ -253,6 +253,28 @@ async function activateEmployee(userId, name) {
 }
 
 /**
+ * 更新員工狀態（active / inactive / resigned）
+ */
+async function updateEmployeeStatus(userId, status) {
+  const allowed = ['active', 'inactive', 'resigned'];
+  if (!allowed.includes(status)) return { success: false, error: '無效的狀態值' };
+  try {
+    const employees = await getSheetData('員工資料!A:J');
+    if (!employees || employees.length <= 1) return { success: false, error: '找不到員工' };
+    for (let i = 1; i < employees.length; i++) {
+      if (employees[i][0] === userId) {
+        await updateSheetData(`員工資料!E${i + 1}`, [status]);
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到員工' };
+  } catch (error) {
+    console.error('更新員工狀態錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 取得所有 pending 員工
  */
 async function getPendingEmployees() {
@@ -276,6 +298,7 @@ module.exports = {
   updateEmployeeSchedule,
   updateEmployeeSalary,
   updateEmployeeInsurance,
+  updateEmployeeStatus,
   getEmployeeTodayShift,
   updateEmployeeShift: updateEmployeeSchedule,
 };
