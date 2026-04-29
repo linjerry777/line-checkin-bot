@@ -994,8 +994,15 @@ function calcEmpMonthSalary(emp, month) {
     let inManual = false, outManual = false;
     { let autoIn = null, autoOut = null, manIn = null, manOut = null;
       dayRecs.forEach(r => {
-        if (r.type === 'in')  { if (r.isManual) { manIn  = r; } else if (!autoIn)  { autoIn  = r; } }
-        if (r.type === 'out') { if (r.isManual) { manOut = r; } else                { autoOut = r; } }
+        // 同一天多筆打卡（分段上班）：保留最早的 in、最晚的 out
+        if (r.type === 'in') {
+          if (r.isManual) { if (!manIn  || parseMinutes(r.time) < parseMinutes(manIn.time))  manIn  = r; }
+          else            { if (!autoIn || parseMinutes(r.time) < parseMinutes(autoIn.time)) autoIn = r; }
+        }
+        if (r.type === 'out') {
+          if (r.isManual) { if (!manOut  || parseMinutes(r.time) > parseMinutes(manOut.time))  manOut  = r; }
+          else            { if (!autoOut || parseMinutes(r.time) > parseMinutes(autoOut.time)) autoOut = r; }
+        }
       });
       const inRec = manIn || autoIn; const outRec = manOut || autoOut;
       inStr = inRec?.time || null;  outStr = outRec?.time || null;
@@ -1229,8 +1236,15 @@ async function loadMonthGrid() {
     if (!recMap[r.userId]) recMap[r.userId] = {};
     if (!recMap[r.userId][r.date]) recMap[r.userId][r.date] = { aIn: null, aOut: null, mIn: null, mOut: null };
     const d = recMap[r.userId][r.date];
-    if (r.type === 'in')  { if (r.isManual) { d.mIn  = r; } else if (!d.aIn)  { d.aIn  = r; } }
-    if (r.type === 'out') { if (r.isManual) { d.mOut = r; } else               { d.aOut = r; } }
+    // 同一天多筆打卡（分段上班）：保留最早的 in、最晚的 out
+    if (r.type === 'in') {
+      if (r.isManual) { if (!d.mIn  || parseMinutes(r.time) < parseMinutes(d.mIn.time))  d.mIn  = r; }
+      else            { if (!d.aIn  || parseMinutes(r.time) < parseMinutes(d.aIn.time))  d.aIn  = r; }
+    }
+    if (r.type === 'out') {
+      if (r.isManual) { if (!d.mOut || parseMinutes(r.time) > parseMinutes(d.mOut.time)) d.mOut = r; }
+      else            { if (!d.aOut || parseMinutes(r.time) > parseMinutes(d.aOut.time)) d.aOut = r; }
+    }
   });
 
   // Build leaves map: userId → date → leave
