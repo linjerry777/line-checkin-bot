@@ -1841,6 +1841,7 @@ function openShiftEdit(userId, name) {
   sa.value = emp?.salaryAmount || '';
   updateSalaryLabel();
   modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
 function toggleDay(key) {
@@ -1859,6 +1860,7 @@ function toggleDay(key) {
 
 function closeShiftEdit() {
   document.getElementById('shiftEditModal').classList.remove('show');
+  document.body.style.overflow = '';
 }
 
 async function saveEmpName() {
