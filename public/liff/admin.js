@@ -1229,23 +1229,19 @@ async function loadMonthGrid() {
     return `${month}-${String(i + 1).padStart(2, '0')}`;
   });
 
-  // Build records map: userId → date → { aIn, aOut, mIn, mOut }
+  // Build records map: userId → date → records[] sorted by time
   const recMap = {};
   allRecords.forEach(r => {
     if (!r.date || !r.date.startsWith(month)) return;
     if (!recMap[r.userId]) recMap[r.userId] = {};
-    if (!recMap[r.userId][r.date]) recMap[r.userId][r.date] = { aIn: null, aOut: null, mIn: null, mOut: null };
-    const d = recMap[r.userId][r.date];
-    // 同一天多筆打卡（分段上班）：保留最早的 in、最晚的 out
-    if (r.type === 'in') {
-      if (r.isManual) { if (!d.mIn  || parseMinutes(r.time) < parseMinutes(d.mIn.time))  d.mIn  = r; }
-      else            { if (!d.aIn  || parseMinutes(r.time) < parseMinutes(d.aIn.time))  d.aIn  = r; }
-    }
-    if (r.type === 'out') {
-      if (r.isManual) { if (!d.mOut || parseMinutes(r.time) > parseMinutes(d.mOut.time)) d.mOut = r; }
-      else            { if (!d.aOut || parseMinutes(r.time) > parseMinutes(d.aOut.time)) d.aOut = r; }
-    }
+    if (!recMap[r.userId][r.date]) recMap[r.userId][r.date] = [];
+    recMap[r.userId][r.date].push(r);
   });
+  Object.values(recMap).forEach(byDate =>
+    Object.values(byDate).forEach(arr =>
+      arr.sort((a, b) => (parseMinutes(a.time) || 0) - (parseMinutes(b.time) || 0))
+    )
+  );
 
   // Build leaves map: userId → date → leave
   const leaveMap = {};
@@ -1300,13 +1296,11 @@ async function loadMonthGrid() {
       const holName = allHolidays.get(dt) || '國定假日';
       const leave = leaveMap[emp.userId]?.[dt];
 
-      const dayRec  = recMap[emp.userId]?.[dt];
-      const inRec   = dayRec ? (dayRec.mIn  || dayRec.aIn)  : null;
-      const outRec  = dayRec ? (dayRec.mOut || dayRec.aOut) : null;
-      const inTime  = inRec?.time  || null;
-      const outTime = outRec?.time || null;
-      const inManual  = !!(dayRec?.mIn);
-      const outManual = !!(dayRec?.mOut);
+      const dayRecs   = recMap[emp.userId]?.[dt] || [];
+      const inRecs    = dayRecs.filter(r => r.type === 'in');
+      const outRecs   = dayRecs.filter(r => r.type === 'out');
+      const inTime    = inRecs[0]?.time  || null;   // 最早 in（用於遲到判斷、補卡彈窗）
+      const outTime   = outRecs[outRecs.length - 1]?.time || null; // 最晚 out
 
       let bg = rowBg, cellContent = '';
 
@@ -1335,13 +1329,33 @@ async function loadMonthGrid() {
         if (!inTime || !outTime) bg = '#fff1f0';        // partial
         else if (isLate)         bg = '#fff7ed';        // late
         else                     bg = '#f0fdf4';        // normal
-        let partialLeaveHtml = '';
-        if (leave) {
-          const lShort = (leave.leaveTypeText||'假').slice(0,2);
-          const lTime  = leave.startTime && leave.endTime ? ` ${leave.startTime}–${leave.endTime}` : '';
-          partialLeaveHtml = `<span style="font-size:8px;color:#0891b2;font-weight:600;white-space:nowrap;">🏖️${lShort}${lTime}</span>`;
+        // 建立打卡對：in[0]→out[0], in[1]→out[1] ...
+        const pairCount = Math.max(inRecs.length, outRecs.length, 1);
+        const leaveLabel = leave
+          ? `<span style="font-size:8px;color:#0891b2;font-weight:600;white-space:nowrap;">🏖️${(leave.leaveTypeText||'假').slice(0,2)}${leave.startTime && leave.endTime ? ` ${leave.startTime}–${leave.endTime}` : ''}</span>`
+          : '';
+        const leaveStartMin = leave?.startTime ? parseMinutes(leave.startTime) : null;
+
+        let punchRows = '';
+        let leaveInserted = !leave; // no leave → already "done"
+        for (let i = 0; i < pairCount; i++) {
+          const ir = inRecs[i]  || null;
+          const or = outRecs[i] || null;
+          // insert leave label between pairs based on time order
+          if (!leaveInserted && leaveStartMin !== null) {
+            const prevOutMin = outRecs[i - 1] ? parseMinutes(outRecs[i - 1].time) : -1;
+            const curInMin  = ir ? parseMinutes(ir.time) : Infinity;
+            if (leaveStartMin >= prevOutMin && leaveStartMin <= curInMin) {
+              punchRows += leaveLabel;
+              leaveInserted = true;
+            }
+          }
+          if (i > 0) punchRows += `<div style="border-top:1px dashed #cbd5e1;width:100%;margin:1px 0;"></div>`;
+          punchRows += cellTimesHtml(ir?.time || null, or?.time || null, !!ir?.isManual, !!or?.isManual);
         }
-        cellContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;min-height:40px;gap:1px;">${cellTimesHtml(inTime, outTime, inManual, outManual)}${partialLeaveHtml}</div>`;
+        if (!leaveInserted) punchRows += leaveLabel; // leave with no time → append at end
+
+        cellContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;min-height:40px;gap:1px;">${punchRows}</div>`;
       }
 
       const safeIn   = (inTime  || '').replace(/'/g, "\\'");
