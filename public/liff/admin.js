@@ -1010,17 +1010,6 @@ function calcEmpMonthSalary(emp, month) {
       lateReason = inRec?.reason || ''; otReason = outRec?.reason || '';
     }
 
-    // Build punch pairs for multi-segment display (LINE msg / grid)
-    const sortedDay = [...dayRecs].sort((a, b) => (parseMinutes(a.time) || 0) - (parseMinutes(b.time) || 0));
-    const dayInRecs  = sortedDay.filter(r => r.type === 'in');
-    const dayOutRecs = sortedDay.filter(r => r.type === 'out');
-    const punchPairs = Array.from({ length: Math.max(dayInRecs.length, dayOutRecs.length, inStr ? 1 : 0) }, (_, pi) => ({
-      inStr:    dayInRecs[pi]?.time  || null,
-      outStr:   dayOutRecs[pi]?.time || null,
-      inManual: !!dayInRecs[pi]?.isManual,
-      outManual:!!dayOutRecs[pi]?.isManual,
-    }));
-
     const leave   = empLeaves.find(l => l.startDate <= dateStr && l.endDate >= dateStr) || null;
     const onLeave = !!leave;
 
@@ -1160,7 +1149,7 @@ function calcEmpMonthSalary(emp, month) {
 
     perDayData.push({
       dateStr, inStr, outStr, lateReason, otReason,
-      inManual, outManual, punchPairs,
+      inManual, outManual,
       shift, leave, onLeave,
       isHoliday, holidayName,
       otDetail, deductDetail, dailyPayStr, dayOTMin, workedBillableMin,
@@ -1366,7 +1355,7 @@ async function loadMonthGrid() {
         }
         if (!leaveInserted) punchRows += leaveLabel; // leave with no time → append at end
 
-        cellContent = `<div style="padding:4px 2px;min-height:40px;text-align:center;">${punchRows}</div>`;
+        cellContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;min-height:40px;gap:1px;">${punchRows}</div>`;
       }
 
       const safeIn   = (inTime  || '').replace(/'/g, "\\'");
@@ -1669,45 +1658,22 @@ function buildPayslipMessage(emp, sal, month) {
     } else if (hasShift && !inStr && !outStr) {
       lines.push(`${dayLabel} 🚫未到`);
     } else if (inStr || outStr) {
-      const pairs = (dd.punchPairs && dd.punchPairs.length > 0) ? dd.punchPairs : [{ inStr, outStr }];
-      const leaveStartMin = (onLeave && leave?.startTime) ? parseMinutes(leave.startTime) : null;
-      let leaveShown = !onLeave;
-
-      pairs.forEach((pair, pi) => {
-        const pIn  = pair.inStr  ? pair.inStr.slice(0, 5)  : '--';
-        const pOut = pair.outStr ? pair.outStr.slice(0, 5) : '--';
-
-        // Insert leave label between pairs at the right position
-        if (!leaveShown && pi > 0) {
-          const prevOutMin = pairs[pi - 1].outStr ? parseMinutes(pairs[pi - 1].outStr) : -1;
-          const curInMin   = pair.inStr ? parseMinutes(pair.inStr) : Infinity;
-          if (leaveStartMin === null || (leaveStartMin >= prevOutMin && leaveStartMin <= curInMin)) {
-            const lTime = leave.startTime && leave.endTime ? ` ${leave.startTime}–${leave.endTime}` : '';
-            lines.push(`     🏖️${leave.leaveTypeText || '請假'}${lTime}`);
-            leaveShown = true;
-          }
-        }
-
-        // OT / hours note only on last pair
-        let timeNote = '';
-        if (pi === pairs.length - 1) {
-          if (isMonthly) {
-            const roundedOTMin = Math.floor(dayOTMin / 30) * 30;
-            if (roundedOTMin > 0) timeNote = `（加班 ${formatHours(roundedOTMin)}）`;
-          } else {
-            const wMin = dd.workedBillableMin || 0;
-            if (wMin > 0) timeNote = `（${formatHours(wMin)}）`;
-          }
-        }
-
-        const prefix = pi === 0 ? dayLabel : '     ';
-        lines.push(`${prefix} ${pIn} → ${pOut}${timeNote}`);
-      });
-
-      if (!leaveShown) {
-        const lTime = leave?.startTime && leave?.endTime ? ` ${leave.startTime}–${leave.endTime}` : '';
-        lines.push(`     🏖️${leave?.leaveTypeText || '請假'}${lTime}`);
+      const inD  = inStr  ? inStr.slice(0, 5)  : '--';
+      const outD = outStr ? outStr.slice(0, 5) : '--';
+      let timeNote = '';
+      if (isMonthly) {
+        const roundedOTMin = Math.floor(dayOTMin / 30) * 30;
+        if (roundedOTMin > 0) timeNote = `（加班 ${formatHours(roundedOTMin)}）`;
+      } else {
+        const wMin = dd.workedBillableMin || 0;
+        if (wMin > 0) timeNote = `（${formatHours(wMin)}）`;
       }
+      let leaveNote = '';
+      if (onLeave && leave) {
+        const lTime = leave.startTime && leave.endTime ? ` ${leave.startTime}–${leave.endTime}` : '';
+        leaveNote = ` ＋${leave.leaveTypeText || '請假'}${lTime}`;
+      }
+      lines.push(`${dayLabel} ${inD} → ${outD}${timeNote}${leaveNote}`);
     }
   }
 
