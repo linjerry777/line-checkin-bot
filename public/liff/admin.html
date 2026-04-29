@@ -1485,7 +1485,17 @@
     <div class="shift-modal-sheet">
       <div class="shift-modal-handle"></div>
       <div class="shift-modal-title"><i class="fas fa-calendar-week"></i> 設定週班表</div>
-      <div id="shiftEditEmpName" class="shift-modal-sub"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div id="shiftEditEmpName" class="shift-modal-sub" style="margin:0;"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+          <input type="text" id="shiftEmpNameInput" class="form-input"
+            style="padding:6px 10px;font-size:13px;width:110px;border-radius:8px;"
+            placeholder="改名">
+          <button onclick="saveEmpName()" style="background:var(--primary);color:#fff;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap;">
+            <i class="fas fa-pen"></i> 改名
+          </button>
+        </div>
+      </div>
       <div class="schedule-grid">
         <div class="sch-header">
           <span class="sch-day-col"></span>

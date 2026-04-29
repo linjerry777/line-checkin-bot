@@ -253,6 +253,27 @@ async function activateEmployee(userId, name) {
 }
 
 /**
+ * 更新員工姓名（B 欄）
+ */
+async function updateEmployeeName(userId, name) {
+  if (!name || !name.trim()) return { success: false, error: '名稱不能為空' };
+  try {
+    const employees = await getSheetData('員工資料!A:J');
+    if (!employees || employees.length <= 1) return { success: false, error: '找不到員工' };
+    for (let i = 1; i < employees.length; i++) {
+      if (employees[i][0] === userId) {
+        await updateSheetData(`員工資料!B${i + 1}`, [name.trim()]);
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到員工' };
+  } catch (error) {
+    console.error('更新員工姓名錯誤:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 更新員工狀態（active / inactive / resigned）
  */
 async function updateEmployeeStatus(userId, status) {
@@ -299,6 +320,7 @@ module.exports = {
   updateEmployeeSalary,
   updateEmployeeInsurance,
   updateEmployeeStatus,
+  updateEmployeeName,
   getEmployeeTodayShift,
   updateEmployeeShift: updateEmployeeSchedule,
 };

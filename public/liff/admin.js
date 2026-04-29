@@ -546,8 +546,6 @@ function updateEmployeeList() {
             style="background:var(--bg2);color:var(--primary);border:none;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;">
             <i class="fas fa-calendar-week"></i>
           </button>
-          <button onclick="setEmpStatus('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','inactive')"
-            style="background:#FEF3C7;color:#92400E;border:none;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:11px;">停用</button>
           <button onclick="setEmpStatus('${emp.userId}','${emp.name.replace(/'/g,"\\'")}','resigned')"
             style="background:#FEE2E2;color:#991B1B;border:none;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:11px;">離職</button>
           <div class="status-badge ${status}">
@@ -1815,7 +1813,9 @@ function openShiftEdit(userId, name) {
   const schedule = emp?.weeklySchedule || {};
 
   document.getElementById('shiftEditEmpName').textContent = name;
-  modal.dataset.userId = userId;
+  document.getElementById('shiftEmpNameInput').value = '';
+  modal.dataset.userId   = userId;
+  modal.dataset.empName  = name;
 
   SCHEDULE_DAYS.forEach(key => {
     const val = schedule[key] || '';
@@ -1859,6 +1859,33 @@ function toggleDay(key) {
 
 function closeShiftEdit() {
   document.getElementById('shiftEditModal').classList.remove('show');
+}
+
+async function saveEmpName() {
+  const modal  = document.getElementById('shiftEditModal');
+  const userId = modal.dataset.userId;
+  const newName = document.getElementById('shiftEmpNameInput').value.trim();
+  if (!newName) { showToast('請輸入新名稱', 'error'); return; }
+  try {
+    const res = await fetch(`/api/admin?action=update-employee-name&userId=${userProfile.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: userId, name: newName }),
+    });
+    if (res.ok) {
+      const emp = allEmployees.find(e => e.userId === userId);
+      if (emp) emp.name = newName;
+      document.getElementById('shiftEditEmpName').textContent = newName;
+      document.getElementById('shiftEmpNameInput').value = '';
+      modal.dataset.empName = newName;
+      showToast(`名稱已更新為「${newName}」`, 'success');
+      updateEmployeeList();
+    } else {
+      showToast('改名失敗，請重試', 'error');
+    }
+  } catch (_) {
+    showToast('改名失敗，請重試', 'error');
+  }
 }
 
 async function saveShift() {
