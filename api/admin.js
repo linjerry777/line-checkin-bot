@@ -11,6 +11,7 @@ const {
   getPendingLeaves,
   applyLeave,
   reviewLeave,
+  calculateAnnualLeaveSummary,
 } = require('../services/leaveService');
 
 module.exports = async (req, res) => {
@@ -100,7 +101,25 @@ module.exports = async (req, res) => {
     switch (action) {
       case 'employees': {
         const employees = await getAllEmployees();
-        return res.status(200).json({ success: true, employees, total: employees.length });
+        const leaves = await getAllLeaves();
+        const employeesWithAnnualLeave = employees.map(employee => {
+          const annualLeaveSummary = calculateAnnualLeaveSummary(
+            employee,
+            leaves.filter(leave => leave.userId === employee.userId)
+          );
+          return {
+            ...employee,
+            annualLeaveRemainingDays: annualLeaveSummary.remainingDays,
+            annualLeaveAvailableDays: annualLeaveSummary.availableDays,
+            annualLeaveUsedDays: annualLeaveSummary.usedDays,
+            annualLeavePendingDays: annualLeaveSummary.pendingDays,
+            annualLeaveRemainingHours: annualLeaveSummary.remainingHours,
+            annualLeaveAvailableHours: annualLeaveSummary.availableHours,
+            annualLeaveCycleStartDate: annualLeaveSummary.cycleStartDate,
+            annualLeaveCycleEndDate: annualLeaveSummary.cycleEndDate,
+          };
+        });
+        return res.status(200).json({ success: true, employees: employeesWithAnnualLeave, total: employees.length });
       }
 
       case 'records': {
@@ -314,14 +333,19 @@ module.exports = async (req, res) => {
 
       case 'update-annual-leave': {
         if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-        const { targetUserId, annualLeaveStartDate, annualLeaveGrantDays, annualLeaveRemainingDays } = req.body;
+        const { targetUserId, annualLeaveStartDate, annualLeaveGrantDays } = req.body;
         if (!targetUserId) return res.status(400).json({ error: '缺少 targetUserId' });
+        const leaves = await getLeavesByUserId(targetUserId);
+        const annualLeaveSummary = calculateAnnualLeaveSummary({
+          annualLeaveStartDate,
+          annualLeaveGrantDays,
+        }, leaves);
         const result = await updateEmployeeAnnualLeave(targetUserId, {
           annualLeaveStartDate,
           annualLeaveGrantDays,
-          annualLeaveRemainingDays,
+          annualLeaveRemainingDays: annualLeaveSummary.remainingDays,
         });
-        return res.status(result.success ? 200 : 400).json(result);
+        return res.status(result.success ? 200 : 400).json({ ...result, annualLeaveSummary });
       }
 
       default:

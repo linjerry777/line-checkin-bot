@@ -32,6 +32,8 @@ const LEAVE_TYPES = {
   other:    '其他',
 };
 
+const ANNUAL_LEAVE_HOURS_PER_DAY = 8;
+
 async function getAllLeaves() {
   try {
     const data = await getSheetData(SHEET_RANGE);
@@ -51,6 +53,13 @@ async function getLeavesByUserId(userId) {
 async function getPendingLeaves() {
   const all = await getAllLeaves();
   return all.filter(l => l.status === 'pending');
+}
+
+async function getAnnualLeaveSummary(userId) {
+  const employee = await getEmployeeByUserId(userId);
+  if (!employee) return calculateAnnualLeaveSummary({}, []);
+  const leaves = await getLeavesByUserId(userId);
+  return calculateAnnualLeaveSummary(employee, leaves);
 }
 
 /**
@@ -77,13 +86,9 @@ async function applyLeave({ userId, employeeName, leaveType, startDate, endDate,
     const existing = await getLeavesByUserId(userId);
     if (leaveType === 'annual') {
       const employee = await getEmployeeByUserId(userId);
-      const remaining = Number(employee?.annualLeaveRemainingDays) || 0;
-      const pendingAnnualDays = existing
-        .filter(l => l.leaveType === 'annual' && l.status === 'pending')
-        .reduce((sum, l) => sum + (Number(l.days) || 0), 0);
-      const available = Math.max(0, remaining - pendingAnnualDays);
-      if (days > available) {
-        return { success: false, error: `特休餘額不足（剩餘 ${available} 天）` };
+      const annualLeaveSummary = calculateAnnualLeaveSummary(employee, existing);
+      if (days > annualLeaveSummary.availableDays) {
+        return { success: false, error: `特休餘額不足（可申請 ${formatAnnualLeaveDaysHours(annualLeaveSummary.availableDays)}）` };
       }
     }
 
@@ -128,10 +133,11 @@ async function reviewLeave({ leaveId, action, reviewerUserId, rejectReason }) {
 
     if (action === 'approve' && leave.leaveType === 'annual') {
       const employee = await getEmployeeByUserId(leave.userId);
-      const remaining = Number(employee?.annualLeaveRemainingDays) || 0;
+      const annualLeaveSummary = calculateAnnualLeaveSummary(employee, getLeavesFromRows(data, leave.userId));
+      const remaining = annualLeaveSummary.remainingDays;
       const leaveDays = Number(leave.days) || 0;
       if (leaveDays > remaining) {
-        return { success: false, error: `特休餘額不足（剩餘 ${remaining} 天）` };
+        return { success: false, error: `特休餘額不足（剩餘 ${formatAnnualLeaveDaysHours(remaining)}）` };
       }
     }
 
@@ -143,7 +149,8 @@ async function reviewLeave({ leaveId, action, reviewerUserId, rejectReason }) {
 
     if (newStatus === 'approved' && leave.leaveType === 'annual') {
       const employee = await getEmployeeByUserId(leave.userId);
-      const remaining = Math.max(0, (Number(employee?.annualLeaveRemainingDays) || 0) - (Number(leave.days) || 0));
+      const annualLeaveSummary = calculateAnnualLeaveSummary(employee, getLeavesFromRows(data, leave.userId));
+      const remaining = roundDays(Math.max(0, annualLeaveSummary.remainingDays - (Number(leave.days) || 0)));
       await updateEmployeeAnnualLeave(leave.userId, {
         annualLeaveStartDate: employee?.annualLeaveStartDate || '',
         annualLeaveGrantDays: employee?.annualLeaveGrantDays || 0,
@@ -181,6 +188,113 @@ function rowToLeave(row) {
   };
 }
 
+function getLeavesFromRows(rows, userId) {
+  if (!rows || rows.length <= 1) return [];
+  return rows.slice(1).map(rowToLeave).filter(l => l && l.userId === userId);
+}
+
+function normalizeDateString(value) {
+  const str = String(value || '').trim();
+  if (!str) return '';
+  if (/^\d{8}$/.test(str)) {
+    return `${str.slice(0, 4)}-${str.slice(4, 6)}-${str.slice(6, 8)}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  return '';
+}
+
+function getTodayDateString() {
+  const now = new Date();
+  const taiwanNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const yyyy = taiwanNow.getFullYear();
+  const mm = String(taiwanNow.getMonth() + 1).padStart(2, '0');
+  const dd = String(taiwanNow.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function addYearsToDateString(dateString, years) {
+  const date = new Date(`${dateString}T12:00:00`);
+  date.setFullYear(date.getFullYear() + years);
+  return date.toISOString().slice(0, 10);
+}
+
+function getAnnualLeaveCycle(startDate, today = getTodayDateString()) {
+  const normalizedStart = normalizeDateString(startDate);
+  const normalizedToday = normalizeDateString(today);
+  if (!normalizedStart || !normalizedToday) {
+    return { cycleStartDate: '', cycleEndDate: '' };
+  }
+
+  const [, startMonth, startDay] = normalizedStart.split('-');
+  const todayYear = parseInt(normalizedToday.slice(0, 4), 10);
+  let cycleStartDate = `${todayYear}-${startMonth}-${startDay}`;
+  if (cycleStartDate > normalizedToday) {
+    cycleStartDate = `${todayYear - 1}-${startMonth}-${startDay}`;
+  }
+  if (cycleStartDate < normalizedStart) {
+    cycleStartDate = normalizedStart;
+  }
+
+  return {
+    cycleStartDate,
+    cycleEndDate: addYearsToDateString(cycleStartDate, 1),
+  };
+}
+
+function roundDays(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+  return Math.round(num * 1000) / 1000;
+}
+
+function daysToHours(days) {
+  return Math.round(roundDays(days) * ANNUAL_LEAVE_HOURS_PER_DAY * 100) / 100;
+}
+
+function formatAnnualLeaveDaysHours(days) {
+  const totalHours = daysToHours(days);
+  const wholeDays = Math.floor(totalHours / ANNUAL_LEAVE_HOURS_PER_DAY);
+  const hours = Math.round((totalHours - wholeDays * ANNUAL_LEAVE_HOURS_PER_DAY) * 100) / 100;
+  if (wholeDays <= 0) return `${hours} 小時`;
+  if (hours <= 0) return `${wholeDays} 天`;
+  return `${wholeDays} 天 ${hours} 小時`;
+}
+
+function calculateAnnualLeaveSummary(employee = {}, leaves = [], today = getTodayDateString()) {
+  const grantDays = roundDays(employee.annualLeaveGrantDays || 0);
+  const { cycleStartDate, cycleEndDate } = getAnnualLeaveCycle(employee.annualLeaveStartDate, today);
+  const annualLeaves = leaves.filter(leave => {
+    if (!leave || leave.leaveType !== 'annual') return false;
+    if (!cycleStartDate || !cycleEndDate) return true;
+    const leaveDate = normalizeDateString(leave.startDate);
+    return leaveDate >= cycleStartDate && leaveDate < cycleEndDate;
+  });
+
+  const usedDays = roundDays(annualLeaves
+    .filter(leave => leave.status === 'approved')
+    .reduce((sum, leave) => sum + (Number(leave.days) || 0), 0));
+  const pendingDays = roundDays(annualLeaves
+    .filter(leave => leave.status === 'pending')
+    .reduce((sum, leave) => sum + (Number(leave.days) || 0), 0));
+  const remainingDays = roundDays(Math.max(0, grantDays - usedDays));
+  const availableDays = roundDays(Math.max(0, remainingDays - pendingDays));
+
+  return {
+    grantDays,
+    usedDays,
+    pendingDays,
+    remainingDays,
+    availableDays,
+    grantHours: daysToHours(grantDays),
+    usedHours: daysToHours(usedDays),
+    pendingHours: daysToHours(pendingDays),
+    remainingHours: daysToHours(remainingDays),
+    availableHours: daysToHours(availableDays),
+    cycleStartDate,
+    cycleEndDate,
+  };
+}
+
 function calcDays(startDate, endDate) {
   const start = new Date(startDate);
   const end   = new Date(endDate);
@@ -195,7 +309,10 @@ module.exports = {
   getAllLeaves,
   getLeavesByUserId,
   getPendingLeaves,
+  getAnnualLeaveSummary,
   applyLeave,
   reviewLeave,
+  calculateAnnualLeaveSummary,
+  formatAnnualLeaveDaysHours,
   LEAVE_TYPES,
 };

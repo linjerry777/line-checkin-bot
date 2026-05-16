@@ -1,4 +1,5 @@
 const employeeService = require('../../services/employeeService');
+const { getAnnualLeaveSummary } = require('../../services/leaveService');
 
 // Vercel Serverless Function - 取得員工資料
 module.exports = async (req, res) => {
@@ -28,9 +29,21 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
+    const annualLeaveSummary = await getAnnualLeaveSummary(userId);
+
     return res.status(200).json({
       success: true,
-      employee
+      employee: {
+        ...employee,
+        annualLeaveRemainingDays: annualLeaveSummary.remainingDays,
+        annualLeaveAvailableDays: annualLeaveSummary.availableDays,
+        annualLeaveUsedDays: annualLeaveSummary.usedDays,
+        annualLeavePendingDays: annualLeaveSummary.pendingDays,
+        annualLeaveRemainingHours: annualLeaveSummary.remainingHours,
+        annualLeaveAvailableHours: annualLeaveSummary.availableHours,
+        annualLeaveCycleStartDate: annualLeaveSummary.cycleStartDate,
+        annualLeaveCycleEndDate: annualLeaveSummary.cycleEndDate,
+      }
     });
 
   } catch (error) {

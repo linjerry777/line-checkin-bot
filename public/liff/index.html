@@ -144,7 +144,7 @@
     /* Stats row */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       position: relative;
       z-index: 1;
@@ -157,6 +157,7 @@
       border-radius: var(--radius-sm);
       padding: 14px 10px;
       text-align: center;
+      min-width: 0;
     }
 
     .stat-value {
@@ -172,6 +173,12 @@
       font-size: 11px;
       color: rgba(255,255,255,0.72);
       font-weight: 500;
+    }
+
+    #annualLeaveRemaining {
+      font-size: 18px;
+      white-space: normal;
+      word-break: keep-all;
     }
 
     /* ─── BOTTOM TAB NAV ─── */
@@ -673,6 +680,35 @@
     /* ─── LEAVE SYSTEM ─── */
     .leave-form-group { margin-bottom: 16px; }
 
+    .annual-leave-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .annual-leave-box {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+    }
+
+    .annual-leave-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .annual-leave-value {
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
     .leave-form-label {
       font-size: 12px;
       font-weight: 600;
@@ -903,8 +939,11 @@
     .fa-spin { animation: spin 1s linear infinite; }
 
     /* ─── RESPONSIVE ─── */
+    @media (max-width: 520px) {
+      .stats-grid  { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+    }
+
     @media (max-width: 375px) {
-      .stats-grid  { gap: 7px; }
       .stat-value  { font-size: 18px; }
       .stat-label  { font-size: 10px; }
       .checkin-btn { min-height: 112px; padding: 20px 10px 16px; }
@@ -1089,6 +1128,17 @@
         申請請假
       </div>
 
+      <div class="annual-leave-summary">
+        <div class="annual-leave-box">
+          <div class="annual-leave-label">剩餘特休</div>
+          <div class="annual-leave-value" id="annualLeaveRemainingInline">0 小時</div>
+        </div>
+        <div class="annual-leave-box">
+          <div class="annual-leave-label">可申請特休</div>
+          <div class="annual-leave-value" id="annualLeaveAvailableInline">0 小時</div>
+        </div>
+      </div>
+
       <div class="leave-form-group">
         <label class="leave-form-label">假別</label>
         <select id="leaveType" class="leave-select">
@@ -1219,6 +1269,6 @@
     setInterval(updateHeroClock, 15000);
   </script>
 
-  <script src="app.js?v=5.12"></script>
+  <script src="app.js?v=5.13"></script>
 </body>
 </html>

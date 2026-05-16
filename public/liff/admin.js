@@ -556,7 +556,7 @@ function updateEmployeeList() {
       schedLabel = Object.entries(groups).map(([time, days]) => `${days.join('')} ${time}`).join(' ｜ ');
     }
 
-    const annualLeaveText = `特休剩 ${formatAnnualLeaveDays(emp.annualLeaveRemainingDays)} 天`;
+    const annualLeaveText = `特休剩 ${formatAnnualLeaveDays(emp.annualLeaveRemainingDays, emp.annualLeaveRemainingHours)}`;
 
     return `
       <div class="employee-item">
@@ -581,10 +581,18 @@ function updateEmployeeList() {
   }).join('');
 }
 
-function formatAnnualLeaveDays(value) {
-  const num = parseFloat(value);
-  if (!Number.isFinite(num) || num <= 0) return '0';
-  return Number.isInteger(num) ? String(num) : String(Math.round(num * 10) / 10);
+function formatAnnualLeaveDays(value, hoursValue) {
+  const explicitHours = parseFloat(hoursValue);
+  const daysValue = parseFloat(value);
+  const totalHours = Number.isFinite(explicitHours)
+    ? explicitHours
+    : (Number.isFinite(daysValue) ? Math.round(daysValue * 8 * 100) / 100 : 0);
+  if (!Number.isFinite(totalHours) || totalHours <= 0) return '0 小時';
+  const wholeDays = Math.floor(totalHours / 8);
+  const hours = Math.round((totalHours - wholeDays * 8) * 100) / 100;
+  if (wholeDays <= 0) return `${hours} 小時`;
+  if (hours <= 0) return `${wholeDays} 天`;
+  return `${wholeDays} 天 ${hours} 小時`;
 }
 
 // 設定員工狀態（停用 / 離職）
@@ -1917,8 +1925,13 @@ function calculateNextAnnualLeaveGrantDate(startDate) {
 
 function updateAnnualLeavePreview() {
   const startDate = document.getElementById('annualLeaveStartDate')?.value || '';
+  const grantDays = parseFloat(document.getElementById('annualLeaveGrantDays')?.value) || 0;
+  const modal = document.getElementById('shiftEditModal');
+  const usedDays = parseFloat(modal?.dataset.annualLeaveUsedDays) || 0;
   const nextEl = document.getElementById('annualLeaveNextGrantDate');
+  const remainingEl = document.getElementById('annualLeaveRemainingDays');
   if (nextEl) nextEl.value = calculateNextAnnualLeaveGrantDate(startDate) || '未設定';
+  if (remainingEl) remainingEl.value = formatAnnualLeaveDays(Math.max(0, grantDays - usedDays));
 }
 
 function openShiftEdit(userId, name) {
@@ -1930,6 +1943,7 @@ function openShiftEdit(userId, name) {
   document.getElementById('shiftEmpNameInput').value = '';
   modal.dataset.userId   = userId;
   modal.dataset.empName  = name;
+  modal.dataset.annualLeaveUsedDays = emp?.annualLeaveUsedDays || 0;
 
   SCHEDULE_DAYS.forEach(key => {
     const val = schedule[key] || '';
@@ -1957,7 +1971,7 @@ function openShiftEdit(userId, name) {
 
   document.getElementById('annualLeaveStartDate').value = emp?.annualLeaveStartDate || '';
   document.getElementById('annualLeaveGrantDays').value = emp?.annualLeaveGrantDays || '';
-  document.getElementById('annualLeaveRemainingDays').value = emp?.annualLeaveRemainingDays || '';
+  document.getElementById('annualLeaveRemainingDays').value = formatAnnualLeaveDays(emp?.annualLeaveRemainingDays, emp?.annualLeaveRemainingHours);
   document.getElementById('annualLeaveNextGrantDate').value = emp?.annualLeaveNextGrantDate || calculateNextAnnualLeaveGrantDate(emp?.annualLeaveStartDate || '') || '未設定';
 
   modal.classList.add('show');
@@ -2017,7 +2031,6 @@ async function saveShift() {
   const salaryAmt  = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
   const annualLeaveStartDate = document.getElementById('annualLeaveStartDate').value || '';
   const annualLeaveGrantDays = parseFloat(document.getElementById('annualLeaveGrantDays').value) || 0;
-  const annualLeaveRemainingDays = parseFloat(document.getElementById('annualLeaveRemainingDays').value) || 0;
 
   const schedule = {};
   SCHEDULE_DAYS.forEach(key => {
@@ -2046,7 +2059,6 @@ async function saveShift() {
           targetUserId: userId,
           annualLeaveStartDate,
           annualLeaveGrantDays,
-          annualLeaveRemainingDays,
         }),
       }),
     ]);
@@ -2062,7 +2074,10 @@ async function saveShift() {
         emp.salaryAmount   = salaryAmt;
         emp.annualLeaveStartDate = annualLeaveStartDate;
         emp.annualLeaveGrantDays = annualLeaveGrantDays;
-        emp.annualLeaveRemainingDays = annualLeaveRemainingDays;
+        emp.annualLeaveRemainingDays = annualLeaveResult.annualLeaveSummary?.remainingDays ?? emp.annualLeaveRemainingDays;
+        emp.annualLeaveRemainingHours = annualLeaveResult.annualLeaveSummary?.remainingHours ?? emp.annualLeaveRemainingHours;
+        emp.annualLeaveAvailableDays = annualLeaveResult.annualLeaveSummary?.availableDays ?? emp.annualLeaveAvailableDays;
+        emp.annualLeaveAvailableHours = annualLeaveResult.annualLeaveSummary?.availableHours ?? emp.annualLeaveAvailableHours;
         emp.annualLeaveNextGrantDate = calculateNextAnnualLeaveGrantDate(annualLeaveStartDate);
       }
       closeShiftEdit();

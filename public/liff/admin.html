@@ -1606,14 +1606,14 @@
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label" style="font-size:12px;">剩餘特休天數</label>
-          <input type="number" id="annualLeaveRemainingDays" class="form-input" style="padding:8px 10px;font-size:13px;" placeholder="0" min="0" step="0.5">
+          <input type="text" id="annualLeaveRemainingDays" class="form-input" style="padding:8px 10px;font-size:13px;" value="0 小時" readonly>
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label" style="font-size:12px;">下次給假日</label>
           <input type="text" id="annualLeaveNextGrantDate" class="form-input" style="padding:8px 10px;font-size:13px;" value="未設定" disabled>
         </div>
       </div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:6px;">例：2026/01/01 到職、每年 7 天，下次給假日為 2027/01/01；未設定則員工端顯示 0 天。</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:6px;">剩餘特休由系統依已核准特休自動換算，1 天 = 8 小時；未設定則員工端顯示 0 小時。</div>
       </div><!-- end shift-modal-body -->
       <!-- 固定底部按鈕 -->
       <div class="shift-modal-footer">
@@ -1664,6 +1664,6 @@
     </div>
   </div>
 
-  <script src="admin.js?v=3.994"></script>
+  <script src="admin.js?v=3.995"></script>
 </body>
 </html>

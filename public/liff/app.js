@@ -115,16 +115,25 @@ function updateUserInfo() {
 }
 
 function formatAnnualLeaveDays(value) {
-  const num = parseFloat(value);
-  if (!Number.isFinite(num) || num <= 0) return '0天';
-  const rounded = Math.round(num * 10) / 10;
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded}天`;
+  const daysValue = parseFloat(value);
+  const totalHours = Number.isFinite(daysValue) ? Math.round(daysValue * 8 * 100) / 100 : 0;
+  if (totalHours <= 0) return '0小時';
+  const wholeDays = Math.floor(totalHours / 8);
+  const hours = Math.round((totalHours - wholeDays * 8) * 100) / 100;
+  if (wholeDays <= 0) return `${hours}小時`;
+  if (hours <= 0) return `${wholeDays}天`;
+  return `${wholeDays}天${hours}小時`;
 }
 
 function updateAnnualLeaveSummary() {
-  const el = document.getElementById('annualLeaveRemaining');
-  if (!el) return;
-  el.textContent = formatAnnualLeaveDays(employeeData?.annualLeaveRemainingDays || 0);
+  const remainingText = formatAnnualLeaveDays(employeeData?.annualLeaveRemainingDays || 0);
+  const availableText = formatAnnualLeaveDays(employeeData?.annualLeaveAvailableDays ?? employeeData?.annualLeaveRemainingDays ?? 0);
+  const topEl = document.getElementById('annualLeaveRemaining');
+  const inlineRemainingEl = document.getElementById('annualLeaveRemainingInline');
+  const inlineAvailableEl = document.getElementById('annualLeaveAvailableInline');
+  if (topEl) topEl.textContent = remainingText;
+  if (inlineRemainingEl) inlineRemainingEl.textContent = remainingText;
+  if (inlineAvailableEl) inlineAvailableEl.textContent = availableText;
 }
 
 // Update all statistics
@@ -762,6 +771,16 @@ const LEAVE_TYPE_TEXT = {
   other:    '其他',
 };
 
+function formatLeaveDuration(days) {
+  const num = parseFloat(days);
+  if (!Number.isFinite(num) || num <= 0) return '0小時';
+  const totalHours = Math.round(num * 8 * 100) / 100;
+  if (totalHours < 8) return `${totalHours}h（部分時段）`;
+  const wholeDays = Math.floor(totalHours / 8);
+  const hours = Math.round((totalHours - wholeDays * 8) * 100) / 100;
+  return hours > 0 ? `${wholeDays}天${hours}h` : `${wholeDays} 天`;
+}
+
 // Initialize leave form dates (default: today ~ today)
 function initLeaveForm() {
   const today = getTodayLocal();
@@ -806,7 +825,7 @@ async function loadMyLeaves() {
       const datesText  = leave.startDate === leave.endDate
         ? leave.startDate + timeLabel
         : `${leave.startDate} ~ ${leave.endDate}`;
-      const daysDisplay = leave.days < 1 ? `${leave.days * 8}h（部分時段）` : `${leave.days} 天`;
+      const daysDisplay = formatLeaveDuration(leave.days);
 
       return `
         <div class="leave-item">
@@ -877,11 +896,13 @@ async function submitLeave() {
     const result = await res.json();
 
     if (result.success) {
-      const daysLabel = result.days < 1 ? `${result.days * 8}h（部分時段）` : `${result.days} 天`;
+      const daysLabel = formatLeaveDuration(result.days);
       showToast(`請假申請成功（${daysLabel}），等待審核`, 'success');
       document.getElementById('leaveReason').value = '';
       document.getElementById('leaveStartTime').value = '';
       document.getElementById('leaveEndTime').value = '';
+      await loadEmployeeData();
+      updateAnnualLeaveSummary();
       await loadMyLeaves();
     } else {
       showToast(result.error || '申請失敗', 'error');

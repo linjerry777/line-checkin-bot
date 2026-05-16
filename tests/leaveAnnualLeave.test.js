@@ -28,7 +28,7 @@ require.cache[employeeServicePath] = {
   },
 };
 
-const { applyLeave, reviewLeave } = require('../services/leaveService');
+const { applyLeave, reviewLeave, calculateAnnualLeaveSummary } = require('../services/leaveService');
 
 async function run() {
   leaveRows = [['請假ID']];
@@ -75,8 +75,37 @@ async function run() {
     settings: {
       annualLeaveStartDate: '2026-01-01',
       annualLeaveGrantDays: 7,
-      annualLeaveRemainingDays: 1.5,
+      annualLeaveRemainingDays: 6.5,
     },
+  });
+
+  const summary = calculateAnnualLeaveSummary(
+    {
+      annualLeaveStartDate: '2026-01-01',
+      annualLeaveGrantDays: 7,
+    },
+    [
+      { leaveType: 'annual', status: 'approved', startDate: '2026-05-16', endDate: '2026-05-16', days: 0.125 },
+      { leaveType: 'annual', status: 'pending', startDate: '2026-05-17', endDate: '2026-05-17', days: 0.25 },
+      { leaveType: 'annual', status: 'rejected', startDate: '2026-05-18', endDate: '2026-05-18', days: 1 },
+      { leaveType: 'sick', status: 'approved', startDate: '2026-05-19', endDate: '2026-05-19', days: 1 },
+    ],
+    '2026-05-16'
+  );
+
+  assert.deepStrictEqual(summary, {
+    grantDays: 7,
+    usedDays: 0.125,
+    pendingDays: 0.25,
+    remainingDays: 6.875,
+    availableDays: 6.625,
+    grantHours: 56,
+    usedHours: 1,
+    pendingHours: 2,
+    remainingHours: 55,
+    availableHours: 53,
+    cycleStartDate: '2026-01-01',
+    cycleEndDate: '2027-01-01',
   });
 }
 
