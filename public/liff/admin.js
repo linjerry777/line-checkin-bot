@@ -406,17 +406,18 @@ async function loadPendingLeaveBadge() {
 function updateOverview() {
   const today = getTodayLocalAdmin();
   const thisMonth = getThisMonthLocalAdmin();
+  const activeIds = new Set(allEmployees.filter(e => e.status === 'active').map(e => e.userId));
 
   // Total employees (active only)
-  document.getElementById('totalEmployees').textContent = allEmployees.filter(e => e.status === 'active').length;
+  document.getElementById('totalEmployees').textContent = activeIds.size;
 
-  // Today present (employees who checked in today)
-  const todayCheckins = allRecords.filter(r => r.date === today && r.type === 'in');
+  // Today present (active employees who checked in today)
+  const todayCheckins = allRecords.filter(r => activeIds.has(r.userId) && r.date === today && r.type === 'in');
   const todayEmployeeIds = new Set(todayCheckins.map(r => r.userId));
   document.getElementById('todayPresent').textContent = todayEmployeeIds.size;
 
   // Month work days
-  const monthRecords = allRecords.filter(r => r.date.startsWith(thisMonth));
+  const monthRecords = allRecords.filter(r => activeIds.has(r.userId) && r.date.startsWith(thisMonth));
   const monthDays = new Set(monthRecords.map(r => r.date));
   document.getElementById('monthWorkDays').textContent = monthDays.size;
 
@@ -436,7 +437,7 @@ function updateTodayAttendance() {
   const today = getTodayLocalAdmin();
   const container = document.getElementById('todayAttendance');
 
-  const employeeStatus = allEmployees.map(emp => {
+  const employeeStatus = allEmployees.filter(e => e.status === 'active').map(emp => {
     const todayRecords = allRecords.filter(r => r.userId === emp.userId && r.date === today);
     const checkinRecord = todayRecords.find(r => r.type === 'in');
     const checkoutRecord = todayRecords.find(r => r.type === 'out');
@@ -471,6 +472,7 @@ function updateWeekStats() {
   const container = document.getElementById('weekStats');
   const today = new Date();
   const weekDays = [];
+  const activeIds = new Set(allEmployees.filter(e => e.status === 'active').map(e => e.userId));
 
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
@@ -482,7 +484,7 @@ function updateWeekStats() {
   }
 
   const weekData = weekDays.map(date => {
-    const dayRecords = allRecords.filter(r => r.date === date && r.type === 'in');
+    const dayRecords = allRecords.filter(r => activeIds.has(r.userId) && r.date === date && r.type === 'in');
     const uniqueEmployees = new Set(dayRecords.map(r => r.userId));
     return {
       date: date,
