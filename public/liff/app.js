@@ -111,6 +111,20 @@ function updateUserInfo() {
     avatarEl.src = userProfile.pictureUrl;
     avatarEl.style.display = 'block';
   }
+  updateAnnualLeaveSummary();
+}
+
+function formatAnnualLeaveDays(value) {
+  const num = parseFloat(value);
+  if (!Number.isFinite(num) || num <= 0) return '0天';
+  const rounded = Math.round(num * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded}天`;
+}
+
+function updateAnnualLeaveSummary() {
+  const el = document.getElementById('annualLeaveRemaining');
+  if (!el) return;
+  el.textContent = formatAnnualLeaveDays(employeeData?.annualLeaveRemainingDays || 0);
 }
 
 // Update all statistics

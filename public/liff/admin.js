@@ -556,12 +556,14 @@ function updateEmployeeList() {
       schedLabel = Object.entries(groups).map(([time, days]) => `${days.join('')} ${time}`).join(' ｜ ');
     }
 
+    const annualLeaveText = `特休剩 ${formatAnnualLeaveDays(emp.annualLeaveRemainingDays)} 天`;
+
     return `
       <div class="employee-item">
         <div class="employee-avatar">${emp.name.charAt(0)}</div>
         <div class="employee-info">
           <div class="employee-name">${emp.name}</div>
-          <div class="employee-stats" style="font-size:11px;">${schedLabel}</div>
+          <div class="employee-stats" style="font-size:11px;">${schedLabel} ｜ ${annualLeaveText}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button onclick="openShiftEdit('${emp.userId}','${emp.name}')"
@@ -577,6 +579,12 @@ function updateEmployeeList() {
       </div>
     `;
   }).join('');
+}
+
+function formatAnnualLeaveDays(value) {
+  const num = parseFloat(value);
+  if (!Number.isFinite(num) || num <= 0) return '0';
+  return Number.isInteger(num) ? String(num) : String(Math.round(num * 10) / 10);
 }
 
 // 設定員工狀態（停用 / 離職）
@@ -1897,6 +1905,22 @@ function updateSalaryLabel() {
   }
 }
 
+function calculateNextAnnualLeaveGrantDate(startDate) {
+  if (!startDate) return '';
+  const today = getTodayLocalAdmin();
+  const [, month, day] = startDate.split('-');
+  const todayYear = parseInt(today.slice(0, 4), 10);
+  let candidate = `${todayYear}-${month}-${day}`;
+  if (candidate <= today) candidate = `${todayYear + 1}-${month}-${day}`;
+  return candidate < startDate ? startDate : candidate;
+}
+
+function updateAnnualLeavePreview() {
+  const startDate = document.getElementById('annualLeaveStartDate')?.value || '';
+  const nextEl = document.getElementById('annualLeaveNextGrantDate');
+  if (nextEl) nextEl.value = calculateNextAnnualLeaveGrantDate(startDate) || '未設定';
+}
+
 function openShiftEdit(userId, name) {
   const modal = document.getElementById('shiftEditModal');
   const emp = allEmployees.find(e => e.userId === userId);
@@ -1930,6 +1954,12 @@ function openShiftEdit(userId, name) {
   st.value = emp?.salaryType  || '';
   sa.value = emp?.salaryAmount || '';
   updateSalaryLabel();
+
+  document.getElementById('annualLeaveStartDate').value = emp?.annualLeaveStartDate || '';
+  document.getElementById('annualLeaveGrantDays').value = emp?.annualLeaveGrantDays || '';
+  document.getElementById('annualLeaveRemainingDays').value = emp?.annualLeaveRemainingDays || '';
+  document.getElementById('annualLeaveNextGrantDate').value = emp?.annualLeaveNextGrantDate || calculateNextAnnualLeaveGrantDate(emp?.annualLeaveStartDate || '') || '未設定';
+
   modal.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
@@ -1985,6 +2015,9 @@ async function saveShift() {
   const userId     = modal.dataset.userId;
   const salaryType = document.getElementById('shiftSalaryType').value;
   const salaryAmt  = parseFloat(document.getElementById('shiftSalaryAmount').value) || 0;
+  const annualLeaveStartDate = document.getElementById('annualLeaveStartDate').value || '';
+  const annualLeaveGrantDays = parseFloat(document.getElementById('annualLeaveGrantDays').value) || 0;
+  const annualLeaveRemainingDays = parseFloat(document.getElementById('annualLeaveRemainingDays').value) || 0;
 
   const schedule = {};
   SCHEDULE_DAYS.forEach(key => {
@@ -1995,7 +2028,7 @@ async function saveShift() {
   });
 
   try {
-    const [shiftRes, salaryRes] = await Promise.all([
+    const [shiftRes, salaryRes, annualLeaveRes] = await Promise.all([
       fetch(`/api/admin?action=update-employee-shift&userId=${userProfile.userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2006,22 +2039,37 @@ async function saveShift() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUserId: userId, salaryType, salaryAmount: salaryAmt }),
       }),
+      fetch(`/api/admin?action=update-annual-leave&userId=${userProfile.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          annualLeaveStartDate,
+          annualLeaveGrantDays,
+          annualLeaveRemainingDays,
+        }),
+      }),
     ]);
     const shiftResult  = await shiftRes.json();
     const salaryResult = await salaryRes.json();
+    const annualLeaveResult = await annualLeaveRes.json();
 
-    if (shiftResult.success && salaryResult.success) {
+    if (shiftResult.success && salaryResult.success && annualLeaveResult.success) {
       const emp = allEmployees.find(e => e.userId === userId);
       if (emp) {
         emp.weeklySchedule = schedule;
         emp.salaryType     = salaryType;
         emp.salaryAmount   = salaryAmt;
+        emp.annualLeaveStartDate = annualLeaveStartDate;
+        emp.annualLeaveGrantDays = annualLeaveGrantDays;
+        emp.annualLeaveRemainingDays = annualLeaveRemainingDays;
+        emp.annualLeaveNextGrantDate = calculateNextAnnualLeaveGrantDate(annualLeaveStartDate);
       }
       closeShiftEdit();
-      showToast('週班表與薪資設定已儲存', 'success');
+      showToast('週班表、薪資與特休設定已儲存', 'success');
       updateEmployeeList();
     } else {
-      showToast((shiftResult.error || salaryResult.error) || '儲存失敗', 'error');
+      showToast((shiftResult.error || salaryResult.error || annualLeaveResult.error) || '儲存失敗', 'error');
     }
   } catch (e) {
     showToast('儲存失敗，請稍後再試', 'error');

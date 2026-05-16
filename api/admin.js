@@ -1,5 +1,5 @@
 // Admin API - Unified endpoint for all admin + leave functions
-const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule, updateEmployeeSalary, updateEmployeeInsurance, updateEmployeeStatus, updateEmployeeName, getPendingEmployees, activateEmployee, adminAddEmployee } = require('../services/employeeService');
+const { getAllEmployees, getEmployeeByUserId, updateEmployeeSchedule, updateEmployeeSalary, updateEmployeeInsurance, updateEmployeeAnnualLeave, updateEmployeeStatus, updateEmployeeName, getPendingEmployees, activateEmployee, adminAddEmployee } = require('../services/employeeService');
 const { getSheetData, appendToSheet } = require('../config/googleSheets');
 const { getLateEarlyStats, getMonthHoursRanking } = require('../services/statsService');
 const { getAllSettings, updateSettings, validateSettings } = require('../services/settingsService');
@@ -309,6 +309,18 @@ module.exports = async (req, res) => {
         const { targetUserId, salaryType, salaryAmount } = req.body;
         if (!targetUserId) return res.status(400).json({ error: '缺少 targetUserId' });
         const result = await updateEmployeeSalary(targetUserId, salaryType || '', salaryAmount || 0);
+        return res.status(result.success ? 200 : 400).json(result);
+      }
+
+      case 'update-annual-leave': {
+        if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+        const { targetUserId, annualLeaveStartDate, annualLeaveGrantDays, annualLeaveRemainingDays } = req.body;
+        if (!targetUserId) return res.status(400).json({ error: '缺少 targetUserId' });
+        const result = await updateEmployeeAnnualLeave(targetUserId, {
+          annualLeaveStartDate,
+          annualLeaveGrantDays,
+          annualLeaveRemainingDays,
+        });
         return res.status(result.success ? 200 : 400).json(result);
       }
 

@@ -1,4 +1,5 @@
 const { getSheetData, appendToSheet, updateSheetData } = require('../config/googleSheets');
+const { getEmployeeByUserId, updateEmployeeAnnualLeave } = require('./employeeService');
 
 /**
  * 請假服務 - 使用 Google Sheets「請假紀錄」工作表
@@ -74,6 +75,18 @@ async function applyLeave({ userId, employeeName, leaveType, startDate, endDate,
     if (days <= 0) return { success: false, error: '結束時間必須晚於開始時間' };
 
     const existing = await getLeavesByUserId(userId);
+    if (leaveType === 'annual') {
+      const employee = await getEmployeeByUserId(userId);
+      const remaining = Number(employee?.annualLeaveRemainingDays) || 0;
+      const pendingAnnualDays = existing
+        .filter(l => l.leaveType === 'annual' && l.status === 'pending')
+        .reduce((sum, l) => sum + (Number(l.days) || 0), 0);
+      const available = Math.max(0, remaining - pendingAnnualDays);
+      if (days > available) {
+        return { success: false, error: `特休餘額不足（剩餘 ${available} 天）` };
+      }
+    }
+
     const conflict = existing.find(l =>
       l.status !== 'rejected' && datesOverlap(l.startDate, l.endDate, startDate, endDate)
     );
@@ -108,11 +121,35 @@ async function reviewLeave({ leaveId, action, reviewerUserId, rejectReason }) {
     }
     if (rowIndex === -1) return { success: false, error: '找不到此請假申請' };
 
+    const leave = rowToLeave(data[rowIndex - 1]);
+    if (leave.status !== 'pending') {
+      return { success: false, error: '此請假申請已審核' };
+    }
+
+    if (action === 'approve' && leave.leaveType === 'annual') {
+      const employee = await getEmployeeByUserId(leave.userId);
+      const remaining = Number(employee?.annualLeaveRemainingDays) || 0;
+      const leaveDays = Number(leave.days) || 0;
+      if (leaveDays > remaining) {
+        return { success: false, error: `特休餘額不足（剩餘 ${remaining} 天）` };
+      }
+    }
+
     const now = new Date().toISOString();
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
     await updateSheetData(`${SHEET_NAME}!I${rowIndex}:L${rowIndex}`, [
       newStatus, reviewerUserId, now, rejectReason || '',
     ]);
+
+    if (newStatus === 'approved' && leave.leaveType === 'annual') {
+      const employee = await getEmployeeByUserId(leave.userId);
+      const remaining = Math.max(0, (Number(employee?.annualLeaveRemainingDays) || 0) - (Number(leave.days) || 0));
+      await updateEmployeeAnnualLeave(leave.userId, {
+        annualLeaveStartDate: employee?.annualLeaveStartDate || '',
+        annualLeaveGrantDays: employee?.annualLeaveGrantDays || 0,
+        annualLeaveRemainingDays: remaining,
+      });
+    }
     return { success: true, status: newStatus };
   } catch (error) {
     console.error('審核請假失敗:', error);

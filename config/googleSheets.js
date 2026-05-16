@@ -168,11 +168,11 @@ async function createSheetHeaders(spreadsheetId, sheetName) {
       headers = [['日期', '時間', '員工姓名', '類型', 'LINE User ID', '完整時間戳記']];
       range = '打卡紀錄!A1:F1';
     } else if (sheetName === '員工資料') {
-      headers = [['LINE User ID', '員工姓名', 'LINE 顯示名稱', '註冊時間', '狀態']];
-      range = '員工資料!A1:E1';
+      headers = [['LINE User ID', '員工姓名', 'LINE 顯示名稱', '註冊時間', '狀態', '角色', '週班表', '薪資類型', '薪資金額', '勞健保月扣', '特休起算日', '每年特休天數', '剩餘特休天數']];
+      range = '員工資料!A1:M1';
     } else if (sheetName === '請假紀錄') {
-      headers = [['請假ID', '員工ID', '員工姓名', '假別', '開始日期', '結束日期', '天數', '原因', '狀態', '審核者ID', '審核時間', '拒絕原因', '申請時間']];
-      range = '請假紀錄!A1:M1';
+      headers = [['請假ID', '員工ID', '員工姓名', '假別', '開始日期', '結束日期', '天數', '原因', '狀態', '審核者ID', '審核時間', '拒絕原因', '申請時間', '開始時間', '結束時間']];
+      range = '請假紀錄!A1:O1';
     } else {
       throw new Error(`未知的工作表: ${sheetName}`);
     }

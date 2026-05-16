@@ -44,7 +44,7 @@ async function createLeaveSheet() {
             addSheet: {
               properties: {
                 title: '請假紀錄',
-                gridProperties: { rowCount: 1000, columnCount: 13 },
+                gridProperties: { rowCount: 1000, columnCount: 15 },
               }
             }
           }]
@@ -59,12 +59,13 @@ async function createLeaveSheet() {
     const headers = [
       '請假ID', '員工ID', '員工姓名', '假別',
       '開始日期', '結束日期', '天數', '原因',
-      '狀態', '審核者ID', '審核時間', '拒絕原因', '申請時間'
+      '狀態', '審核者ID', '審核時間', '拒絕原因', '申請時間',
+      '開始時間', '結束時間'
     ];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: '請假紀錄!A1:M1',
+      range: '請假紀錄!A1:O1',
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [headers] },
     });
