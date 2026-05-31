@@ -10,9 +10,23 @@ function run() {
       shiftStartMinutes: 18 * 60 + 30,
       shiftEndMinutes: 21 * 60,
       hasShift: true,
+      toleranceMinutes: 10,
     }),
     150,
-    'scheduled hourly staff should only be paid for time inside the shift'
+    'scheduled hourly staff should not count early/late work below a 30-minute overtime unit'
+  );
+
+  assert.strictEqual(
+    getHourlyBillableMinutes({
+      inMinutes: 18 * 60 + 32,
+      outMinutes: 21 * 60 + 44,
+      shiftStartMinutes: 18 * 60 + 30,
+      shiftEndMinutes: 21 * 60,
+      hasShift: true,
+      toleranceMinutes: 10,
+    }),
+    180,
+    'scheduled hourly staff should treat tolerated lateness as on time and count billable late stay'
   );
 
   assert.strictEqual(
@@ -22,9 +36,10 @@ function run() {
       shiftStartMinutes: 18 * 60 + 30,
       shiftEndMinutes: 21 * 60,
       hasShift: true,
+      toleranceMinutes: 10,
     }),
     120,
-    'scheduled hourly staff still floors paid shift-overlap time to 30-minute units'
+    'scheduled hourly staff should only lose time after the lateness tolerance is exceeded'
   );
 
   assert.strictEqual(

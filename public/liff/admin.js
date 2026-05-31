@@ -1076,6 +1076,7 @@ function calcEmpMonthSalary(emp, month) {
           shiftStartMinutes: ss,
           shiftEndMinutes: se,
           hasShift,
+          toleranceMinutes: adminSettings.lateThreshold,
         })
         : (aOut !== null && aOut > aIn ? Math.floor((aOut - aIn) / 30) * 30 : 0);
 
@@ -1091,7 +1092,7 @@ function calcEmpMonthSalary(emp, month) {
         // 早到與延後各自獨立計算30分鐘單位，不滿30分不計入
         const earlyArrBillable = Math.floor(earlyArr / 30) * 30;
         const lateStayBillable = Math.floor(lateStay / 30) * 30;
-        dayOTMin = salaryType === 'hourly' ? 0 : earlyArrBillable + lateStayBillable;
+        dayOTMin = earlyArrBillable + lateStayBillable;
         totalOvertimeMin += dayOTMin;
 
         // OT pay + detail (monthly only, 30-min floor unit; hourly uses pure worked×rate)
