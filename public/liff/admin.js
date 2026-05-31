@@ -1065,14 +1065,22 @@ function calcEmpMonthSalary(emp, month) {
     } else if (inStr) {
       const aIn  = parseMinutes(inStr);
       const aOut = outStr ? parseMinutes(outStr) : null;
-      workedBillableMin = aOut !== null && aOut > aIn ? Math.floor((aOut - aIn) / 30) * 30 : 0;
       const hasShift = !!(shift && shift.start && shift.end);
       const isOffDay = shift === null;
+      const ss = hasShift ? parseMinutes(shift.start) : null;
+      const se = hasShift ? parseMinutes(shift.end) : null;
+      workedBillableMin = salaryType === 'hourly'
+        ? LineCheckinAdminSalaryLogic.getHourlyBillableMinutes({
+          inMinutes: aIn,
+          outMinutes: aOut,
+          shiftStartMinutes: ss,
+          shiftEndMinutes: se,
+          hasShift,
+        })
+        : (aOut !== null && aOut > aIn ? Math.floor((aOut - aIn) / 30) * 30 : 0);
 
       if (hasShift) {
         // ── Normal scheduled work day ─────────────────────────────────
-        const ss = parseMinutes(shift.start);
-        const se = parseMinutes(shift.end);
         totalRegularMin += (se - ss);
 
         const T = adminSettings.lateThreshold; // tolerance (minutes)
@@ -1083,7 +1091,7 @@ function calcEmpMonthSalary(emp, month) {
         // 早到與延後各自獨立計算30分鐘單位，不滿30分不計入
         const earlyArrBillable = Math.floor(earlyArr / 30) * 30;
         const lateStayBillable = Math.floor(lateStay / 30) * 30;
-        dayOTMin = earlyArrBillable + lateStayBillable;
+        dayOTMin = salaryType === 'hourly' ? 0 : earlyArrBillable + lateStayBillable;
         totalOvertimeMin += dayOTMin;
 
         // OT pay + detail (monthly only, 30-min floor unit; hourly uses pure worked×rate)
@@ -1158,10 +1166,8 @@ function calcEmpMonthSalary(emp, month) {
         const net = Math.round(dailyRate) + dayOTPay - dayDeduction;
         dailyPayStr = `NT$${net}`;
       } else if (salaryType === 'hourly' && salaryAmount > 0) {
-        const workedMin   = aOut !== null && aOut > aIn ? aOut - aIn : 0;
-        const billableMin = Math.floor(workedMin / 30) * 30; // 30分鐘為一單位，捨去不足30分
-        totalWorkedMin += billableMin;
-        dailyPayStr = `NT$${Math.round((billableMin / 60) * salaryAmount)}`;
+        totalWorkedMin += workedBillableMin;
+        dailyPayStr = `NT$${Math.round((workedBillableMin / 60) * salaryAmount)}`;
       }
     }
 
